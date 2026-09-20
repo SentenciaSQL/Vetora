@@ -11,4 +11,5 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
     List<Branch> findByTenantIdAndActiveTrue(Long tenantId);
     Optional<Branch> findByIdAndTenantId(Long id, Long tenantId);
     long countByTenantId(Long tenantId);
+    long countByTenantIdAndActiveTrue(Long tenantId);
 }

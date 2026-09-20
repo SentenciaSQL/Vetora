@@ -89,7 +89,12 @@ public class SubscriptionSyncService {
             case "trialing" -> applyTrialing(subscription, paddleSub);
             case "past_due" -> enterGracePeriod(subscription);
             case "canceled", "cancelled" -> applyCanceled(subscription, paddleSub);
-            case "paused" -> suspend(subscription, "Paddle subscription paused");
+            case "paused" -> {
+                subscription.setStatus(SubscriptionStatuses.PAUSED);
+                subscription.getTenant().setStatus(SubscriptionStatuses.SUSPENDED);
+                auditService.record(subscription.getTenant().getId(), null, "paddle", "PAUSE", "SUBSCRIPTION",
+                        subscription.getId(), "Paddle subscription paused", paddleStatus, SubscriptionStatuses.PAUSED);
+            }
             default -> log.info("Unhandled Paddle subscription status {}", paddleStatus);
         }
     }
@@ -216,9 +221,9 @@ public class SubscriptionSyncService {
     }
 
     private void applyTrialing(Subscription subscription, PaddleDtos.Subscription paddleSub) {
-        subscription.setStatus(SubscriptionStatuses.TRIAL);
+        subscription.setStatus(SubscriptionStatuses.TRIALING);
         subscription.setTrial(true);
-        subscription.getTenant().setStatus(SubscriptionStatuses.TRIAL);
+        subscription.getTenant().setStatus(SubscriptionStatuses.TRIALING);
         if (paddleSub.startedAt() != null) {
             subscription.setStartedAt(paddleSub.startedAt());
         }

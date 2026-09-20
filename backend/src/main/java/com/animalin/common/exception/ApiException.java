@@ -45,6 +45,14 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.FORBIDDEN, "TENANT_SUBSCRIPTION_SUSPENDED", message, details);
     }
 
+    public static ApiException planLimitReached(String message, Map<String, Object> details) {
+        return new ApiException(HttpStatus.CONFLICT, "PLAN_LIMIT_REACHED", message, details);
+    }
+
+    public static ApiException planFeatureUnavailable(String message, Map<String, Object> details) {
+        return new ApiException(HttpStatus.FORBIDDEN, "PLAN_FEATURE_NOT_AVAILABLE", message, details);
+    }
+
     public HttpStatus getStatus() {
         return status;
     }

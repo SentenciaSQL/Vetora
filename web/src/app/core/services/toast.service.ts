@@ -17,6 +17,11 @@ export class ToastService {
     setTimeout(() => this.dismiss(toast.id), 4200);
   }
 
+  showHttpError(error: unknown, fallback = 'common.error'): void {
+    const body = (error as { error?: { message?: string; code?: string } })?.error;
+    this.show(body?.message || fallback, true);
+  }
+
   dismiss(id: number): void {
     this.toasts.update(list => list.filter(item => item.id !== id));
   }

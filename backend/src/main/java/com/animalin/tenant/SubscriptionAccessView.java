@@ -6,4 +6,6 @@ public interface SubscriptionAccessView {
     String getStatus();
     Instant getGracePeriodEndsAt();
     Instant getSuspendedAt();
+    Instant getCurrentPeriodEndsAt();
+    Instant getScheduledChangeEffectiveAt();
 }

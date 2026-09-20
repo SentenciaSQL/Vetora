@@ -21,4 +21,6 @@ public interface VeterinarianRepository extends JpaRepository<Veterinarian, Long
     Optional<Veterinarian> findByTenantIdAndUserId(Long tenantId, Long userId);
 
     long countByTenantId(Long tenantId);
+
+    long countByTenantIdAndStatus(Long tenantId, String status);
 }

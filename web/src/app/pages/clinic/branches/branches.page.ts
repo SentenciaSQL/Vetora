@@ -51,7 +51,7 @@ export class BranchesPage implements OnInit {
   save() {
     this.api.post('/branches', this.form.value).subscribe({
       next: () => { this.toast.show('common.saved'); this.open = false; this.ngOnInit(); },
-      error: () => this.toast.show('common.error', true)
+      error: (e) => this.toast.show(e.error?.message || 'common.error', true)
     });
   }
 }

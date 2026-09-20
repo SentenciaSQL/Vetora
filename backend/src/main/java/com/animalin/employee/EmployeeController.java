@@ -122,6 +122,9 @@ public class EmployeeController {
             employee.setBranchId(request.branchId());
         }
         if (request.status() != null) {
+            if ("ACTIVE".equals(request.status()) && !"ACTIVE".equals(employee.getStatus())) {
+                planLimitService.assertCanAddStaffUser(employee.getTenantId());
+            }
             employee.setStatus(request.status());
         }
         if (request.phone() != null) {
