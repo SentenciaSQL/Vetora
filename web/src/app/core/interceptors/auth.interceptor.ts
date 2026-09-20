@@ -1,12 +1,15 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { ApiErrorBody } from '../models';
 
 let refreshing = false;
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
+  const router = inject(Router);
   const token = auth.accessToken();
   const isAuthCall = req.url.includes('/auth/login')
     || req.url.includes('/auth/register')
@@ -22,6 +25,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authorized).pipe(
     catchError((error: HttpErrorResponse) => {
+      const body = error.error as ApiErrorBody | undefined;
+      if (error.status === 403 && body?.code === 'TENANT_SUBSCRIPTION_SUSPENDED' && !router.url.startsWith('/billing')) {
+        void router.navigate(['/billing']);
+        return throwError(() => error);
+      }
       if (error.status !== 401 || isAuthCall || refreshing || !auth.refreshToken()) {
         return throwError(() => error);
       }

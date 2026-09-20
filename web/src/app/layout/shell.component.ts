@@ -1,10 +1,12 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { debounceTime, distinctUntilChanged, filter, Subject } from 'rxjs';
 import { AuthService } from '../core/services/auth.service';
 import { BrandingService } from '../core/services/branding.service';
+import { BillingService } from '../core/services/billing.service';
 import { ApiService } from '../core/services/api.service';
 import { SearchResult } from '../core/models';
 import { BrandMarkComponent } from '../shared/ui/brand-mark.component';
@@ -23,7 +25,7 @@ interface NavItem {
 @Component({
   standalone: true,
   imports: [
-    RouterOutlet, RouterLink, RouterLinkActive, FormsModule, TranslatePipe,
+    RouterOutlet, RouterLink, RouterLinkActive, FormsModule, TranslatePipe, DatePipe,
     BrandMarkComponent, LanguageSelectorComponent, ThemeSelectorComponent, NavIconComponent
   ],
   template: `
@@ -104,6 +106,17 @@ interface NavItem {
           </div>
         </header>
 
+        @if (billing.isGracePeriod() && !billing.isSuspended()) {
+          <a routerLink="/billing" class="block border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
+            {{ 'billing.graceBanner' | translate:{ date: (billing.subscription()?.gracePeriodEndsAt | date:'mediumDate') } }}
+          </a>
+        }
+        @if (billing.isSuspended()) {
+          <a routerLink="/billing" class="block border-b border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-100">
+            {{ 'billing.suspendedBanner' | translate }}
+          </a>
+        }
+
         @if (mobileOpen()) {
           <div class="border-b border-slate-200 bg-white p-3 lg:hidden dark:border-white/10 dark:bg-slate-900">
             @for (item of visibleNav(); track item.path) {
@@ -135,6 +148,7 @@ interface NavItem {
 export class ShellComponent implements OnInit {
   auth = inject(AuthService);
   branding = inject(BrandingService);
+  billing = inject(BillingService);
   private api = inject(ApiService);
   private router = inject(Router);
   collapsed = signal(false);
@@ -162,6 +176,7 @@ export class ShellComponent implements OnInit {
     { path: '/branches', label: 'nav.branches', icon: 'branches', roles: ['TENANT_ADMIN'] },
     { path: '/services', label: 'nav.services', icon: 'services', roles: ['TENANT_ADMIN'] },
     { path: '/messages', label: 'nav.messages', icon: 'messages' },
+    { path: '/billing', label: 'nav.billing', icon: 'subscriptions', roles: ['TENANT_ADMIN'] },
     { path: '/reports', label: 'nav.reports', icon: 'reports', permission: 'REPORT_VIEW' },
     { path: '/settings', label: 'nav.settings', icon: 'settings', roles: ['TENANT_ADMIN'] },
     { path: '/audit', label: 'nav.audit', icon: 'audit', roles: ['TENANT_ADMIN'] },
@@ -175,6 +190,9 @@ export class ShellComponent implements OnInit {
   ];
 
   visibleNav = computed(() => this.nav.filter(item => {
+    if (this.billing.isSuspended() && !['/billing', '/profile'].includes(item.path)) {
+      return false;
+    }
     if (item.roles && !this.auth.hasAnyRole(...item.roles)) {
       return false;
     }
@@ -189,6 +207,13 @@ export class ShellComponent implements OnInit {
 
   ngOnInit(): void {
     this.branding.loadForSession();
+    if (this.auth.isStaff() && !this.auth.isSuperAdmin()) {
+      this.billing.loadSubscription().subscribe(sub => {
+        if (sub.suspended && !this.router.url.startsWith('/billing')) {
+          void this.router.navigate(['/billing']);
+        }
+      });
+    }
     if (this.auth.isStaff()) {
       this.api.get<{ count: number }>('/notifications/unread-count').subscribe(r => this.unread.set(r.count || 0));
     }
