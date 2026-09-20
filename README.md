@@ -1,4 +1,4 @@
-# Vetora
+# Animexa
 
 Plataforma SaaS multi-tenant para clínicas veterinarias y propietarios de mascotas.
 
@@ -47,7 +47,7 @@ La base por defecto es `animalin` con usuario y contraseña `postgres`.
 - `SUPER_ADMIN` no opera datos clínicos de un tenant.
 - Los repositorios y `AccessGuard` filtran siempre por tenant. Un ID de otra clínica responde **404**, no 403, para no filtrar existencia.
 - Recurso de ejemplo: `GET /api/v1/pets` (el backend aplica el tenant). No usar `/tenants/{id}/pets` para personal autenticado.
-- Branding dinámico: `GET /api/v1/settings/branding` (sesión) y `GET /api/v1/public/tenants/{slug}/branding` (login de clínica). Si no hay logo, Angular y Flutter muestran la marca Vetora.
+- Branding dinámico: `GET /api/v1/settings/branding` (sesión) y `GET /api/v1/public/tenants/{slug}/branding` (login de clínica). Si no hay logo, Angular y Flutter muestran la marca Animexa.
 
 ## Roles
 
