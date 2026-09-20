@@ -1,11 +1,16 @@
 package com.animalin;
 
 import com.animalin.auth.AuthDtos;
+import com.animalin.billing.SubscriptionStatuses;
+import com.animalin.employee.Employee;
+import com.animalin.employee.EmployeeRepository;
 import com.animalin.owner.Owner;
 import com.animalin.owner.OwnerRepository;
 import com.animalin.pet.Pet;
 import com.animalin.pet.PetRepository;
 import com.animalin.plan.PlanRepository;
+import com.animalin.tenant.Subscription;
+import com.animalin.tenant.SubscriptionRepository;
 import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantMembership;
 import com.animalin.tenant.TenantMembershipRepository;
@@ -16,6 +21,8 @@ import com.animalin.user.Role;
 import com.animalin.user.RoleRepository;
 import com.animalin.user.User;
 import com.animalin.user.UserRepository;
+import com.animalin.veterinarian.Veterinarian;
+import com.animalin.veterinarian.VeterinarianRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +57,9 @@ class TenantIsolationTest {
     @Autowired TenantMembershipRepository membershipRepository;
     @Autowired OwnerRepository ownerRepository;
     @Autowired PetRepository petRepository;
+    @Autowired VeterinarianRepository veterinarianRepository;
+    @Autowired EmployeeRepository employeeRepository;
+    @Autowired SubscriptionRepository subscriptionRepository;
     @Autowired PasswordEncoder passwordEncoder;
 
     private Long petBId;
@@ -69,6 +79,9 @@ class TenantIsolationTest {
         User userB = user("admin-b-" + suffix + "@test.com", adminRole);
         membership(tenantA, userA, adminRole);
         membership(tenantB, userB, adminRole);
+        subscription(tenantA);
+        veterinarian(tenantA, userA);
+        employee(tenantA, userA);
         Owner ownerB = owner(tenantB, "Nuria", "Sanz");
         Pet petB = new Pet();
         petB.setTenantId(tenantB.getId());
@@ -87,7 +100,13 @@ class TenantIsolationTest {
                 .andExpect(jsonPath("$.content").isArray());
         mockMvc.perform(get("/api/v1/employees")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].firstName").value("Admin"));
+        mockMvc.perform(get("/api/v1/veterinarians")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].firstName").value("Admin"))
+                .andExpect(jsonPath("$[0].email").value(emailA));
     }
 
     @Test
@@ -169,6 +188,33 @@ class TenantIsolationTest {
         membership.setRole(role);
         membership.setStatus("ACTIVE");
         membershipRepository.save(membership);
+    }
+
+    private void subscription(Tenant tenant) {
+        Subscription subscription = new Subscription();
+        subscription.setTenant(tenant);
+        subscription.setPlan(tenant.getPlan());
+        subscription.setStatus(SubscriptionStatuses.ACTIVE);
+        subscription.setTrial(false);
+        subscriptionRepository.save(subscription);
+    }
+
+    private void veterinarian(Tenant tenant, User user) {
+        Veterinarian veterinarian = new Veterinarian();
+        veterinarian.setTenantId(tenant.getId());
+        veterinarian.setUser(user);
+        veterinarian.setSpecialty("General");
+        veterinarian.setStatus("ACTIVE");
+        veterinarianRepository.save(veterinarian);
+    }
+
+    private void employee(Tenant tenant, User user) {
+        Employee employee = new Employee();
+        employee.setTenantId(tenant.getId());
+        employee.setUser(user);
+        employee.setPosition("TENANT_ADMIN");
+        employee.setStatus("ACTIVE");
+        employeeRepository.save(employee);
     }
 
     private Owner owner(Tenant tenant, String first, String last) {
