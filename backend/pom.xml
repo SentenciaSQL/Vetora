@@ -12,7 +12,7 @@
 	<artifactId>animalin-api</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>animalin-api</name>
-	<description>Vetora veterinary clinic platform API</description>
+	<description>Animexa veterinary clinic platform API</description>
 	<properties>
 		<java.version>21</java.version>
 		<lombok.version>1.18.38</lombok.version>

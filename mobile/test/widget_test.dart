@@ -9,7 +9,7 @@ void main() {
   testWidgets('Spanish i18n loads owner-facing copy', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
     await I18n.instance.load('es');
-    expect(I18n.instance.t('appName'), 'Vetora');
+    expect(I18n.instance.t('appName'), 'Animexa');
     expect(I18n.instance.t('login'), 'Iniciar sesión');
     expect(I18n.instance.t('reschedule'), 'Reprogramar');
   });

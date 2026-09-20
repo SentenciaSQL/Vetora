@@ -120,7 +120,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         if (userRepository.findByEmailIgnoreCase("leo.a@example.org").isPresent()) {
             return;
         }
-        log.info("Seeding Animalin demo data");
+        log.info("Seeding Animexa demo data");
         Role superAdmin = role("SUPER_ADMIN");
         Role tenantAdmin = role("TENANT_ADMIN");
         Role vetRole = role("VETERINARIAN");
