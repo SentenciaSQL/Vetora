@@ -34,6 +34,10 @@ public final class BillingDtos {
             String currency,
             BigDecimal monthlyPrice,
             BigDecimal annualPrice,
+            BigDecimal monthlyEquivalent,
+            BigDecimal savingsPercent,
+            boolean monthlyAvailable,
+            boolean annualAvailable,
             String paddleMonthlyPriceId,
             String paddleAnnualPriceId,
             boolean enabled,
@@ -59,6 +63,8 @@ public final class BillingDtos {
             String status,
             String billingCycle,
             String currency,
+            String paddleProductId,
+            String paddlePriceId,
             boolean trial,
             Instant startedAt,
             Instant currentPeriodStartsAt,
@@ -75,13 +81,14 @@ public final class BillingDtos {
             boolean gracePeriod,
             boolean suspended,
             boolean hasPaddleCustomer,
+            boolean hasPaddleSubscription,
             boolean trialAccess,
             PlanLimits limits,
             PlanUsage usage
     ) {
     }
 
-    public record CheckoutRequest(String priceId, String billingCycle) {
+    public record CheckoutRequest(Long planId, String billingCycle) {
     }
 
     public record CheckoutResponse(
@@ -101,7 +108,23 @@ public final class BillingDtos {
     public record CancelSubscriptionRequest(String effectiveFrom) {
     }
 
-    public record ChangePlanRequest(String priceId) {
+    public record ChangePlanRequest(Long planId, String billingCycle) {
+    }
+
+    public record ChangePreviewResponse(
+            Long currentPlanId,
+            String currentPlanCode,
+            String currentPlanName,
+            String currentCycle,
+            Long newPlanId,
+            String newPlanCode,
+            String newPlanName,
+            String newCycle,
+            BigDecimal estimatedAmount,
+            String currency,
+            Instant nextBillingAt,
+            String prorationMode
+    ) {
     }
 
     public record AdminPlanResponse(
@@ -137,6 +160,7 @@ public final class BillingDtos {
             String currency,
             String interval,
             String status,
+            String message,
             boolean matches
     ) {
     }

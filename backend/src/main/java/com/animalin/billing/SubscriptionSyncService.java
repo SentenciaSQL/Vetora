@@ -284,10 +284,26 @@ public class SubscriptionSyncService {
     }
 
     private void applyPlanFromPrice(Subscription subscription, String priceId, String productId) {
+        if (StringUtils.hasText(priceId)) {
+            subscription.setPaddlePriceId(priceId);
+        }
+        if (StringUtils.hasText(productId)) {
+            subscription.setPaddleProductId(productId);
+        }
         Plan plan = findPlan(priceId, productId);
         if (plan != null) {
             subscription.setPlan(plan);
             subscription.getTenant().setPlan(plan);
+            if (!StringUtils.hasText(subscription.getPaddleProductId()) && StringUtils.hasText(plan.getPaddleProductId())) {
+                subscription.setPaddleProductId(plan.getPaddleProductId());
+            }
+            if (StringUtils.hasText(priceId)) {
+                if (priceId.equals(plan.getPaddleAnnualPriceId())) {
+                    subscription.setBillingCycle(SubscriptionStatuses.CYCLE_ANNUAL);
+                } else if (priceId.equals(plan.getPaddleMonthlyPriceId())) {
+                    subscription.setBillingCycle(SubscriptionStatuses.CYCLE_MONTHLY);
+                }
+            }
         }
     }
 

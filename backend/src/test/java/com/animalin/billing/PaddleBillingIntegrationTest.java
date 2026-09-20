@@ -19,6 +19,7 @@ import com.animalin.user.Role;
 import com.animalin.user.RoleRepository;
 import com.animalin.user.User;
 import com.animalin.user.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,8 +39,10 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -157,19 +160,35 @@ class PaddleBillingIntegrationTest {
     }
 
     @Test
-    void checkoutRejectsUnknownPriceAndExistingActiveSubscription() throws Exception {
+    void catalogExposesMonthlyAndAnnualAmountsWithoutClientSuppliedPriceIds() throws Exception {
+        String token = login(adminEmail);
+        MvcResult result = mockMvc.perform(get("/api/v1/billing/plans").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode plans = objectMapper.readTree(result.getResponse().getContentAsString());
+        assertCatalogPlan(plans, "BASIC", "19.00", "190.00", "15.83", "16.7");
+        assertCatalogPlan(plans, "PROFESSIONAL", "39.00", "390.00", "32.50", "16.7");
+        assertCatalogPlan(plans, "PREMIUM", "69.00", "690.00", "57.50", "16.7");
+        JsonNode basic = catalogPlan(plans, "BASIC");
+        assertThat(basic.get("monthlyAvailable").asBoolean()).isTrue();
+        assertThat(basic.get("annualAvailable").asBoolean()).isTrue();
+    }
+
+    @Test
+    void checkoutRejectsUnknownPlanAndExistingActiveSubscription() throws Exception {
         String token = login(adminEmail);
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_unknown\"}"))
-                .andExpect(status().isBadRequest());
+                        .content("{\"planId\":999999,\"billingCycle\":\"MONTHLY\"}"))
+                .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                        .content(checkoutJson("MONTHLY")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.priceId").value("pri_basic_month"))
+                .andExpect(jsonPath("$.billingCycle").value("MONTHLY"))
                 .andExpect(jsonPath("$.customData.tenant_id").value(String.valueOf(tenant.getId())))
                 .andExpect(jsonPath("$.clientToken").value("test-paddle-client-token"));
 
@@ -181,41 +200,79 @@ class PaddleBillingIntegrationTest {
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                        .content(checkoutJson("MONTHLY")))
                 .andExpect(status().isConflict());
     }
 
     @Test
-    void checkoutRejectsMonthlyPriceUsedAsAnnual() throws Exception {
+    void checkoutAnnualResolvesAnnualPriceIdFromPlan() throws Exception {
         String token = login(adminEmail);
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_basic_month\",\"billingCycle\":\"ANNUAL\"}"))
+                        .content(checkoutJson("ANNUAL")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priceId").value("pri_basic_year"))
+                .andExpect(jsonPath("$.billingCycle").value("ANNUAL"));
+    }
+
+    @Test
+    void checkoutRejectsAnnualWhenAnnualPriceIdIsMissing() throws Exception {
+        Plan basic = planRepository.findByCode("BASIC").orElseThrow();
+        basic.setPaddleAnnualPriceId(null);
+        planRepository.save(basic);
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkoutJson("ANNUAL")))
                 .andExpect(status().isBadRequest());
+        MvcResult catalog = mockMvc.perform(get("/api/v1/billing/plans").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode basicNode = catalogPlan(objectMapper.readTree(catalog.getResponse().getContentAsString()), "BASIC");
+        assertThat(basicNode.get("annualAvailable").asBoolean()).isFalse();
+        assertThat(basicNode.get("monthlyAvailable").asBoolean()).isTrue();
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkoutJson("MONTHLY")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priceId").value("pri_basic_month"));
+    }
+
+    @Test
+    void checkoutIgnoresClientSuppliedPriceId() throws Exception {
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"planId\":" + basicPlanId() + ",\"billingCycle\":\"MONTHLY\",\"priceId\":\"pri_forged\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priceId").value("pri_basic_month"));
     }
 
     @Test
     void checkoutRejectsArchivedPaddlePrice() throws Exception {
         when(paddleClient.getPrice("pri_basic_month"))
-                .thenReturn(price("pri_basic_month", "pro_basic", "month", "archived", "2900"));
+                .thenReturn(price("pri_basic_month", "pro_basic", "month", "archived", "1900"));
         String token = login(adminEmail);
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                        .content(checkoutJson("MONTHLY")))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void checkoutRejectsPriceThatDoesNotBelongToPlanProduct() throws Exception {
         when(paddleClient.getPrice("pri_basic_month"))
-                .thenReturn(price("pri_basic_month", "pro_other", "month", "active", "2900"));
+                .thenReturn(price("pri_basic_month", "pro_other", "month", "active", "1900"));
         String token = login(adminEmail);
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                        .content(checkoutJson("MONTHLY")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -274,7 +331,7 @@ class PaddleBillingIntegrationTest {
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                        .content(checkoutJson("MONTHLY")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/api/v1/billing/customer-portal")
                         .header("Authorization", "Bearer " + token))
@@ -335,10 +392,146 @@ class PaddleBillingIntegrationTest {
         mockMvc.perform(post("/api/v1/billing/checkout")
                         .header("Authorization", "Bearer " + tokenB)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                        .content(checkoutJson("MONTHLY")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.customData.tenant_id").value(String.valueOf(other.getId())))
                 .andExpect(jsonPath("$.customData.tenant_slug").value(other.getSlug()));
+        mockMvc.perform(post("/api/v1/billing/subscription/change-plan")
+                        .header("Authorization", "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkoutJson("ANNUAL")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void webhookMonthlyPriceStoresContractedIdsAndCycle() throws Exception {
+        String body = eventJson("evt_month_" + UUID.randomUUID(), "transaction.completed", "completed");
+        postWebhook(body).andExpect(status().isOk());
+        Subscription subscription = currentSubscription();
+        assertThat(subscription.getPaddlePriceId()).isEqualTo("pri_basic_month");
+        assertThat(subscription.getPaddleProductId()).isEqualTo("pro_basic");
+        assertThat(subscription.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_MONTHLY);
+        assertThat(subscription.getPlan().getId()).isEqualTo(basicPlanId());
+    }
+
+    @Test
+    void webhookAnnualPriceStoresContractedIdsAndCycle() throws Exception {
+        String body = pricedEvent("evt_year_" + UUID.randomUUID(), "transaction.completed", "completed",
+                "pri_basic_year", "year");
+        postWebhook(body).andExpect(status().isOk());
+        Subscription subscription = currentSubscription();
+        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatuses.ACTIVE);
+        assertThat(subscription.getPaddlePriceId()).isEqualTo("pri_basic_year");
+        assertThat(subscription.getPaddleProductId()).isEqualTo("pro_basic");
+        assertThat(subscription.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_ANNUAL);
+        assertThat(subscription.getPlan().getId()).isEqualTo(basicPlanId());
+    }
+
+    @Test
+    void annualRenewalKeepsAccessAndUpdatesNextBilling() throws Exception {
+        postWebhook(pricedEvent("evt_year_create_" + UUID.randomUUID(), "subscription.created", "active",
+                "pri_basic_year", "year")).andExpect(status().isOk());
+        postWebhook(pricedSubscription("evt_year_renew_" + UUID.randomUUID(), "subscription.updated", "active",
+                "pri_basic_year", "year", "2027-01-15T12:00:00Z")).andExpect(status().isOk());
+        Subscription subscription = currentSubscription();
+        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatuses.ACTIVE);
+        assertThat(subscription.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_ANNUAL);
+        assertThat(subscription.getNextBillingAt()).isEqualTo(Instant.parse("2027-01-15T12:00:00Z"));
+        String token = login(adminEmail);
+        mockMvc.perform(get("/api/v1/pets").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void changeMonthlyToAnnualWaitsForWebhookBeforeUpdatingCycle() throws Exception {
+        Subscription subscription = currentSubscription();
+        subscription.setPaddleSubscriptionId(paddleSubId);
+        subscription.setPaddleCustomerId(paddleCustomerId);
+        subscription.setBillingCycle(SubscriptionStatuses.CYCLE_MONTHLY);
+        subscription.setPaddlePriceId("pri_basic_month");
+        subscription.setStatus(SubscriptionStatuses.ACTIVE);
+        subscription.setTrial(false);
+        subscriptionRepository.save(subscription);
+        Instant next = Instant.parse("2026-10-15T12:00:00Z");
+        when(paddleClient.previewSubscriptionUpdate(eq(paddleSubId), any()))
+                .thenReturn(new PaddleDtos.SubscriptionPreview(
+                        paddleSubId, "active", "USD", next,
+                        new PaddleDtos.BillingCycle("year", 1),
+                        new PaddleDtos.BillingPeriod(Instant.parse("2026-01-15T12:00:00Z"), next),
+                        new PaddleDtos.PreviewTransaction(null, new PaddleDtos.PreviewDetails(
+                                new PaddleDtos.PreviewTotals("15830", "15830", "USD"))),
+                        null));
+        when(paddleClient.updateSubscription(eq(paddleSubId), any()))
+                .thenReturn(new PaddleDtos.Subscription(
+                        paddleSubId, "active", paddleCustomerId, "USD", Instant.now(), Instant.now(), Instant.now(),
+                        Instant.now(), next, null, null, new PaddleDtos.BillingCycle("year", 1),
+                        new PaddleDtos.BillingPeriod(Instant.now(), next), null,
+                        java.util.List.of(new PaddleDtos.SubscriptionItem(
+                                price("pri_basic_year", "pro_basic", "year", "active", "19000"), 1)),
+                        java.util.Map.of("tenant_id", String.valueOf(tenant.getId())), paddleTxnId));
+
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/subscription/change-plan/preview")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkoutJson("ANNUAL")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentCycle").value("MONTHLY"))
+                .andExpect(jsonPath("$.newCycle").value("ANNUAL"))
+                .andExpect(jsonPath("$.currentPlanCode").value("BASIC"))
+                .andExpect(jsonPath("$.newPlanCode").value("BASIC"))
+                .andExpect(jsonPath("$.estimatedAmount").value(158.30))
+                .andExpect(jsonPath("$.currency").value("USD"))
+                .andExpect(jsonPath("$.prorationMode").value("prorated_immediately"));
+
+        mockMvc.perform(post("/api/v1/billing/subscription/change-plan")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkoutJson("ANNUAL")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.billingCycle").value("MONTHLY"))
+                .andExpect(jsonPath("$.planCode").value("BASIC"));
+
+        Subscription afterRequest = currentSubscription();
+        assertThat(afterRequest.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_MONTHLY);
+        assertThat(afterRequest.getPaddlePriceId()).isEqualTo("pri_basic_month");
+        verify(paddleClient).updateSubscription(eq(paddleSubId), argThat(request ->
+                request.items() != null
+                        && request.items().size() == 1
+                        && "pri_basic_year".equals(request.items().getFirst().priceId())
+                        && "prorated_immediately".equals(request.prorationBillingMode())));
+
+        postWebhook(pricedSubscription("evt_changed_" + UUID.randomUUID(), "subscription.updated", "active",
+                "pri_basic_year", "year", "2027-01-15T12:00:00Z")).andExpect(status().isOk());
+        Subscription afterWebhook = currentSubscription();
+        assertThat(afterWebhook.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_ANNUAL);
+        assertThat(afterWebhook.getPaddlePriceId()).isEqualTo("pri_basic_year");
+        assertThat(afterWebhook.getPlan().getId()).isEqualTo(basicPlanId());
+    }
+
+    @Test
+    void samePlanLimitsApplyRegardlessOfBillingCycle() throws Exception {
+        Subscription subscription = currentSubscription();
+        subscription.setBillingCycle(SubscriptionStatuses.CYCLE_ANNUAL);
+        subscription.setPaddlePriceId("pri_basic_year");
+        subscription.setStatus(SubscriptionStatuses.ACTIVE);
+        subscriptionRepository.save(subscription);
+        String token = login(adminEmail);
+        mockMvc.perform(get("/api/v1/billing/subscription").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planCode").value("BASIC"))
+                .andExpect(jsonPath("$.billingCycle").value("ANNUAL"))
+                .andExpect(jsonPath("$.limits.maxUsers").value(5))
+                .andExpect(jsonPath("$.limits.laboratoryEnabled").value(false));
+        subscription.setBillingCycle(SubscriptionStatuses.CYCLE_MONTHLY);
+        subscription.setPaddlePriceId("pri_basic_month");
+        subscriptionRepository.save(subscription);
+        mockMvc.perform(get("/api/v1/billing/subscription").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planCode").value("BASIC"))
+                .andExpect(jsonPath("$.billingCycle").value("MONTHLY"))
+                .andExpect(jsonPath("$.limits.maxUsers").value(5))
+                .andExpect(jsonPath("$.limits.laboratoryEnabled").value(false));
     }
 
     @Test
@@ -405,6 +598,32 @@ class PaddleBillingIntegrationTest {
     }
 
     private String subscriptionEvent(String eventId, String type, String status) {
+        return pricedSubscription(eventId, type, status, "pri_basic_month", "month", "2026-02-01T00:00:00Z");
+    }
+
+    private String pricedEvent(String eventId, String type, String status, String priceId, String interval) {
+        if (type.startsWith("subscription.")) {
+            return pricedSubscription(eventId, type, status, priceId, interval, "2027-01-15T12:00:00Z");
+        }
+        return """
+                {
+                  "event_id": "%s",
+                  "event_type": "%s",
+                  "occurred_at": "2026-01-15T12:00:00Z",
+                  "data": {
+                    "id": "%s",
+                    "status": "%s",
+                    "customer_id": "%s",
+                    "subscription_id": "%s",
+                    "currency_code": "USD",
+                    "custom_data": {"tenant_id": "%s"},
+                    "items": [{"price": {"id": "%s", "product_id": "pro_basic"}, "quantity": 1}]
+                  }
+                }
+                """.formatted(eventId, type, paddleTxnId, status, paddleCustomerId, paddleSubId, tenant.getId(), priceId);
+    }
+
+    private String pricedSubscription(String eventId, String type, String status, String priceId, String interval, String nextBilledAt) {
         return """
                 {
                   "event_id": "%s",
@@ -416,12 +635,39 @@ class PaddleBillingIntegrationTest {
                     "customer_id": "%s",
                     "currency_code": "USD",
                     "custom_data": {"tenant_id": "%s"},
-                    "billing_cycle": {"interval": "month", "frequency": 1},
+                    "billing_cycle": {"interval": "%s", "frequency": 1},
+                    "next_billed_at": "%s",
                     "current_billing_period": {"starts_at": "2026-01-01T00:00:00Z", "ends_at": "2026-02-01T00:00:00Z"},
-                    "items": [{"price": {"id": "pri_basic_month", "product_id": "pro_basic"}, "quantity": 1}]
+                    "items": [{"price": {"id": "%s", "product_id": "pro_basic"}, "quantity": 1}]
                   }
                 }
-                """.formatted(eventId, type, paddleSubId, status, paddleCustomerId, tenant.getId());
+                """.formatted(eventId, type, paddleSubId, status, paddleCustomerId, tenant.getId(), interval, nextBilledAt, priceId);
+    }
+
+    private String checkoutJson(String cycle) {
+        return "{\"planId\":" + basicPlanId() + ",\"billingCycle\":\"" + cycle + "\"}";
+    }
+
+    private Long basicPlanId() {
+        return planRepository.findByCode("BASIC").orElseThrow().getId();
+    }
+
+    private static void assertCatalogPlan(JsonNode plans, String code, String monthly, String annual,
+                                          String equivalent, String savings) {
+        JsonNode plan = catalogPlan(plans, code);
+        assertThat(plan.get("monthlyPrice").decimalValue()).isEqualByComparingTo(monthly);
+        assertThat(plan.get("annualPrice").decimalValue()).isEqualByComparingTo(annual);
+        assertThat(plan.get("monthlyEquivalent").decimalValue()).isEqualByComparingTo(equivalent);
+        assertThat(plan.get("savingsPercent").decimalValue()).isEqualByComparingTo(savings);
+    }
+
+    private static JsonNode catalogPlan(JsonNode plans, String code) {
+        for (JsonNode plan : plans) {
+            if (code.equals(plan.path("code").asText())) {
+                return plan;
+            }
+        }
+        throw new AssertionError("Missing plan " + code);
     }
 
     private Subscription currentSubscription() {

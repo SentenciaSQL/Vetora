@@ -100,6 +100,38 @@ public final class PaddleDtos {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SubscriptionPreview(
+            String id,
+            String status,
+            @JsonProperty("currency_code") String currencyCode,
+            @JsonProperty("next_billed_at") Instant nextBilledAt,
+            @JsonProperty("billing_cycle") BillingCycle billingCycle,
+            @JsonProperty("current_billing_period") BillingPeriod currentBillingPeriod,
+            @JsonProperty("immediate_transaction") PreviewTransaction immediateTransaction,
+            @JsonProperty("next_transaction") PreviewTransaction nextTransaction
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PreviewTransaction(
+            @JsonProperty("billing_period") BillingPeriod billingPeriod,
+            PreviewDetails details
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PreviewDetails(PreviewTotals totals) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record PreviewTotals(
+            @JsonProperty("grand_total") String grandTotal,
+            @JsonProperty("subtotal") String subtotal,
+            @JsonProperty("currency_code") String currencyCode
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public record SubscriptionItem(Price price, Integer quantity) {
     }
 

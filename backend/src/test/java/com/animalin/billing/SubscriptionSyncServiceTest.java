@@ -172,6 +172,26 @@ class SubscriptionSyncServiceTest {
     }
 
     @Test
+    void annualPriceIdSetsCycleAndContractedIdentifiers() {
+        when(subscriptionRepository.findByPaddleSubscriptionId("sub_1")).thenReturn(Optional.of(subscription));
+        when(planRepository.findByPaddleMonthlyPriceIdOrPaddleAnnualPriceId("pri_year", "pri_year"))
+                .thenReturn(Optional.of(plan));
+        PaddleDtos.Subscription annual = new PaddleDtos.Subscription(
+                "sub_1", "active", "ctm_1", "USD", clock.instant(), clock.instant(), clock.instant(),
+                clock.instant(), clock.instant().plus(365, ChronoUnit.DAYS), null, null,
+                new PaddleDtos.BillingCycle("year", 1),
+                new PaddleDtos.BillingPeriod(clock.instant(), clock.instant().plus(365, ChronoUnit.DAYS)),
+                null, List.of(new PaddleDtos.SubscriptionItem(annualPrice(), 1)),
+                Map.of("tenant_id", "42"), "txn_1");
+        service.applySubscription(annual);
+        assertThat(subscription.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_ANNUAL);
+        assertThat(subscription.getPaddlePriceId()).isEqualTo("pri_year");
+        assertThat(subscription.getPaddleProductId()).isEqualTo("pro_1");
+        assertThat(subscription.getPlan()).isSameAs(plan);
+        assertThat(tenant.getPlan()).isSameAs(plan);
+    }
+
+    @Test
     void tenantIdParserAcceptsStringOrNumber() {
         assertThat(SubscriptionSyncService.tenantIdFromCustomData(Map.of("tenant_id", "42"))).isEqualTo(42L);
         assertThat(SubscriptionSyncService.tenantIdFromCustomData(Map.of("tenantId", 42))).isEqualTo(42L);
@@ -203,6 +223,12 @@ class SubscriptionSyncServiceTest {
     private PaddleDtos.Price price() {
         return new PaddleDtos.Price("pri_month", "monthly", "active", "pro_1",
                 new PaddleDtos.UnitPrice("7900", "USD"), new PaddleDtos.BillingCycle("month", 1),
+                clock.instant(), clock.instant());
+    }
+
+    private PaddleDtos.Price annualPrice() {
+        return new PaddleDtos.Price("pri_year", "annual", "active", "pro_1",
+                new PaddleDtos.UnitPrice("39000", "USD"), new PaddleDtos.BillingCycle("year", 1),
                 clock.instant(), clock.instant());
     }
 }

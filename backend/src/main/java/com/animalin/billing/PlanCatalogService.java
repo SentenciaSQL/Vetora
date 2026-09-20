@@ -89,6 +89,7 @@ public class PlanCatalogService {
         if (StringUtils.hasText(request.paddleAnnualPriceId())) {
             plan.setPaddleAnnualPriceId(paddleId(request.paddleAnnualPriceId(), "pri_"));
         }
+        validateCatalog(plan);
         if (!StringUtils.hasText(plan.getPaddleProductId())
                 && !Boolean.FALSE.equals(request.syncToPaddle())
                 && paddleProperties.configured()) {
@@ -150,13 +151,14 @@ public class PlanCatalogService {
             plan.setPaddleAnnualPriceId(priceId);
         }
         if (request.monthlyPrice() != null) {
-            plan.setMonthlyPrice(nonNegativeAmount(request.monthlyPrice(), "mensual"));
+            plan.setMonthlyPrice(positiveAmount(request.monthlyPrice(), "mensual"));
             plan.setPaddleSyncStatus("DRIFT");
         }
         if (request.annualPrice() != null) {
-            plan.setAnnualPrice(request.annualPrice().signum() == 0 ? null : nonNegativeAmount(request.annualPrice(), "anual"));
+            plan.setAnnualPrice(positiveAmount(request.annualPrice(), "anual"));
             plan.setPaddleSyncStatus("DRIFT");
         }
+        validateCatalog(plan);
         if (Boolean.TRUE.equals(request.migratePrice())) {
             throw ApiException.badRequest("Los precios de Paddle se actualizan con el botón Actualizar precio para no alterar suscriptores existentes");
         }
@@ -206,12 +208,17 @@ public class PlanCatalogService {
             throw paddleError("No se pudo consultar el producto en Paddle");
         }
         if (product == null) {
-            throw ApiException.notFound("El producto de Paddle no existe");
+            throw ApiException.notFound("El producto de Paddle no existe. Compruebe el Paddle Product ID (pro_).");
         }
+        if (StringUtils.hasText(product.status()) && !"active".equalsIgnoreCase(product.status())) {
+            throw ApiException.badRequest("El producto de Paddle no está activo (estado: " + product.status() + ")");
+        }
+        validateCatalog(plan);
         List<BillingDtos.PaddlePriceDiff> diffs = new ArrayList<>();
-        if (StringUtils.hasText(plan.getPaddleMonthlyPriceId())) {
-            diffs.add(syncPrice(plan, product, plan.getPaddleMonthlyPriceId(), true));
+        if (!StringUtils.hasText(plan.getPaddleMonthlyPriceId())) {
+            throw ApiException.badRequest("Indique un Paddle Monthly Price ID (pri_) para validar el precio mensual");
         }
+        diffs.add(syncPrice(plan, product, plan.getPaddleMonthlyPriceId(), true));
         if (StringUtils.hasText(plan.getPaddleAnnualPriceId())) {
             diffs.add(syncPrice(plan, product, plan.getPaddleAnnualPriceId(), false));
         }
@@ -234,8 +241,9 @@ public class PlanCatalogService {
         if (!StringUtils.hasText(plan.getPaddleProductId())) {
             throw ApiException.badRequest("El plan no tiene un producto de Paddle. No se creará uno nuevo desde esta acción");
         }
-        boolean monthly = request.cycle() == null || "MONTHLY".equalsIgnoreCase(request.cycle()) || "month".equalsIgnoreCase(request.cycle());
-        BigDecimal amount = nonNegativeAmount(request.amount(), monthly ? "mensual" : "anual");
+        SubscriptionCycle cycle = SubscriptionCycle.parse(request.cycle());
+        boolean monthly = cycle == SubscriptionCycle.MONTHLY;
+        BigDecimal amount = positiveAmount(request.amount(), monthly ? "mensual" : "anual");
         String interval = monthly ? "month" : "year";
         String oldId = monthly ? plan.getPaddleMonthlyPriceId() : plan.getPaddleAnnualPriceId();
         PaddleDtos.Price created;
@@ -270,6 +278,7 @@ public class PlanCatalogService {
         }
         plan.setPaddleLastSyncedAt(clock.instant());
         plan.setPaddleSyncStatus("IN_SYNC");
+        validateCatalog(plan);
         return toAdmin(plan);
     }
 
@@ -284,25 +293,29 @@ public class PlanCatalogService {
         } catch (PaddleApiException ex) {
             throw paddleError("No se pudo validar el precio en Paddle");
         }
+        String cycleLabel = "year".equals(expectedInterval) ? "anual" : "mensual";
         if (price == null) {
-            throw ApiException.badRequest("El precio de Paddle no existe en el ambiente actual");
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no existe en el ambiente actual");
         }
         if (!"active".equalsIgnoreCase(price.status())) {
-            throw ApiException.badRequest("El precio de Paddle está archivado o inactivo");
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle está archivado o inactivo (estado: "
+                    + price.status() + ")");
         }
         if (price.unitPrice() == null || !"USD".equalsIgnoreCase(price.unitPrice().currencyCode())) {
-            throw ApiException.badRequest("El precio debe estar en USD");
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe estar en USD");
         }
         if (price.billingCycle() == null || !StringUtils.hasText(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El precio de Paddle debe ser recurrente");
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe ser recurrente");
         }
         if (expectedInterval != null && !expectedInterval.equalsIgnoreCase(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El ciclo de facturación no coincide con el precio seleccionado");
+            throw ApiException.badRequest("El Price ID " + cycleLabel + " tiene un ciclo "
+                    + price.billingCycle().interval() + " en Paddle. Debe ser " + cycleLabel + ".");
         }
         if (StringUtils.hasText(plan.getPaddleProductId())
                 && StringUtils.hasText(price.productId())
                 && !plan.getPaddleProductId().equals(price.productId())) {
-            throw ApiException.badRequest("El precio no pertenece al producto del plan");
+            throw ApiException.badRequest("El precio " + cycleLabel + " no pertenece al producto del plan ("
+                    + plan.getPaddleProductId() + ")");
         }
         return price;
     }
@@ -315,26 +328,37 @@ public class PlanCatalogService {
         } catch (PaddleApiException ex) {
             throw paddleError("No se pudo consultar el precio " + priceId);
         }
+        String cycleLabel = monthly ? "mensual" : "anual";
         if (price == null) {
-            throw ApiException.notFound("El precio de Paddle no existe");
+            throw ApiException.notFound("El precio " + cycleLabel + " de Paddle no existe. Compruebe el Price ID (pri_).");
         }
         if (!product.id().equals(price.productId())) {
-            throw ApiException.badRequest("El precio no pertenece al producto indicado");
+            throw ApiException.badRequest("El Price ID " + cycleLabel + " no pertenece al producto "
+                    + product.id() + ". Pertenece a " + price.productId() + ".");
         }
         if (price.billingCycle() == null || !StringUtils.hasText(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El precio de Paddle debe ser recurrente");
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe ser recurrente");
         }
         String expected = monthly ? "month" : "year";
         if (!expected.equalsIgnoreCase(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El intervalo del precio no coincide con el ciclo " + (monthly ? "mensual" : "anual"));
+            throw ApiException.badRequest("El Price ID " + cycleLabel + " tiene un ciclo "
+                    + price.billingCycle().interval() + " en Paddle. Debe ser " + cycleLabel + ".");
         }
         if (price.unitPrice() == null || !"USD".equalsIgnoreCase(price.unitPrice().currencyCode())) {
-            throw ApiException.badRequest("El precio de Paddle debe estar en USD");
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe estar en USD");
+        }
+        if (!"active".equalsIgnoreCase(price.status())) {
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no está activo (estado: "
+                    + price.status() + ")");
         }
         BigDecimal paddleAmount = fromCents(price.unitPrice().amount());
         BigDecimal local = monthly ? plan.getMonthlyPrice() : plan.getAnnualPrice();
-        boolean matches = local != null && local.compareTo(paddleAmount) == 0
-                && "active".equalsIgnoreCase(price.status());
+        boolean amountsMatch = local != null && local.compareTo(paddleAmount) == 0;
+        boolean matches = amountsMatch;
+        String message = amountsMatch
+                ? "El precio " + cycleLabel + " coincide con Paddle"
+                : "El importe " + cycleLabel + " configurado (" + local + " USD) no coincide con Paddle ("
+                + paddleAmount + " USD)";
         if (monthly) {
             plan.setMonthlyPrice(paddleAmount);
             plan.setPaddleMonthlyPriceStatus(price.status());
@@ -350,6 +374,7 @@ public class PlanCatalogService {
                 "USD",
                 price.billingCycle().interval(),
                 price.status(),
+                message,
                 matches
         );
     }
@@ -420,11 +445,33 @@ public class PlanCatalogService {
         if (request.monthlyPrice() == null) {
             throw ApiException.badRequest("El precio mensual es obligatorio");
         }
-        nonNegativeAmount(request.monthlyPrice(), "mensual");
-        if (request.annualPrice() != null) {
-            nonNegativeAmount(request.annualPrice(), "anual");
-        }
         currency(request.currency());
+    }
+
+    void validateCatalog(Plan plan) {
+        positiveAmount(plan.getMonthlyPrice(), "mensual");
+        if (plan.getAnnualPrice() != null) {
+            positiveAmount(plan.getAnnualPrice(), "anual");
+            BigDecimal yearlyCap = plan.getMonthlyPrice().multiply(BigDecimal.valueOf(12));
+            if (plan.getAnnualPrice().compareTo(yearlyCap) >= 0) {
+                throw ApiException.badRequest("El precio anual debe ser menor que el precio mensual multiplicado por 12");
+            }
+        }
+        if (StringUtils.hasText(plan.getPaddleMonthlyPriceId())
+                && StringUtils.hasText(plan.getPaddleAnnualPriceId())
+                && plan.getPaddleMonthlyPriceId().equals(plan.getPaddleAnnualPriceId())) {
+            throw ApiException.badRequest("Los Price ID mensual y anual no pueden ser iguales");
+        }
+        if (StringUtils.hasText(plan.getPaddleProductId())) {
+            paddleId(plan.getPaddleProductId(), "pro_");
+        }
+        if (StringUtils.hasText(plan.getPaddleMonthlyPriceId())) {
+            paddleId(plan.getPaddleMonthlyPriceId(), "pri_");
+        }
+        if (StringUtils.hasText(plan.getPaddleAnnualPriceId())) {
+            paddleId(plan.getPaddleAnnualPriceId(), "pri_");
+        }
+        currency(plan.getCurrency());
     }
 
     private static String currency(String value) {
@@ -441,14 +488,17 @@ public class PlanCatalogService {
         }
         String id = value.trim();
         if (!id.startsWith(prefix)) {
-            throw ApiException.badRequest("El identificador de Paddle debe comenzar por " + prefix);
+            if ("pro_".equals(prefix)) {
+                throw ApiException.badRequest("El Paddle Product ID debe comenzar por pro_");
+            }
+            throw ApiException.badRequest("El Paddle Price ID debe comenzar por pri_");
         }
         return id;
     }
 
-    private static BigDecimal nonNegativeAmount(BigDecimal amount, String label) {
-        if (amount == null || amount.compareTo(ZERO) < 0) {
-            throw ApiException.badRequest("El precio " + label + " no puede ser negativo");
+    private static BigDecimal positiveAmount(BigDecimal amount, String label) {
+        if (amount == null || amount.compareTo(ZERO) <= 0) {
+            throw ApiException.badRequest("El precio " + label + " debe ser mayor que cero");
         }
         return amount.setScale(2, RoundingMode.HALF_UP);
     }

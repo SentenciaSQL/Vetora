@@ -36,5 +36,7 @@ public interface PaddleClient {
 
     PaddleDtos.Price updatePrice(String priceId, PaddleDtos.UpdatePriceRequest request);
 
+    PaddleDtos.SubscriptionPreview previewSubscriptionUpdate(String subscriptionId, PaddleDtos.UpdateSubscriptionRequest request);
+
     PaddleDtos.PortalSession createCustomerPortalSession(String customerId, PaddleDtos.CreatePortalSessionRequest request);
 }

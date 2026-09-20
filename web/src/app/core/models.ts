@@ -167,6 +167,10 @@ export interface BillingPlan {
   currency: string;
   monthlyPrice: number;
   annualPrice?: number | null;
+  monthlyEquivalent?: number | null;
+  savingsPercent?: number | null;
+  monthlyAvailable?: boolean;
+  annualAvailable?: boolean;
   paddleMonthlyPriceId?: string | null;
   paddleAnnualPriceId?: string | null;
   enabled: boolean;
@@ -203,6 +207,8 @@ export interface TenantSubscription {
   status: string;
   billingCycle?: string | null;
   currency: string;
+  paddleProductId?: string | null;
+  paddlePriceId?: string | null;
   trial: boolean;
   startedAt?: string | null;
   currentPeriodStartsAt?: string | null;
@@ -219,6 +225,7 @@ export interface TenantSubscription {
   gracePeriod: boolean;
   suspended: boolean;
   hasPaddleCustomer: boolean;
+  hasPaddleSubscription?: boolean;
   trialAccess?: boolean;
   limits?: PlanLimits;
   usage?: PlanUsage;
@@ -263,6 +270,7 @@ export interface PaddlePriceDiff {
   interval: string;
   status: string;
   matches: boolean;
+  message?: string;
 }
 
 export interface PaddleSyncResult {
@@ -284,6 +292,21 @@ export interface CheckoutSession {
 
 export interface PortalSession {
   url: string;
+}
+
+export interface ChangePreview {
+  currentPlanId?: number | null;
+  currentPlanCode?: string | null;
+  currentPlanName?: string | null;
+  currentCycle?: string | null;
+  newPlanId: number;
+  newPlanCode: string;
+  newPlanName: string;
+  newCycle: string;
+  estimatedAmount?: number | null;
+  currency: string;
+  nextBillingAt?: string | null;
+  prorationMode?: string;
 }
 
 export interface ApiErrorBody {
