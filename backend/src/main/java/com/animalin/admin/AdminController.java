@@ -1,6 +1,7 @@
 package com.animalin.admin;
 
-import com.animalin.plan.Plan;
+import com.animalin.billing.BillingDtos;
+import com.animalin.billing.PlanCatalogService;
 import com.animalin.tenant.Tenant;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,9 +21,11 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final PlanCatalogService planCatalogService;
 
-    public AdminController(AdminService adminService) {
+    public AdminController(AdminService adminService, PlanCatalogService planCatalogService) {
         this.adminService = adminService;
+        this.planCatalogService = planCatalogService;
     }
 
     @GetMapping("/metrics")
@@ -52,13 +55,25 @@ public class AdminController {
     }
 
     @PutMapping("/plans/{id}")
-    public Plan updatePlan(@PathVariable Long id, @RequestBody AdminService.UpdatePlanRequest request) {
-        return adminService.updatePlan(id, request);
+    public BillingDtos.AdminPlanResponse updatePlan(@PathVariable Long id, @RequestBody BillingDtos.UpdatePlanRequest request) {
+        return planCatalogService.update(id, request);
+    }
+
+    @PostMapping("/plans")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BillingDtos.AdminPlanResponse createPlan(@RequestBody BillingDtos.CreatePlanRequest request) {
+        return planCatalogService.create(request);
+    }
+
+    @PostMapping("/plans/{id}/status")
+    public BillingDtos.AdminPlanResponse planStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        boolean active = body.get("active") == null || Boolean.TRUE.equals(body.get("active"));
+        return planCatalogService.archive(id, active);
     }
 
     @GetMapping("/plans")
-    public List<Plan> plans() {
-        return adminService.plans();
+    public List<BillingDtos.AdminPlanResponse> plans() {
+        return planCatalogService.listPlans();
     }
 
     @GetMapping("/subscriptions")

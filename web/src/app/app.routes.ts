@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, medicalWriteGuard, staffGuard, superAdminGuard } from './core/guards/auth.guard';
+import { authGuard, guestGuard, medicalWriteGuard, staffGuard, superAdminGuard, billingAccessGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -42,6 +42,7 @@ export const routes: Routes = [
       { path: 'messages', loadComponent: () => import('./pages/clinic/messages/messages.page').then(m => m.MessagesPage) },
       { path: 'reports', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/reports/reports.page').then(m => m.ReportsPage) },
       { path: 'settings', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/settings/settings.page').then(m => m.SettingsPage) },
+      { path: 'billing', canActivate: [billingAccessGuard], loadComponent: () => import('./pages/clinic/billing/billing.page').then(m => m.BillingPage) },
       { path: 'audit', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/audit/audit.page').then(m => m.ClinicAuditPage) },
       { path: 'team', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/team/team.page').then(m => m.TeamPage) },
       { path: 'branches', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/branches/branches.page').then(m => m.BranchesPage) },

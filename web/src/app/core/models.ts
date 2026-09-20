@@ -143,3 +143,93 @@ export interface SearchResult {
   owners: { id: number; name: string; email: string; phone: string }[];
   veterinarians: { id: number; name: string; specialty: string }[];
 }
+
+export interface PlanLimits {
+  maxUsers: number;
+  maxVeterinarians: number;
+  maxBranches: number;
+  maxStorageMb: number;
+  maxMessagesMonth: number;
+  reportsEnabled: boolean;
+  messagingEnabled: boolean;
+  laboratoryEnabled: boolean;
+}
+
+export interface BillingPlan {
+  id: number;
+  code: string;
+  name: string;
+  nameEs?: string;
+  nameEn?: string;
+  description?: string;
+  descriptionEs?: string;
+  descriptionEn?: string;
+  currency: string;
+  monthlyPrice: number;
+  annualPrice?: number | null;
+  paddleMonthlyPriceId?: string | null;
+  paddleAnnualPriceId?: string | null;
+  enabled: boolean;
+  limits: PlanLimits;
+}
+
+export interface BillingConfig {
+  environment: 'sandbox' | 'production';
+  clientToken: string;
+  gracePeriodDays: number;
+  plans: BillingPlan[];
+}
+
+export interface TenantSubscription {
+  id?: number;
+  tenantId: number;
+  planId?: number;
+  planCode?: string;
+  planName?: string;
+  status: string;
+  billingCycle?: string | null;
+  currency: string;
+  trial: boolean;
+  startedAt?: string | null;
+  currentPeriodStartsAt?: string | null;
+  currentPeriodEndsAt?: string | null;
+  nextBillingAt?: string | null;
+  canceledAt?: string | null;
+  lastPaymentSucceededAt?: string | null;
+  firstPaymentFailedAt?: string | null;
+  gracePeriodEndsAt?: string | null;
+  suspendedAt?: string | null;
+  scheduledChangeAction?: string | null;
+  scheduledChangeEffectiveAt?: string | null;
+  accessGranted: boolean;
+  gracePeriod: boolean;
+  suspended: boolean;
+  hasPaddleCustomer: boolean;
+}
+
+export interface CheckoutSession {
+  environment: 'sandbox' | 'production';
+  clientToken: string;
+  priceId: string;
+  billingCycle: string;
+  customData: Record<string, string>;
+  customerEmail: string;
+  locale: string;
+}
+
+export interface PortalSession {
+  url: string;
+}
+
+export interface ApiErrorBody {
+  timestamp?: string;
+  status: number;
+  code: string;
+  message: string;
+  path?: string;
+  details?: {
+    status?: string;
+    gracePeriodEndsAt?: string;
+    suspendedAt?: string;
+  };
+}

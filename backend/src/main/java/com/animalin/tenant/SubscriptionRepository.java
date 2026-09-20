@@ -1,10 +1,35 @@
 package com.animalin.tenant;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
     Optional<Subscription> findFirstByTenantIdOrderByStartedAtDesc(Long tenantId);
     List<Subscription> findByTenantIdOrderByStartedAtDesc(Long tenantId);
+    Optional<Subscription> findByPaddleSubscriptionId(String paddleSubscriptionId);
+    Optional<Subscription> findFirstByPaddleCustomerIdOrderByStartedAtDesc(String paddleCustomerId);
+
+    long countByPlanId(Long planId);
+    long countByPlanIdAndStatusIn(Long planId, Collection<String> statuses);
+
+    @Query(value = """
+            SELECT * FROM subscriptions
+            WHERE status = 'GRACE_PERIOD'
+              AND grace_period_ends_at IS NOT NULL
+              AND grace_period_ends_at < :now
+            FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true)
+    List<Subscription> lockExpiredGracePeriods(@Param("now") Instant now);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Subscription s where s.id = :id")
+    Optional<Subscription> findByIdForUpdate(@Param("id") Long id);
 }

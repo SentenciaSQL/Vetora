@@ -7,6 +7,7 @@ import java.util.Optional;
 
 public interface TenantRepository extends JpaRepository<Tenant, Long> {
     Optional<Tenant> findBySlug(String slug);
+    Optional<Tenant> findFirstByEmailIgnoreCase(String email);
     long countByStatus(String status);
     @Query("select t.status, count(t) from Tenant t where t.deleted = false group by t.status")
     List<Object[]> countGroupedByStatus();

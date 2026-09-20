@@ -37,3 +37,12 @@ export const medicalWriteGuard: CanActivateFn = () => {
   const router = inject(Router);
   return auth.hasPermission('MEDICAL_RECORD_WRITE') || auth.isSuperAdmin() || router.createUrlTree([auth.homePath()]);
 };
+
+export const billingAccessGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (auth.isSuperAdmin()) {
+    return router.createUrlTree(['/admin']);
+  }
+  return auth.isStaff() || router.createUrlTree([auth.homePath()]);
+};

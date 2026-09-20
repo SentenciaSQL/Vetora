@@ -18,7 +18,10 @@ export class StatusBadgePipe implements PipeTransform {
       SUSPENDED: 'bg-rose-50 text-rose-700',
       UP_TO_DATE: 'bg-emerald-50 text-emerald-800',
       DUE_SOON: 'bg-amber-50 text-amber-800',
-      OVERDUE: 'bg-rose-50 text-rose-700'
+      OVERDUE: 'bg-rose-50 text-rose-700',
+      GRACE_PERIOD: 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200',
+      PAST_DUE: 'bg-orange-50 text-orange-800',
+      CANCELED: 'bg-rose-50 text-rose-700'
     };
     return `badge ${map[status || ''] || 'bg-slate-100 text-slate-600'}`;
   }

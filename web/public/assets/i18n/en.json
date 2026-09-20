@@ -76,7 +76,8 @@
     "audit": "Audit",
     "profile": "Profile",
     "logout": "Sign out",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "billing": "Billing"
   },
   "shell": {
     "searchPlaceholder": "Search pet, owner, microchip…",
@@ -126,8 +127,9 @@
     "status": "Status",
     "activate": "Activate",
     "suspend": "Suspend",
-    "plansSubtitle": "Platform plans and limits",
+    "plansSubtitle": "USD plans, Paddle prices and platform limits",
     "subscriptions": "Subscriptions",
+    "subscribers": "subscribers",
     "usersSubtitle": "Global platform users",
     "auditSubtitle": "Platform audit trail",
     "clinicAuditSubtitle": "Change history for this clinic",
@@ -250,5 +252,38 @@
   "team": { "title": "Veterinary team", "new": "Add veterinarian", "specialty": "Specialty", "staff": "Staff" },
   "branches": { "title": "Branches", "new": "New branch" },
   "services": { "title": "Services", "new": "New service", "duration": "Duration (min)", "price": "Price" },
-  "profile": { "title": "Your profile", "password": "Change password", "current": "Current password", "next": "New password" }
+  "profile": { "title": "Your profile", "password": "Change password", "current": "Current password", "next": "New password" },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Plans, subscription status and payment method",
+    "current": "Current subscription",
+    "plans": "Available plans",
+    "subscribe": "Subscribe monthly",
+    "portal": "Open customer portal",
+    "cancel": "Cancel at period end",
+    "cancelConfirm": "Cancel the subscription at the end of the billing period?",
+    "cancelScheduled": "Cancellation will take effect at the end of the period",
+    "cycle": "Cycle",
+    "periodEnd": "Period end",
+    "cancelsOn": "Cancels on",
+    "perMonth": "per month, USD",
+    "checkoutSuccess": "Payment received. Refreshing the subscription…",
+    "checkoutError": "Could not open Paddle checkout",
+    "planUnavailable": "This plan does not have a Paddle price yet",
+    "graceTitle": "Grace period",
+    "graceBody": "The last payment failed. The clinic stays operational until {{date}}.",
+    "graceBanner": "A payment is outstanding. The clinic will be suspended on {{date}} unless the payment method is updated.",
+    "suspendedTitle": "Subscription suspended",
+    "suspendedBody": "Clinical access is blocked until payment is restored. No data has been deleted.",
+    "suspendedOn": "Suspension date",
+    "suspendedBanner": "The subscription is suspended. You can only manage billing.",
+    "status": {
+      "TRIAL": "Trial",
+      "ACTIVE": "Active",
+      "PAST_DUE": "Past due",
+      "GRACE_PERIOD": "Grace period",
+      "SUSPENDED": "Suspended",
+      "CANCELED": "Canceled"
+    }
+  }
 }

@@ -220,6 +220,12 @@ public class AdminService {
             row.put("startedAt", s.getStartedAt());
             row.put("currentPeriodEnd", s.getCurrentPeriodEnd());
             row.put("cancelledAt", s.getCancelledAt());
+            row.put("canceledAt", s.getCancelledAt());
+            row.put("billingCycle", s.getBillingCycle());
+            row.put("currency", s.getCurrency());
+            row.put("gracePeriodEndsAt", s.getGracePeriodEndsAt());
+            row.put("suspendedAt", s.getSuspendedAt());
+            row.put("paddleSubscriptionId", s.getPaddleSubscriptionId());
             row.put("tenantName", s.getTenant().getName());
             row.put("planCode", s.getPlan().getCode());
             return row;

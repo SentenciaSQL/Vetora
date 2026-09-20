@@ -76,7 +76,8 @@
     "audit": "Auditoría",
     "profile": "Perfil",
     "logout": "Cerrar sesión",
-    "notifications": "Notificaciones"
+    "notifications": "Notificaciones",
+    "billing": "Facturación"
   },
   "shell": {
     "searchPlaceholder": "Buscar mascota, propietario, microchip…",
@@ -126,8 +127,9 @@
     "status": "Estado",
     "activate": "Activar",
     "suspend": "Suspender",
-    "plansSubtitle": "Planes y límites de la plataforma",
+    "plansSubtitle": "Planes, precios USD y límites de la plataforma",
     "subscriptions": "Suscripciones",
+    "subscribers": "suscriptores",
     "usersSubtitle": "Usuarios globales de la plataforma",
     "auditSubtitle": "Auditoría de acciones de la plataforma",
     "clinicAuditSubtitle": "Historial de cambios de esta veterinaria",
@@ -250,5 +252,38 @@
   "team": { "title": "Equipo veterinario", "new": "Añadir veterinario", "specialty": "Especialidad", "staff": "Personal" },
   "branches": { "title": "Sucursales", "new": "Nueva sucursal" },
   "services": { "title": "Servicios", "new": "Nuevo servicio", "duration": "Duración (min)", "price": "Precio" },
-  "profile": { "title": "Su perfil", "password": "Cambiar contraseña", "current": "Contraseña actual", "next": "Nueva contraseña" }
+  "profile": { "title": "Su perfil", "password": "Cambiar contraseña", "current": "Contraseña actual", "next": "Nueva contraseña" },
+  "billing": {
+    "title": "Facturación",
+    "subtitle": "Planes, estado de la suscripción y método de pago",
+    "current": "Suscripción actual",
+    "plans": "Planes disponibles",
+    "subscribe": "Contratar plan mensual",
+    "portal": "Abrir portal de cliente",
+    "cancel": "Cancelar al final del periodo",
+    "cancelConfirm": "¿Cancelar la suscripción al final del periodo de facturación?",
+    "cancelScheduled": "La cancelación quedará programada al final del periodo",
+    "cycle": "Ciclo",
+    "periodEnd": "Fin del periodo",
+    "cancelsOn": "Se cancelará el",
+    "perMonth": "por mes, USD",
+    "checkoutSuccess": "Pago recibido. Actualizando la suscripción…",
+    "checkoutError": "No se pudo abrir el checkout de Paddle",
+    "planUnavailable": "Este plan aún no tiene un precio de Paddle configurado",
+    "graceTitle": "Periodo de gracia",
+    "graceBody": "El último pago falló. La clínica seguirá operativa hasta el {{date}}.",
+    "graceBanner": "Hay un pago pendiente. La clínica se suspenderá el {{date}} si no se actualiza el método de pago.",
+    "suspendedTitle": "Suscripción suspendida",
+    "suspendedBody": "El acceso clínico está bloqueado hasta que se restaure el pago. Los datos no se han eliminado.",
+    "suspendedOn": "Fecha de suspensión",
+    "suspendedBanner": "La suscripción está suspendida. Solo puede gestionar la facturación.",
+    "status": {
+      "TRIAL": "Prueba",
+      "ACTIVE": "Activa",
+      "PAST_DUE": "Pago atrasado",
+      "GRACE_PERIOD": "Periodo de gracia",
+      "SUSPENDED": "Suspendida",
+      "CANCELED": "Cancelada"
+    }
+  }
 }

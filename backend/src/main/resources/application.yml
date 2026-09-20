@@ -63,6 +63,18 @@ animalin:
     default-locale: es
     default-timezone: Europe/Madrid
 
+paddle:
+  api-key: ${PADDLE_API_KEY:}
+  environment: ${PADDLE_ENVIRONMENT:sandbox}
+  webhook-secret: ${PADDLE_WEBHOOK_SECRET:}
+  client-token: ${PADDLE_CLIENT_TOKEN:}
+  grace-period-days: ${PADDLE_GRACE_PERIOD_DAYS:10}
+  webhook-tolerance-seconds: ${PADDLE_WEBHOOK_TOLERANCE_SECONDS:5}
+  cancel-on-suspend: ${PADDLE_CANCEL_ON_SUSPEND:false}
+  jobs:
+    grace-period-enabled: ${PADDLE_GRACE_PERIOD_JOB_ENABLED:true}
+    grace-period-cron: ${PADDLE_GRACE_PERIOD_CRON:0 5 0 * * *}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -95,3 +107,12 @@ spring:
   sql:
     init:
       mode: never
+paddle:
+  api-key: test-paddle-api-key
+  environment: sandbox
+  webhook-secret: test-paddle-webhook-secret
+  client-token: test-paddle-client-token
+  grace-period-days: 10
+  webhook-tolerance-seconds: 300
+  jobs:
+    grace-period-enabled: false

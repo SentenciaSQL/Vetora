@@ -1,5 +1,6 @@
 package com.animalin.config;
 
+import com.animalin.billing.TenantSubscriptionAccessFilter;
 import com.animalin.security.JwtAuthFilter;
 import com.animalin.security.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,10 +32,13 @@ import java.util.Optional;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final TenantSubscriptionAccessFilter subscriptionAccessFilter;
     private final AnimalinProperties properties;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, AnimalinProperties properties) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, TenantSubscriptionAccessFilter subscriptionAccessFilter,
+                          AnimalinProperties properties) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.subscriptionAccessFilter = subscriptionAccessFilter;
         this.properties = properties;
     }
 
@@ -47,6 +51,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh",
                                 "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhooks/paddle").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
@@ -54,7 +59,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(subscriptionAccessFilter, JwtAuthFilter.class);
         return http.build();
     }
 
@@ -89,6 +95,14 @@ public class SecurityConfig {
     @Bean
     public FilterRegistrationBean<OncePerRequestFilter> jwtFilterRegistration(JwtAuthFilter filter) {
         FilterRegistrationBean<OncePerRequestFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<TenantSubscriptionAccessFilter> subscriptionFilterRegistration(
+            TenantSubscriptionAccessFilter filter) {
+        FilterRegistrationBean<TenantSubscriptionAccessFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

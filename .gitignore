@@ -14,5 +14,6 @@ mobile/.flutter-plugins-dependencies
 *.iml
 .DS_Store
 .env
+application-secrets.properties
 uploads/
 *.log

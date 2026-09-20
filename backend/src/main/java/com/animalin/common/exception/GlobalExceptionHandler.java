@@ -24,7 +24,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApi(ApiException ex, HttpServletRequest request) {
         return ResponseEntity.status(ex.getStatus()).body(
-                ApiError.of(ex.getStatus().value(), ex.getCode(), ex.getMessage(), request.getRequestURI(), List.of())
+                ApiError.of(ex.getStatus().value(), ex.getCode(), ex.getMessage(), request.getRequestURI(), List.of(),
+                        ex.getDetails())
         );
     }
 
