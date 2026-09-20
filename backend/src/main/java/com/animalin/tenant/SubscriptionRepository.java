@@ -1,6 +1,7 @@
 package com.animalin.tenant;
 
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +14,15 @@ import java.util.Optional;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
     Optional<Subscription> findFirstByTenantIdOrderByStartedAtDesc(Long tenantId);
+
+    @Query("""
+            select s.status as status, s.gracePeriodEndsAt as gracePeriodEndsAt, s.suspendedAt as suspendedAt
+            from Subscription s
+            where s.tenant.id = :tenantId
+            order by s.startedAt desc
+            """)
+    List<SubscriptionAccessView> findAccessViewsByTenantId(@Param("tenantId") Long tenantId, Pageable pageable);
+
     List<Subscription> findByTenantIdOrderByStartedAtDesc(Long tenantId);
     Optional<Subscription> findByPaddleSubscriptionId(String paddleSubscriptionId);
     Optional<Subscription> findFirstByPaddleCustomerIdOrderByStartedAtDesc(String paddleCustomerId);

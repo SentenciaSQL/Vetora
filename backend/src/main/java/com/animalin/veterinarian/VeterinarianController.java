@@ -55,12 +55,14 @@ public class VeterinarianController {
     }
 
     @GetMapping
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> list() {
         return veterinarianRepository.findByTenantIdAndStatus(accessGuard.requireStaffTenant(), "ACTIVE")
                 .stream().map(this::toMap).toList();
     }
 
     @GetMapping("/tenant/{tenantId}")
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> byTenant(@PathVariable Long tenantId) {
         if (accessGuard.isOwnerContext()) {
             if (!membershipRepository.existsByTenantIdAndUserId(tenantId, com.animalin.security.TenantContext.userId())) {

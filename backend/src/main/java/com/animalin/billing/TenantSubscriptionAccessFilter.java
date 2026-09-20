@@ -3,13 +3,14 @@ package com.animalin.billing;
 import com.animalin.common.api.ApiError;
 import com.animalin.common.exception.ApiException;
 import com.animalin.security.TenantContext;
-import com.animalin.tenant.Subscription;
+import com.animalin.tenant.SubscriptionAccessView;
 import com.animalin.tenant.SubscriptionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -62,7 +63,10 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(principal.tenantId())
+        SubscriptionAccessView subscription = subscriptionRepository
+                .findAccessViewsByTenantId(principal.tenantId(), PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
                 .orElse(null);
         if (subscription == null || !SubscriptionStatuses.blocksTenant(subscription.getStatus())) {
             filterChain.doFilter(request, response);
