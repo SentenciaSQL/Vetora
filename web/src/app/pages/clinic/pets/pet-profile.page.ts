@@ -39,14 +39,16 @@ import { ToastService } from '../../../core/services/toast.service';
           <div class="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:bg-rose-500/10 dark:text-rose-200">⚠ {{ 'pets.allergies' | translate }}: {{ p.allergies }}</div>
         }
         @if (p.medicalConditions) {
-          <div class="mt-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10">⚠ {{ 'pets.conditions' | translate }}: {{ p.medicalConditions }}</div>
+          <div class="mt-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">⚠ {{ 'pets.conditions' | translate }}: {{ p.medicalConditions }}</div>
         }
       </div>
       <div class="mt-6 flex flex-wrap gap-2">
         @for (t of tabs; track t.id) {
           <button type="button" class="rounded-full px-4 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-brand-500"
-                  [class.bg-brand-700]="tab===t.id" [class.text-white]="tab===t.id"
-                  [class.bg-slate-100]="tab!==t.id" (click)="select(t.id)">{{ t.label | translate }}</button>
+                  [ngClass]="tab===t.id
+                    ? 'bg-brand-700 text-white'
+                    : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'"
+                  (click)="select(t.id)">{{ t.label | translate }}</button>
         }
       </div>
 
