@@ -77,6 +77,18 @@ public class Plan {
     @Column(name = "paddle_annual_price_id", length = 64)
     private String paddleAnnualPriceId;
 
+    @Column(name = "paddle_monthly_price_status", length = 20)
+    private String paddleMonthlyPriceStatus;
+
+    @Column(name = "paddle_annual_price_status", length = 20)
+    private String paddleAnnualPriceStatus;
+
+    @Column(name = "paddle_last_synced_at")
+    private Instant paddleLastSyncedAt;
+
+    @Column(name = "paddle_sync_status", nullable = false, length = 20)
+    private String paddleSyncStatus = "UNKNOWN";
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -216,6 +228,30 @@ public class Plan {
     }
     public void setPaddleAnnualPriceId(String paddleAnnualPriceId) {
         this.paddleAnnualPriceId = paddleAnnualPriceId;
+    }
+    public String getPaddleMonthlyPriceStatus() {
+        return paddleMonthlyPriceStatus;
+    }
+    public void setPaddleMonthlyPriceStatus(String paddleMonthlyPriceStatus) {
+        this.paddleMonthlyPriceStatus = paddleMonthlyPriceStatus;
+    }
+    public String getPaddleAnnualPriceStatus() {
+        return paddleAnnualPriceStatus;
+    }
+    public void setPaddleAnnualPriceStatus(String paddleAnnualPriceStatus) {
+        this.paddleAnnualPriceStatus = paddleAnnualPriceStatus;
+    }
+    public Instant getPaddleLastSyncedAt() {
+        return paddleLastSyncedAt;
+    }
+    public void setPaddleLastSyncedAt(Instant paddleLastSyncedAt) {
+        this.paddleLastSyncedAt = paddleLastSyncedAt;
+    }
+    public String getPaddleSyncStatus() {
+        return paddleSyncStatus;
+    }
+    public void setPaddleSyncStatus(String paddleSyncStatus) {
+        this.paddleSyncStatus = paddleSyncStatus == null ? "UNKNOWN" : paddleSyncStatus;
     }
     public boolean isActive() {
         return active;

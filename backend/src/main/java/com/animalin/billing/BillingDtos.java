@@ -45,6 +45,7 @@ public final class BillingDtos {
             String environment,
             String clientToken,
             int gracePeriodDays,
+            int trialDays,
             List<PlanResponse> plans
     ) {
     }
@@ -73,7 +74,10 @@ public final class BillingDtos {
             boolean accessGranted,
             boolean gracePeriod,
             boolean suspended,
-            boolean hasPaddleCustomer
+            boolean hasPaddleCustomer,
+            boolean trialAccess,
+            PlanLimits limits,
+            PlanUsage usage
     ) {
     }
 
@@ -117,7 +121,46 @@ public final class BillingDtos {
             PlanLimits limits,
             long subscriberCount,
             Instant createdAt,
-            Instant updatedAt
+            Instant updatedAt,
+            String paddleMonthlyPriceStatus,
+            String paddleAnnualPriceStatus,
+            Instant paddleLastSyncedAt,
+            String paddleSyncStatus
+    ) {
+    }
+
+    public record PaddlePriceDiff(
+            String cycle,
+            String priceId,
+            BigDecimal localAmount,
+            BigDecimal paddleAmount,
+            String currency,
+            String interval,
+            String status,
+            boolean matches
+    ) {
+    }
+
+    public record PaddleSyncResult(
+            AdminPlanResponse plan,
+            List<PaddlePriceDiff> differences,
+            boolean inSync,
+            String environment
+    ) {
+    }
+
+    public record RotatePriceRequest(String cycle, BigDecimal amount, Boolean confirm) {
+    }
+
+    public record UsageMetric(long current, int limit) {
+    }
+
+    public record PlanUsage(
+            UsageMetric users,
+            UsageMetric veterinarians,
+            UsageMetric branches,
+            UsageMetric storageMb,
+            UsageMetric messagesMonth
     ) {
     }
 
@@ -139,7 +182,10 @@ public final class BillingDtos {
             Boolean reportsEnabled,
             Boolean messagingEnabled,
             Boolean laboratoryEnabled,
-            Boolean active
+            Boolean active,
+            String paddleProductId,
+            String paddleMonthlyPriceId,
+            String paddleAnnualPriceId
     ) {
     }
 

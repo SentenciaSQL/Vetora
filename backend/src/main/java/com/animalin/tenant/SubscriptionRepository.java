@@ -16,7 +16,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     Optional<Subscription> findFirstByTenantIdOrderByStartedAtDesc(Long tenantId);
 
     @Query("""
-            select s.status as status, s.gracePeriodEndsAt as gracePeriodEndsAt, s.suspendedAt as suspendedAt
+            select s.status as status, s.gracePeriodEndsAt as gracePeriodEndsAt, s.suspendedAt as suspendedAt,
+                   s.currentPeriodEnd as currentPeriodEndsAt, s.scheduledChangeEffectiveAt as scheduledChangeEffectiveAt
             from Subscription s
             where s.tenant.id = :tenantId
             order by s.startedAt desc

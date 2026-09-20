@@ -39,6 +39,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -88,6 +89,10 @@ class PaddleBillingIntegrationTest {
         basic.setPaddleAnnualPriceId("pri_basic_year");
         basic.setPaddleProductId("pro_basic");
         planRepository.save(basic);
+        lenient().when(paddleClient.getPrice("pri_basic_month"))
+                .thenReturn(price("pri_basic_month", "pro_basic", "month", "active", "2900"));
+        lenient().when(paddleClient.getPrice("pri_basic_year"))
+                .thenReturn(price("pri_basic_year", "pro_basic", "year", "active", "29000"));
     }
 
     @Test
@@ -178,6 +183,102 @@ class PaddleBillingIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"priceId\":\"pri_basic_month\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void checkoutRejectsMonthlyPriceUsedAsAnnual() throws Exception {
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceId\":\"pri_basic_month\",\"billingCycle\":\"ANNUAL\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void checkoutRejectsArchivedPaddlePrice() throws Exception {
+        when(paddleClient.getPrice("pri_basic_month"))
+                .thenReturn(price("pri_basic_month", "pro_basic", "month", "archived", "2900"));
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void checkoutRejectsPriceThatDoesNotBelongToPlanProduct() throws Exception {
+        when(paddleClient.getPrice("pri_basic_month"))
+                .thenReturn(price("pri_basic_month", "pro_other", "month", "active", "2900"));
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void trialingAndActiveAndGraceGrantAccess() throws Exception {
+        String token = login(adminEmail);
+        Subscription subscription = currentSubscription();
+        subscription.setStatus(SubscriptionStatuses.TRIALING);
+        subscriptionRepository.save(subscription);
+        mockMvc.perform(get("/api/v1/pets").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        subscription.setStatus(SubscriptionStatuses.ACTIVE);
+        subscription.setTrial(false);
+        subscriptionRepository.save(subscription);
+        mockMvc.perform(get("/api/v1/pets").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        subscription.setStatus(SubscriptionStatuses.GRACE_PERIOD);
+        subscription.setGracePeriodEndsAt(Instant.now().plus(5, ChronoUnit.DAYS));
+        subscriptionRepository.save(subscription);
+        mockMvc.perform(get("/api/v1/pets").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void canceledUntilPeriodEndStillAllowsAccess() throws Exception {
+        Subscription subscription = currentSubscription();
+        subscription.setStatus(SubscriptionStatuses.CANCELED);
+        subscription.setCurrentPeriodEnd(Instant.now().plus(12, ChronoUnit.DAYS));
+        subscriptionRepository.save(subscription);
+        String token = login(adminEmail);
+        mockMvc.perform(get("/api/v1/pets").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void pausedSubscriptionBlocksProtectedOperations() throws Exception {
+        Subscription subscription = currentSubscription();
+        subscription.setStatus(SubscriptionStatuses.PAUSED);
+        subscriptionRepository.save(subscription);
+        String token = login(adminEmail);
+        mockMvc.perform(get("/api/v1/pets").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("TENANT_SUBSCRIPTION_SUSPENDED"));
+        mockMvc.perform(get("/api/v1/billing/subscription").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void receptionistCannotManageBilling() throws Exception {
+        Role receptionist = roleRepository.findByCode("RECEPTIONIST").orElseThrow();
+        String email = "desk-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com";
+        membership(tenant, user(email, receptionist), receptionist);
+        String token = login(email);
+        mockMvc.perform(post("/api/v1/billing/checkout")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priceId\":\"pri_basic_month\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/billing/customer-portal")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -372,5 +473,12 @@ class PaddleBillingIntegrationTest {
         membership.setRole(role);
         membership.setStatus("ACTIVE");
         membershipRepository.save(membership);
+    }
+
+    private PaddleDtos.Price price(String id, String productId, String interval, String status, String cents) {
+        Instant now = Instant.parse("2026-01-15T12:00:00Z");
+        return new PaddleDtos.Price(id, interval, status, productId,
+                new PaddleDtos.UnitPrice(cents, "USD"),
+                new PaddleDtos.BillingCycle(interval, 1), now, now);
     }
 }

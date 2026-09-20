@@ -75,6 +75,9 @@ public class BranchController {
     public Branch update(@PathVariable Long id, @RequestBody BranchRequest request) {
         accessGuard.requirePermission("BRANCH_MANAGE");
         Branch branch = branchRepository.findByIdAndTenantId(id, accessGuard.requireStaffTenant()).orElseThrow();
+        if (Boolean.TRUE.equals(request.active()) && !branch.isActive()) {
+            planLimitService.assertCanAddBranch(branch.getTenantId());
+        }
         apply(branch, request);
         return branch;
     }

@@ -2,6 +2,7 @@ package com.animalin.storage;
 
 import com.animalin.common.exception.ApiException;
 import com.animalin.config.AnimalinProperties;
+import com.animalin.plan.PlanLimitService;
 import com.animalin.security.TenantContext;
 import com.animalin.user.UserRepository;
 import org.springframework.core.io.FileSystemResource;
@@ -22,17 +23,24 @@ public class StorageService {
     private final StoredFileRepository storedFileRepository;
     private final UserRepository userRepository;
     private final AnimalinProperties properties;
+    private final PlanLimitService planLimitService;
 
-    public StorageService(StoredFileRepository storedFileRepository, UserRepository userRepository, AnimalinProperties properties) {
+    public StorageService(StoredFileRepository storedFileRepository, UserRepository userRepository,
+                          AnimalinProperties properties, PlanLimitService planLimitService) {
         this.storedFileRepository = storedFileRepository;
         this.userRepository = userRepository;
         this.properties = properties;
+        this.planLimitService = planLimitService;
     }
 
     @Transactional
     public StoredFile store(MultipartFile file, String category, String entityType, Long entityId, boolean publicFile, String relativeDir) {
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("Debe adjuntar un archivo");
+        }
+        Long tenantId = TenantContext.tenantIdOrNull();
+        if (tenantId != null) {
+            planLimitService.assertStorageAvailable(tenantId, file.getSize());
         }
         String original = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename().replaceAll("[^a-zA-Z0-9._-]", "_");
         String key = (relativeDir == null ? "misc" : relativeDir) + "/" + UUID.randomUUID() + "-" + original;
