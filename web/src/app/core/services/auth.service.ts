@@ -76,6 +76,10 @@ export class AuthService {
     );
   }
 
+  reloadProfile() {
+    return this.api.get<UserProfile>('/auth/me').pipe(tap(user => this.setUser(user)));
+  }
+
   hasRole(role: string): boolean {
     const user = this.user();
     return !!user && (user.roles?.includes(role) || user.role === role);

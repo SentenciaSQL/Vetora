@@ -7,7 +7,31 @@ import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
-import { Owner, PageResponse, Pet } from '../../../core/models';
+import { Owner, PageResponse, Pet, PublicClinic } from '../../../core/models';
+
+export function canRegisterPet(isStaff: boolean, isPetOwner: boolean, isSuperAdmin: boolean): boolean {
+  return !isSuperAdmin && (isStaff || isPetOwner);
+}
+
+export function petCreateEndpoint(isStaff: boolean): string {
+  return isStaff ? '/pets' : '/pets/mine';
+}
+
+export function ownerPetPayload(value: {
+  tenantSlug: string | null;
+  name: string;
+  species: string;
+  breed: string;
+  sex: string;
+}) {
+  return {
+    tenantSlug: value.tenantSlug || undefined,
+    name: value.name,
+    species: value.species,
+    breed: value.breed,
+    sex: value.sex
+  };
+}
 
 @Component({
   standalone: true,
@@ -16,15 +40,25 @@ import { Owner, PageResponse, Pet } from '../../../core/models';
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="font-display text-2xl font-semibold">{{ 'pets.title' | translate }}</h1>
-        <p class="text-sm text-slate-500">{{ 'pets.subtitle' | translate }}</p>
+        <p class="text-sm text-slate-500">{{ (auth.isStaff() ? 'pets.subtitle' : 'pets.ownerSubtitle') | translate }}</p>
       </div>
-      @if (auth.isStaff()) {
-        <button class="btn-primary" (click)="open=true">{{ 'pets.new' | translate }}</button>
+      @if (canCreate()) {
+        <button class="btn-primary" (click)="openForm()">{{ (auth.isStaff() ? 'pets.new' : 'pets.register') | translate }}</button>
       }
     </div>
     <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       @if (rows().length === 0) {
-        <div class="sm:col-span-2 xl:col-span-3"><empty-state [title]="'pets.empty' | translate" /></div>
+        <div class="sm:col-span-2 xl:col-span-3">
+          <empty-state
+            [title]="(auth.isStaff() ? 'pets.empty' : 'pets.emptyOwner') | translate"
+            [subtitle]="auth.isStaff() ? '' : ('pets.emptyHint' | translate)"
+          />
+          @if (canCreate() && !auth.isStaff()) {
+            <div class="flex justify-center pb-6">
+              <button class="btn-primary" (click)="openForm()">{{ 'pets.register' | translate }}</button>
+            </div>
+          }
+        </div>
       }
       @for (p of rows(); track p.id) {
         <a [routerLink]="['/pets', p.id]" class="card group block hover:border-brand-200">
@@ -45,11 +79,18 @@ import { Owner, PageResponse, Pet } from '../../../core/models';
     @if (open) {
       <div class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" (click)="open=false">
         <form class="card w-full max-w-lg space-y-3" (click)="$event.stopPropagation()" [formGroup]="form" (ngSubmit)="save()">
-          <h2 class="font-display text-lg">{{ 'pets.new' | translate }}</h2>
-          <select class="input" formControlName="ownerId">
-            <option value="">{{ 'pets.owner' | translate }}</option>
-            @for (o of owners(); track o.id) { <option [value]="o.id">{{ o.fullName }}</option> }
-          </select>
+          <h2 class="font-display text-lg">{{ (auth.isStaff() ? 'pets.new' : 'pets.register') | translate }}</h2>
+          @if (auth.isStaff()) {
+            <select class="input" formControlName="ownerId">
+              <option value="">{{ 'pets.owner' | translate }}</option>
+              @for (o of owners(); track o.id) { <option [value]="o.id">{{ o.fullName }}</option> }
+            </select>
+          } @else {
+            <select class="input" formControlName="tenantSlug">
+              <option value="">{{ 'pets.pickClinic' | translate }}</option>
+              @for (c of clinics(); track c.slug) { <option [value]="c.slug">{{ c.commercialName || c.name }}</option> }
+            </select>
+          }
           <input class="input" formControlName="name" [placeholder]="'pets.name' | translate" />
           <div class="grid grid-cols-2 gap-3">
             <input class="input" formControlName="species" [placeholder]="'pets.species' | translate" />
@@ -77,9 +118,11 @@ export class PetsPage implements OnInit {
   private fb = inject(FormBuilder);
   rows = signal<Pet[]>([]);
   owners = signal<Owner[]>([]);
+  clinics = signal<PublicClinic[]>([]);
   open = false;
   form = this.fb.group({
-    ownerId: ['', Validators.required],
+    ownerId: [''],
+    tenantSlug: [''],
     name: ['', Validators.required],
     species: ['DOG'],
     breed: [''],
@@ -90,7 +133,21 @@ export class PetsPage implements OnInit {
     this.route.queryParamMap.subscribe(params => {
       const ownerId = params.get('owner');
       this.load(ownerId);
+      if (params.get('register') === '1' && this.canCreate()) {
+        this.openForm();
+      }
     });
+  }
+
+  canCreate() {
+    return canRegisterPet(this.auth.isStaff(), this.auth.hasRole('PET_OWNER'), this.auth.isSuperAdmin());
+  }
+
+  openForm() {
+    this.open = true;
+    if (!this.auth.isStaff()) {
+      this.loadClinics();
+    }
   }
 
   load(ownerId: string | null) {
@@ -102,11 +159,48 @@ export class PetsPage implements OnInit {
     }
   }
 
+  loadClinics() {
+    this.api.get<PublicClinic[]>('/public/clinics').subscribe(list => {
+      const clinics = list || [];
+      this.clinics.set(clinics);
+      const preferred = this.auth.user()?.tenantSlug
+        || this.auth.user()?.memberships?.[0]?.slug
+        || (clinics.length === 1 ? clinics[0].slug : '');
+      if (preferred && !this.form.value.tenantSlug) {
+        this.form.patchValue({ tenantSlug: preferred });
+      }
+    });
+  }
+
   save() {
     const value = this.form.getRawValue();
-    this.api.post('/pets', { ...value, ownerId: Number(value.ownerId) }).subscribe({
-      next: () => { this.toast.show('common.saved'); this.open = false; this.load(this.route.snapshot.queryParamMap.get('owner')); },
+    if (this.auth.isStaff()) {
+      this.api.post(petCreateEndpoint(true), { ...value, ownerId: Number(value.ownerId) }).subscribe({
+        next: () => this.afterSave(),
+        error: () => this.toast.show('common.error', true)
+      });
+      return;
+    }
+    const tenantSlug = value.tenantSlug || this.clinics()[0]?.slug || '';
+    this.api.post(petCreateEndpoint(false), ownerPetPayload({
+      tenantSlug,
+      name: value.name || '',
+      species: value.species || 'DOG',
+      breed: value.breed || '',
+      sex: value.sex || 'UNKNOWN'
+    })).subscribe({
+      next: () => {
+        this.auth.reloadProfile().subscribe();
+        this.afterSave();
+      },
       error: () => this.toast.show('common.error', true)
     });
+  }
+
+  private afterSave() {
+    this.toast.show('common.saved');
+    this.open = false;
+    this.form.patchValue({ name: '', breed: '', sex: 'UNKNOWN' });
+    this.load(this.route.snapshot.queryParamMap.get('owner'));
   }
 }
