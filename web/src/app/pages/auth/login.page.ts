@@ -48,6 +48,7 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
             <a routerLink="/forgot" class="text-brand-700 hover:underline">{{ 'auth.forgot' | translate }}</a>
             <a routerLink="/register" class="text-brand-700 hover:underline">{{ 'auth.register' | translate }}</a>
           </div>
+          <a routerLink="/register-clinic" class="mt-3 block text-sm font-medium text-brand-700 hover:underline">{{ 'signup.clinicCta' | translate }}</a>
         </div>
       </section>
     </div>

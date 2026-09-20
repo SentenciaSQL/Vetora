@@ -94,21 +94,37 @@ export class AuthService {
   }
 
   isStaff(): boolean {
-    return this.hasAnyRole('TENANT_ADMIN', 'VETERINARIAN', 'RECEPTIONIST');
+    return this.hasAnyRole('TENANT_OWNER', 'TENANT_ADMIN', 'VETERINARIAN', 'RECEPTIONIST');
+  }
+
+  isTenantOwner(): boolean {
+    return this.hasRole('TENANT_OWNER');
   }
 
   isSuperAdmin(): boolean {
     return this.hasRole('SUPER_ADMIN');
   }
 
+  needsClinicSetup(): boolean {
+    const user = this.user();
+    return this.isTenantOwner() && (!user?.emailVerified || !user.tenantId || user.tenantStatus === 'PENDING_PAYMENT');
+  }
+
   homePath(): string {
     if (this.isSuperAdmin()) {
       return '/admin';
     }
+    const user = this.user();
+    if (this.isTenantOwner() && user && !user.emailVerified) {
+      return '/verify-email';
+    }
+    if (this.isTenantOwner() && (!user?.tenantId || user.tenantStatus === 'PENDING_PAYMENT')) {
+      return '/register-clinic';
+    }
     return '/dashboard';
   }
 
-  private store(response: TokenResponse): void {
+  store(response: TokenResponse): void {
     localStorage.setItem(ACCESS, response.accessToken);
     localStorage.setItem(REFRESH, response.refreshToken);
     this.accessToken.set(response.accessToken);

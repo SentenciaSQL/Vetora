@@ -19,9 +19,11 @@ export interface UserProfile {
   tenantId?: number | null;
   tenantName?: string;
   tenantSlug?: string;
+  tenantStatus?: string | null;
   role?: string;
   roles: string[];
   permissions: string[];
+  emailVerified?: boolean;
   memberships: TenantSummary[];
 }
 
@@ -192,6 +194,78 @@ export interface BillingConfig {
   gracePeriodDays: number;
   trialDays?: number;
   plans: BillingPlan[];
+}
+
+export interface PublicPlan {
+  id: number;
+  code: string;
+  name: string;
+  nameEs?: string;
+  nameEn?: string;
+  description?: string;
+  currency: string;
+  monthlyPrice: number;
+  annualPrice?: number | null;
+  monthlyEquivalent?: number | null;
+  savingsPercent?: number | null;
+  monthlyAvailable?: boolean;
+  annualAvailable?: boolean;
+  enabled: boolean;
+  limits: PlanLimits;
+}
+
+export interface SignupConfig {
+  environment: 'sandbox' | 'production';
+  clientToken: string;
+  gracePeriodDays: number;
+  trialDays: number;
+  maxClinicsPerOwner: number;
+  defaultCountry: string;
+  defaultTimezone: string;
+  defaultCurrency: string;
+  plans: PublicPlan[];
+}
+
+export interface SignupStatus {
+  signupStatus: string;
+  emailVerified: boolean;
+  tenantId?: number | null;
+  tenantName?: string | null;
+  tenantSlug?: string | null;
+  tenantStatus?: string | null;
+  planId?: number | null;
+  planCode?: string | null;
+  planName?: string | null;
+  billingCycle?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  trialDays?: number | null;
+  estimatedFirstChargeAt?: string | null;
+  subscriptionStatus?: string | null;
+  checkoutReady: boolean;
+  accessGranted: boolean;
+  limits?: PlanLimits | null;
+  user?: UserProfile;
+}
+
+export interface StaffInvite {
+  id: number;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt?: string;
+  createdAt?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export interface InvitePreview {
+  email: string;
+  role: string;
+  tenantName: string;
+  expiresAt?: string;
+  expired: boolean;
+  accepted: boolean;
 }
 
 export interface UsageMetric {

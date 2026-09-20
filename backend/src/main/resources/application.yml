@@ -61,7 +61,14 @@ animalin:
     enabled: false
   clinic:
     default-locale: es
-    default-timezone: Europe/Madrid
+    default-timezone: America/Santo_Domingo
+  signup:
+    trial-days: ${SIGNUP_TRIAL_DAYS:14}
+    max-clinics-per-owner: ${SIGNUP_MAX_CLINICS_PER_OWNER:1}
+    verification-hours: ${SIGNUP_VERIFICATION_HOURS:48}
+    resend-cooldown-seconds: ${SIGNUP_RESEND_COOLDOWN_SECONDS:60}
+    invite-days: ${SIGNUP_INVITE_DAYS:7}
+    public-app-url: ${PUBLIC_APP_URL:http://localhost:4200}
 
 paddle:
   api-key: ${PADDLE_API_KEY:}

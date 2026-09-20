@@ -198,9 +198,11 @@ public class AuthService {
 
     private Tenant resolveTenant(String slug, List<TenantMembership> memberships, boolean superAdmin, User user) {
         boolean petOwner = user.getRoles().stream().anyMatch(r -> "PET_OWNER".equals(r.getCode()));
+        boolean ownerRole = user.getRoles().stream().anyMatch(r -> "TENANT_OWNER".equals(r.getCode()));
         boolean staffMembership = memberships.stream().anyMatch(m -> {
             String code = m.getRole().getCode();
-            return "TENANT_ADMIN".equals(code) || "VETERINARIAN".equals(code) || "RECEPTIONIST".equals(code);
+            return "TENANT_OWNER".equals(code) || "TENANT_ADMIN".equals(code)
+                    || "VETERINARIAN".equals(code) || "RECEPTIONIST".equals(code);
         });
         if (superAdmin && (slug == null || slug.isBlank())) {
             return null;
@@ -228,7 +230,7 @@ public class AuthService {
             return tenant;
         }
         if (memberships.isEmpty()) {
-            if (petOwner) {
+            if (petOwner || ownerRole) {
                 return null;
             }
             throw ApiException.forbidden("El usuario no está asociado a ninguna veterinaria");
@@ -236,7 +238,7 @@ public class AuthService {
         return memberships.getFirst().getTenant();
     }
 
-    private AuthDtos.TokenResponse issueTokens(User user, Tenant tenant, List<TenantMembership> memberships) {
+    public AuthDtos.TokenResponse issueTokens(User user, Tenant tenant, List<TenantMembership> memberships) {
         Set<String> roles = user.getRoles().stream().map(Role::getCode).collect(Collectors.toSet());
         Set<String> permissions = user.getRoles().stream()
                 .flatMap(r -> r.getPermissions().stream())
@@ -266,7 +268,7 @@ public class AuthService {
                 toProfile(user, tenant, memberships));
     }
 
-    private AuthDtos.UserProfile toProfile(User user, Tenant tenant, List<TenantMembership> memberships) {
+    public AuthDtos.UserProfile toProfile(User user, Tenant tenant, List<TenantMembership> memberships) {
         Set<String> roles = user.getRoles().stream().map(Role::getCode).collect(Collectors.toSet());
         Set<String> permissions = user.getRoles().stream()
                 .flatMap(r -> r.getPermissions().stream())
@@ -302,7 +304,8 @@ public class AuthService {
                 tenant == null ? null : tenant.getId(),
                 tenant == null ? null : tenant.getName(),
                 tenant == null ? null : tenant.getSlug(),
-                role, roles, permissions, summaries
+                tenant == null ? null : tenant.getStatus(),
+                role, roles, permissions, user.isEmailVerified(), summaries
         );
     }
 

@@ -5,8 +5,12 @@ import com.animalin.audit.AuditService;
 import com.animalin.common.exception.ApiException;
 import com.animalin.owner.OwnerRepository;
 import com.animalin.pet.PetRepository;
+import com.animalin.billing.SubscriptionCycle;
+import com.animalin.billing.SubscriptionStatuses;
+import com.animalin.config.AnimalinProperties;
 import com.animalin.plan.Plan;
 import com.animalin.plan.PlanRepository;
+import com.animalin.signup.ClinicSignupService;
 import com.animalin.tenant.Subscription;
 import com.animalin.tenant.SubscriptionRepository;
 import com.animalin.tenant.Tenant;
@@ -45,8 +49,9 @@ public class AdminService {
     private final AppointmentRepository appointmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final AnimalinProperties properties;
 
-    public AdminService(TenantRepository tenantRepository, PlanRepository planRepository, SubscriptionRepository subscriptionRepository, TenantSettingsRepository settingsRepository, TenantMembershipRepository membershipRepository, UserRepository userRepository, RoleRepository roleRepository, OwnerRepository ownerRepository, PetRepository petRepository, AppointmentRepository appointmentRepository, PasswordEncoder passwordEncoder, AuditService auditService) {
+    public AdminService(TenantRepository tenantRepository, PlanRepository planRepository, SubscriptionRepository subscriptionRepository, TenantSettingsRepository settingsRepository, TenantMembershipRepository membershipRepository, UserRepository userRepository, RoleRepository roleRepository, OwnerRepository ownerRepository, PetRepository petRepository, AppointmentRepository appointmentRepository, PasswordEncoder passwordEncoder, AuditService auditService, AnimalinProperties properties) {
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
@@ -59,6 +64,7 @@ public class AdminService {
         this.appointmentRepository = appointmentRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
+        this.properties = properties;
     }
 
     @Transactional(readOnly = true)
@@ -100,12 +106,22 @@ public class AdminService {
         tenant.setAddress(request.address());
         tenant.setCity(request.city());
         tenant.setCountry(request.country());
-        tenant.setTimezone(StringUtils.hasText(request.timezone()) ? request.timezone() : "Europe/Madrid");
-        tenant.setCurrency(StringUtils.hasText(request.currency()) ? request.currency() : "EUR");
+        tenant.setTimezone(StringUtils.hasText(request.timezone()) ? request.timezone() : ClinicSignupService.DEFAULT_TIMEZONE);
+        tenant.setCurrency(StringUtils.hasText(request.currency()) ? request.currency() : "USD");
         tenant.setDefaultLocale(StringUtils.hasText(request.locale()) ? request.locale() : "es");
-        tenant.setStatus("TRIAL");
         tenant.setPlan(plan);
-        tenant.setTrialEndsAt(Instant.now().plus(14, ChronoUnit.DAYS));
+        SubscriptionCycle cycle = SubscriptionCycle.parse(request.billingCycle());
+        boolean complimentary = Boolean.TRUE.equals(request.complimentary());
+        boolean requirePayment = Boolean.TRUE.equals(request.requireImmediatePayment()) && !complimentary;
+        Instant trialEnd = request.trialEndsAt() != null
+                ? request.trialEndsAt()
+                : Instant.now().plus(properties.trialDays(), ChronoUnit.DAYS);
+        if (requirePayment) {
+            tenant.setStatus(SubscriptionStatuses.PENDING_PAYMENT);
+        } else {
+            tenant.setStatus(SubscriptionStatuses.TRIAL);
+            tenant.setTrialEndsAt(trialEnd);
+        }
         tenantRepository.save(tenant);
 
         TenantSettings settings = new TenantSettings();
@@ -115,9 +131,15 @@ public class AdminService {
         Subscription subscription = new Subscription();
         subscription.setTenant(tenant);
         subscription.setPlan(plan);
-        subscription.setStatus("TRIAL");
-        subscription.setTrial(true);
-        subscription.setCurrentPeriodEnd(tenant.getTrialEndsAt());
+        subscription.setBillingCycle(cycle.name());
+        if (requirePayment) {
+            subscription.setStatus(SubscriptionStatuses.PENDING);
+            subscription.setTrial(false);
+        } else {
+            subscription.setStatus(SubscriptionStatuses.TRIAL);
+            subscription.setTrial(true);
+            subscription.setCurrentPeriodEnd(tenant.getTrialEndsAt());
+        }
         subscriptionRepository.save(subscription);
 
         if (StringUtils.hasText(request.adminEmail())) {
@@ -127,17 +149,53 @@ public class AdminService {
                 user.setFirstName(request.adminFirstName() == null ? "Admin" : request.adminFirstName());
                 user.setLastName(request.adminLastName() == null ? tenant.getName() : request.adminLastName());
                 user.setPasswordHash(passwordEncoder.encode(request.adminPassword() == null ? "Admin123!" : request.adminPassword()));
+                user.setEmailVerified(true);
                 return userRepository.save(user);
             });
             TenantMembership membership = new TenantMembership();
             membership.setTenant(tenant);
             membership.setUser(admin);
-            membership.setRole(roleRepository.findByCode("TENANT_ADMIN").orElseThrow());
+            membership.setRole(roleRepository.findByCode(ClinicSignupService.TENANT_OWNER)
+                    .or(() -> roleRepository.findByCode("TENANT_ADMIN"))
+                    .orElseThrow());
             membership.setStatus("ACTIVE");
             membershipRepository.save(membership);
+            if (admin.getRoles().stream().noneMatch(r -> ClinicSignupService.TENANT_OWNER.equals(r.getCode()))) {
+                roleRepository.findByCode(ClinicSignupService.TENANT_OWNER).ifPresent(admin.getRoles()::add);
+            }
         }
-        auditService.record(tenant.getId(), null, "platform", "CREATE", "TENANT", tenant.getId(), tenant.getName(), null, null);
+        auditService.record(tenant.getId(), null, "platform", "CREATE", "TENANT", tenant.getId(), tenant.getName(),
+                complimentary ? "COMPLIMENTARY" : (requirePayment ? "IMMEDIATE_PAYMENT" : "TRIAL"),
+                tenant.getStatus());
         return tenant;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> tenantSetup(Long id) {
+        Tenant tenant = tenantRepository.findById(id).orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
+        Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(id).orElse(null);
+        List<TenantMembership> memberships = membershipRepository.findByTenantId(id);
+        TenantMembership owner = memberships.stream()
+                .filter(m -> ClinicSignupService.TENANT_OWNER.equals(m.getRole().getCode())
+                        || "TENANT_ADMIN".equals(m.getRole().getCode()))
+                .findFirst()
+                .orElse(null);
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("tenantId", tenant.getId());
+        row.put("name", tenant.getName());
+        row.put("slug", tenant.getSlug());
+        row.put("status", tenant.getStatus());
+        row.put("planCode", tenant.getPlan() == null ? null : tenant.getPlan().getCode());
+        row.put("trialEndsAt", tenant.getTrialEndsAt());
+        row.put("hasOwner", owner != null);
+        row.put("ownerEmail", owner == null ? null : owner.getUser().getEmail());
+        row.put("ownerRole", owner == null ? null : owner.getRole().getCode());
+        row.put("ownerEmailVerified", owner != null && owner.getUser().isEmailVerified());
+        row.put("subscriptionStatus", subscription == null ? null : subscription.getStatus());
+        row.put("billingCycle", subscription == null ? null : subscription.getBillingCycle());
+        row.put("hasPaddleCustomer", subscription != null && StringUtils.hasText(subscription.getPaddleCustomerId()));
+        row.put("hasPaddleSubscription", subscription != null && StringUtils.hasText(subscription.getPaddleSubscriptionId()));
+        return row;
     }
 
     @Transactional
@@ -235,7 +293,8 @@ public class AdminService {
     public record CreateTenantRequest(
             String slug, String name, String commercialName, String email, String phone, String address,
             String city, String country, String timezone, String currency, String locale, String planCode,
-            String adminEmail, String adminFirstName, String adminLastName, String adminPassword
+            String adminEmail, String adminFirstName, String adminLastName, String adminPassword,
+            String billingCycle, Boolean requireImmediatePayment, Boolean complimentary, Instant trialEndsAt
     ) {
     }
 

@@ -75,7 +75,8 @@ public final class TenantContext {
     }
 
     public static boolean isPetOwner() {
-        return hasRole("PET_OWNER") && !hasRole("TENANT_ADMIN") && !hasRole("VETERINARIAN") && !hasRole("RECEPTIONIST");
+        return hasRole("PET_OWNER") && !hasRole("TENANT_OWNER") && !hasRole("TENANT_ADMIN")
+                && !hasRole("VETERINARIAN") && !hasRole("RECEPTIONIST");
     }
 
     public record AuthPrincipal(

@@ -4,6 +4,7 @@ import com.animalin.audit.AuditService;
 import com.animalin.common.exception.ApiException;
 import com.animalin.plan.PlanLimitService;
 import com.animalin.security.AccessGuard;
+import com.animalin.signup.SignupDtos;
 import com.animalin.tenant.TenantMembership;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
@@ -42,11 +43,13 @@ public class EmployeeController {
     private final AccessGuard accessGuard;
     private final AuditService auditService;
     private final PlanLimitService planLimitService;
+    private final StaffInviteService staffInviteService;
 
     public EmployeeController(EmployeeRepository employeeRepository, UserRepository userRepository,
                               RoleRepository roleRepository, TenantRepository tenantRepository,
                               TenantMembershipRepository membershipRepository, PasswordEncoder passwordEncoder,
-                              AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService) {
+                              AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService,
+                              StaffInviteService staffInviteService) {
         this.employeeRepository = employeeRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -56,6 +59,24 @@ public class EmployeeController {
         this.accessGuard = accessGuard;
         this.auditService = auditService;
         this.planLimitService = planLimitService;
+        this.staffInviteService = staffInviteService;
+    }
+
+    @GetMapping("/invites")
+    public List<SignupDtos.InviteResponse> invites() {
+        return staffInviteService.list();
+    }
+
+    @PostMapping("/invites")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SignupDtos.InviteResponse invite(@RequestBody SignupDtos.InviteRequest request) {
+        return staffInviteService.invite(request);
+    }
+
+    @PostMapping("/invites/{id}/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelInvite(@PathVariable Long id) {
+        staffInviteService.cancel(id);
     }
 
     @GetMapping
@@ -72,6 +93,8 @@ public class EmployeeController {
     public Map<String, Object> create(@RequestBody EmployeeRequest request) {
         accessGuard.requirePermission("STAFF_MANAGE");
         Long tenantId = accessGuard.requireStaffTenant();
+        tenantRepository.findByIdForUpdate(tenantId)
+                .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         planLimitService.assertCanAddStaffUser(tenantId);
         if (!StringUtils.hasText(request.email()) || !StringUtils.hasText(request.firstName())) {
             throw ApiException.badRequest("Nombre y email son obligatorios");
