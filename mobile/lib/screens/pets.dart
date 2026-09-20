@@ -76,10 +76,11 @@ class RegisterPetScreen extends StatefulWidget {
 
 class _RegisterPetScreenState extends State<RegisterPetScreen> {
   final name = TextEditingController();
-  final species = TextEditingController(text: 'DOG');
   final breed = TextEditingController();
+  final speciesOptions = const ['DOG', 'CAT', 'BIRD', 'RABBIT', 'RODENT', 'REPTILE', 'HORSE', 'OTHER'];
   List clinics = [];
   String? tenantSlug;
+  String species = 'DOG';
   bool loading = false;
   String? error;
 
@@ -93,7 +94,12 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
 
   Future<void> _loadClinics() async {
     try {
-      final list = await widget.auth.api.get('/public/clinics');
+      dynamic list;
+      try {
+        list = await widget.auth.api.get('/clinics');
+      } catch (_) {
+        list = await widget.auth.api.get('/public/clinics');
+      }
       final items = list as List? ?? [];
       if (!mounted) return;
       setState(() {
@@ -120,7 +126,7 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
       await widget.auth.api.post('/pets/mine', {
         'tenantSlug': tenantSlug,
         'name': name.text.trim(),
-        'species': species.text.trim().isEmpty ? 'DOG' : species.text.trim(),
+        'species': species,
         'breed': breed.text.trim(),
         'sex': 'UNKNOWN',
       });
@@ -154,7 +160,15 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
           const SizedBox(height: 12),
           TextField(controller: name, decoration: InputDecoration(labelText: i.t('name'))),
           const SizedBox(height: 12),
-          TextField(controller: species, decoration: InputDecoration(labelText: i.t('species'))),
+          DropdownButtonFormField<String>(
+            value: species,
+            decoration: InputDecoration(labelText: i.t('species')),
+            items: [
+              for (final code in speciesOptions)
+                DropdownMenuItem(value: code, child: Text(i.t('species_$code'))),
+            ],
+            onChanged: (value) => setState(() => species = value ?? 'DOG'),
+          ),
           const SizedBox(height: 12),
           TextField(controller: breed, decoration: InputDecoration(labelText: i.t('breed'))),
           if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),

@@ -93,6 +93,12 @@ class PetOwnerPetRegistrationTest {
                 .andExpect(jsonPath("$[?(@.slug=='" + slugA + "')].name").value("Clinica Owner A"))
                 .andExpect(jsonPath("$[?(@.slug=='" + slugB + "')].name").value("Clinica Owner B"))
                 .andExpect(jsonPath("$[?(@.slug=='" + slugSuspended + "')]").isEmpty());
+        String token = registerOwner("owner-clinics-" + suffix + "@test.com");
+        mockMvc.perform(get("/api/v1/clinics")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.slug=='" + slugA + "')].name").value("Clinica Owner A"))
+                .andExpect(jsonPath("$[?(@.slug=='" + slugSuspended + "')]").isEmpty());
     }
 
     @Test
