@@ -290,6 +290,10 @@ export interface CheckoutSession {
   locale: string;
 }
 
+export interface PortalSession {
+  url: string;
+}
+
 export interface ChangePreview {
   currentPlanId?: number | null;
   currentPlanCode?: string | null;

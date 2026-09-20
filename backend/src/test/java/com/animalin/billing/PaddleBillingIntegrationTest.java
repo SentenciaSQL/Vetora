@@ -411,7 +411,7 @@ class PaddleBillingIntegrationTest {
         assertThat(subscription.getPaddlePriceId()).isEqualTo("pri_basic_month");
         assertThat(subscription.getPaddleProductId()).isEqualTo("pro_basic");
         assertThat(subscription.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_MONTHLY);
-        assertThat(subscription.getPlan().getCode()).isEqualTo("BASIC");
+        assertThat(subscription.getPlan().getId()).isEqualTo(basicPlanId());
     }
 
     @Test
@@ -424,7 +424,7 @@ class PaddleBillingIntegrationTest {
         assertThat(subscription.getPaddlePriceId()).isEqualTo("pri_basic_year");
         assertThat(subscription.getPaddleProductId()).isEqualTo("pro_basic");
         assertThat(subscription.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_ANNUAL);
-        assertThat(subscription.getPlan().getCode()).isEqualTo("BASIC");
+        assertThat(subscription.getPlan().getId()).isEqualTo(basicPlanId());
     }
 
     @Test
@@ -506,7 +506,7 @@ class PaddleBillingIntegrationTest {
         Subscription afterWebhook = currentSubscription();
         assertThat(afterWebhook.getBillingCycle()).isEqualTo(SubscriptionStatuses.CYCLE_ANNUAL);
         assertThat(afterWebhook.getPaddlePriceId()).isEqualTo("pri_basic_year");
-        assertThat(afterWebhook.getPlan().getCode()).isEqualTo("BASIC");
+        assertThat(afterWebhook.getPlan().getId()).isEqualTo(basicPlanId());
     }
 
     @Test
