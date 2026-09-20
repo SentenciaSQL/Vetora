@@ -2,29 +2,23 @@ package com.animalin.tenant;
 
 import com.animalin.dto.AppDtos;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/public")
-public class PublicController {
+@RequestMapping("/api/v1/clinics")
+public class ClinicController {
 
     private final BrandingService brandingService;
 
-    public PublicController(BrandingService brandingService) {
+    public ClinicController(BrandingService brandingService) {
         this.brandingService = brandingService;
     }
 
-    @GetMapping("/clinics")
-    public List<AppDtos.PublicClinicResponse> clinics() {
+    @GetMapping
+    public List<AppDtos.PublicClinicResponse> list() {
         return brandingService.listPublicClinics();
-    }
-
-    @GetMapping("/tenants/{slug}/branding")
-    public AppDtos.BrandingResponse branding(@PathVariable String slug) {
-        return brandingService.publicBySlug(slug);
     }
 }

@@ -7,6 +7,7 @@ import com.animalin.dto.AppDtos;
 import com.animalin.pet.PetRepository;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
+import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantMembership;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
@@ -79,6 +80,38 @@ public class OwnerService {
         apply(owner, request);
         auditService.record("UPDATE", "OWNER", owner.getId(), owner.fullName());
         return toDto(owner);
+    }
+
+    @Transactional
+    public Owner ensureForAuthenticatedUser(Tenant tenant) {
+        if (tenant == null) {
+            throw ApiException.badRequest("Debe indicar la veterinaria");
+        }
+        User user = userRepository.findById(TenantContext.userId())
+                .orElseThrow(() -> ApiException.unauthorized("Sesión inválida"));
+        Owner owner = ownerRepository.findByTenantIdAndUserId(tenant.getId(), user.getId()).orElseGet(() -> {
+            Owner created = new Owner();
+            created.setTenantId(tenant.getId());
+            created.setUser(user);
+            created.setFirstName(user.getFirstName());
+            created.setLastName(user.getLastName());
+            created.setEmail(user.getEmail());
+            created.setPhone(user.getPhone());
+            created.setStatus("ACTIVE");
+            return ownerRepository.save(created);
+        });
+        if (owner.getUser() == null) {
+            owner.setUser(user);
+        }
+        if (!membershipRepository.existsByTenantIdAndUserId(tenant.getId(), user.getId())) {
+            TenantMembership membership = new TenantMembership();
+            membership.setTenant(tenant);
+            membership.setUser(user);
+            membership.setRole(roleRepository.findByCode("PET_OWNER").orElseThrow());
+            membership.setStatus("ACTIVE");
+            membershipRepository.save(membership);
+        }
+        return owner;
     }
 
     @Transactional

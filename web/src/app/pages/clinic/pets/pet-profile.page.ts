@@ -24,7 +24,7 @@ import { ToastService } from '../../../core/services/toast.service';
           </div>
           <div class="flex-1">
             <h1 class="font-display text-2xl font-semibold">{{ p.name }}</h1>
-            <p class="text-slate-500">{{ p.breed }} · {{ p.age || p.species }}</p>
+            <p class="text-slate-500">{{ p.breed }} · {{ p.age || ('pets.speciesOptions.' + p.species | translate) }}</p>
             <p class="text-sm text-slate-500">
               {{ 'pets.owner' | translate }}: {{ p.ownerName }}
               · {{ p.weightKg }} kg
@@ -53,7 +53,7 @@ import { ToastService } from '../../../core/services/toast.service';
       @if (tab === 'summary') {
         <div class="mt-4 grid gap-4 md:grid-cols-2">
           <div class="card space-y-1 text-sm">
-            <p><span class="text-slate-400">{{ 'pets.species' | translate }}:</span> {{ p.species }}</p>
+            <p><span class="text-slate-400">{{ 'pets.species' | translate }}:</span> {{ 'pets.speciesOptions.' + p.species | translate }}</p>
             <p><span class="text-slate-400">{{ 'pets.breed' | translate }}:</span> {{ p.breed }}</p>
             <p><span class="text-slate-400">{{ 'pets.weight' | translate }}:</span> {{ p.weightKg }} kg</p>
             <p><span class="text-slate-400">Microchip:</span> {{ p.microchip || '—' }}</p>

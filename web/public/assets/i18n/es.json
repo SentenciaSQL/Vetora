@@ -108,7 +108,8 @@
     "emptyAgenda": "No hay citas programadas para hoy",
     "ownerTitle": "El cuidado de sus mascotas",
     "ownerSubtitle": "Citas, vacunas y tratamientos en un vistazo",
-    "reminders": "Recordatorios"
+    "reminders": "Recordatorios",
+    "registerPet": "Registrar mascota"
   },
   "admin": {
     "title": "Super administración",
@@ -175,9 +176,24 @@
   "pets": {
     "title": "Mascotas",
     "subtitle": "Pacientes de la clínica",
+    "ownerSubtitle": "Sus mascotas registradas",
     "new": "Nueva mascota",
+    "register": "Registrar mascota",
+    "pickClinic": "Elija la veterinaria",
+    "clinic": "Veterinaria",
     "name": "Nombre",
     "species": "Especie",
+    "speciesOptions": {
+      "DOG": "Perro",
+      "CAT": "Gato",
+      "BIRD": "Ave",
+      "RABBIT": "Conejo",
+      "RODENT": "Roedor",
+      "REPTILE": "Reptil",
+      "HORSE": "Caballo",
+      "OTHER": "Otro"
+    },
+    "noClinics": "No hay veterinarias disponibles en este momento",
     "breed": "Raza",
     "owner": "Propietario",
     "weight": "Peso",
@@ -185,6 +201,8 @@
     "allergies": "Alergias",
     "conditions": "Condiciones",
     "empty": "No hay mascotas registradas",
+    "emptyOwner": "Aún no ha registrado ninguna mascota",
+    "emptyHint": "Registre su mascota para pedir citas y consultar su historial",
     "male": "Macho",
     "female": "Hembra",
     "unknown": "No especificado",
