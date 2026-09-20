@@ -7,7 +7,7 @@ import { BillingService } from '../../../core/services/billing.service';
 import { PaddleService } from '../../../core/services/paddle.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { BillingPlan, UsageMetric } from '../../../core/models';
+import { BillingPlan, ChangePreview, UsageMetric } from '../../../core/models';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
 
 export type BillingCycle = 'MONTHLY' | 'ANNUAL';
@@ -19,11 +19,44 @@ export function selectedPriceId(plan: BillingPlan, cycle: BillingCycle): string 
   return plan.paddleMonthlyPriceId || null;
 }
 
+export function cycleAvailable(plan: BillingPlan, cycle: BillingCycle): boolean {
+  if (cycle === 'ANNUAL') {
+    return plan.annualAvailable !== false && !!plan.paddleAnnualPriceId;
+  }
+  return plan.monthlyAvailable !== false && !!plan.paddleMonthlyPriceId;
+}
+
 export function displayedPrice(plan: BillingPlan, cycle: BillingCycle): number {
   if (cycle === 'ANNUAL' && plan.annualPrice != null) {
     return Number(plan.annualPrice);
   }
   return Number(plan.monthlyPrice);
+}
+
+export function monthlyEquivalentAmount(plan: BillingPlan): number | null {
+  if (plan.monthlyEquivalent != null) {
+    return Number(plan.monthlyEquivalent);
+  }
+  if (plan.annualPrice == null) {
+    return null;
+  }
+  return Math.round((Number(plan.annualPrice) / 12) * 100) / 100;
+}
+
+export function savingsPercentAmount(plan: BillingPlan): number | null {
+  if (plan.savingsPercent != null) {
+    return Number(plan.savingsPercent);
+  }
+  const monthly = Number(plan.monthlyPrice);
+  const annual = Number(plan.annualPrice);
+  if (!monthly || !annual) {
+    return null;
+  }
+  return Math.round(((monthly * 12 - annual) / (monthly * 12)) * 1000) / 10;
+}
+
+export function checkoutPayload(planId: number, billingCycle: BillingCycle) {
+  return { planId, billingCycle };
 }
 
 export function isPopularPlan(code?: string | null): boolean {
@@ -86,6 +119,9 @@ export function usageReached(metric?: UsageMetric | null): boolean {
         @if (sub.currentPeriodEndsAt) {
           <p class="text-sm text-slate-500">{{ 'billing.periodEnd' | translate }}: {{ sub.currentPeriodEndsAt | date:'mediumDate' }}</p>
         }
+        @if (sub.nextBillingAt) {
+          <p class="text-sm text-slate-500">{{ 'billing.nextCharge' | translate }}: {{ sub.nextBillingAt | date:'mediumDate' }}</p>
+        }
         @if (sub.scheduledChangeEffectiveAt) {
           <p class="text-sm text-amber-700">{{ 'billing.cancelsOn' | translate }}: {{ sub.scheduledChangeEffectiveAt | date:'mediumDate' }}</p>
         }
@@ -109,12 +145,28 @@ export function usageReached(metric?: UsageMetric | null): boolean {
       </div>
     </section>
 
+    @if (preview(); as change) {
+      <section class="card mt-6 space-y-2 border-brand-200">
+        <h2 class="font-medium">{{ 'billing.changePreviewTitle' | translate }}</h2>
+        <p class="text-sm">{{ 'billing.currentPlan' | translate }}: {{ change.currentPlanName || change.currentPlanCode }} ({{ change.currentCycle || '—' }})</p>
+        <p class="text-sm">{{ 'billing.newPlan' | translate }}: {{ change.newPlanName || change.newPlanCode }} ({{ change.newCycle }})</p>
+        <p class="text-sm">{{ 'billing.estimatedAmount' | translate }}:
+          {{ change.estimatedAmount == null ? '—' : (change.estimatedAmount | number:'1.2-2') }} {{ change.currency }}
+        </p>
+        <p class="text-sm">{{ 'billing.nextCharge' | translate }}: {{ change.nextBillingAt ? (change.nextBillingAt | date:'mediumDate') : '—' }}</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="btn-primary" [disabled]="busy()" (click)="confirmChange()">{{ 'billing.confirmChange' | translate }}</button>
+          <button type="button" class="btn-secondary" [disabled]="busy()" (click)="preview.set(null)">{{ 'common.cancel' | translate }}</button>
+        </div>
+      </section>
+    }
+
     <section class="mt-8">
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <h2 class="font-display text-xl font-semibold">{{ 'billing.plans' | translate }}</h2>
-        <div class="inline-flex rounded-full border border-slate-200 p-1 text-sm dark:border-slate-700">
-          <button type="button" class="rounded-full px-3 py-1" [class.bg-brand-600]="cycle() === 'MONTHLY'" [class.text-white]="cycle() === 'MONTHLY'" (click)="cycle.set('MONTHLY')">{{ 'billing.monthly' | translate }}</button>
-          <button type="button" class="rounded-full px-3 py-1" [class.bg-brand-600]="cycle() === 'ANNUAL'" [class.text-white]="cycle() === 'ANNUAL'" (click)="cycle.set('ANNUAL')">{{ 'billing.annual' | translate }}</button>
+        <div class="inline-flex w-full rounded-full border border-slate-200 p-1 text-sm sm:w-auto dark:border-slate-700">
+          <button type="button" class="flex-1 rounded-full px-3 py-1 sm:flex-none" [class.bg-brand-600]="cycle() === 'MONTHLY'" [class.text-white]="cycle() === 'MONTHLY'" (click)="cycle.set('MONTHLY')">{{ 'billing.monthly' | translate }}</button>
+          <button type="button" class="flex-1 rounded-full px-3 py-1 sm:flex-none" [class.bg-brand-600]="cycle() === 'ANNUAL'" [class.text-white]="cycle() === 'ANNUAL'" (click)="cycle.set('ANNUAL')">{{ 'billing.annual' | translate }}</button>
         </div>
       </div>
       <div class="mt-4 grid gap-4 md:grid-cols-3">
@@ -128,6 +180,15 @@ export function usageReached(metric?: UsageMetric | null): boolean {
             <p class="text-sm text-slate-500">{{ plan.description }}</p>
             <p class="text-3xl font-semibold">{{ displayedPrice(plan, cycle()) | number:'1.2-2' }} {{ plan.currency }}</p>
             <p class="text-xs text-slate-400">{{ cycle() === 'ANNUAL' ? ('billing.perYear' | translate) : ('billing.perMonth' | translate) }}</p>
+            @if (cycle() === 'ANNUAL' && monthlyEquivalentAmount(plan); as equivalent) {
+              <p class="text-sm text-slate-500">{{ equivalent | number:'1.2-2' }} {{ plan.currency }}/mes, {{ 'billing.billedAnnually' | translate }}</p>
+              <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                {{ 'billing.twoMonthsFree' | translate }}
+                @if (savingsPercentAmount(plan); as save) {
+                  · {{ 'billing.savePercent' | translate:{ percent: save } }}
+                }
+              </p>
+            }
             <p class="text-xs font-medium text-brand-700">{{ 'billing.trialDays' | translate:{ days: trialDays() } }}</p>
             <ul class="text-sm text-slate-600 dark:text-slate-300">
               <li>{{ 'admin.users' | translate }}: {{ plan.limits.maxUsers }}</li>
@@ -139,11 +200,11 @@ export function usageReached(metric?: UsageMetric | null): boolean {
               <li>{{ 'nav.messages' | translate }}: {{ plan.limits.messagingEnabled ? ('common.yes' | translate) : ('common.no' | translate) }}</li>
               <li>{{ 'pets.tabs.labs' | translate }}: {{ plan.limits.laboratoryEnabled ? ('common.yes' | translate) : ('common.no' | translate) }}</li>
             </ul>
-            @if (canManage() && selectedPriceId(plan, cycle())) {
+            @if (canManage() && cycleAvailable(plan, cycle())) {
               <button type="button" class="btn-primary w-full" [disabled]="busy()" (click)="subscribe(plan)">
-                {{ 'billing.subscribe' | translate }}
+                {{ hasActivePaddleSubscription() ? ('billing.changePlan' | translate) : ('billing.subscribe' | translate) }}
               </button>
-            } @else if (canManage() && cycle() === 'ANNUAL' && !plan.paddleAnnualPriceId) {
+            } @else if (canManage() && cycle() === 'ANNUAL') {
               <p class="text-xs text-slate-400">{{ 'billing.annualUnavailable' | translate }}</p>
             }
           </article>
@@ -165,9 +226,13 @@ export class BillingPage implements OnInit {
   busy = signal(false);
   cycle = signal<BillingCycle>('MONTHLY');
   trialDays = signal(14);
+  preview = signal<ChangePreview | null>(null);
 
   readonly selectedPriceId = selectedPriceId;
+  readonly cycleAvailable = cycleAvailable;
   readonly displayedPrice = displayedPrice;
+  readonly monthlyEquivalentAmount = monthlyEquivalentAmount;
+  readonly savingsPercentAmount = savingsPercentAmount;
   readonly isPopularPlan = isPopularPlan;
   readonly isSuccessfulCheckoutStatus = isSuccessfulCheckoutStatus;
   readonly formatUsage = formatUsage;
@@ -192,9 +257,13 @@ export class BillingPage implements OnInit {
     return this.auth.hasRole('TENANT_ADMIN');
   }
 
+  hasActivePaddleSubscription(): boolean {
+    const sub = this.subscription();
+    return !!sub?.hasPaddleSubscription && (sub.status === 'ACTIVE' || sub.status === 'TRIALING' || sub.status === 'TRIAL');
+  }
+
   subscribe(plan: BillingPlan): void {
-    const priceId = selectedPriceId(plan, this.cycle());
-    if (!priceId) {
+    if (!cycleAvailable(plan, this.cycle())) {
       this.toast.show('billing.planUnavailable', true);
       return;
     }
@@ -202,13 +271,46 @@ export class BillingPage implements OnInit {
       return;
     }
     this.busy.set(true);
-    this.billing.checkout(priceId, this.cycle()).subscribe({
+    if (this.hasActivePaddleSubscription()) {
+      this.billing.previewChange(plan.id, this.cycle()).subscribe({
+        next: preview => {
+          this.preview.set(preview);
+          this.busy.set(false);
+        },
+        error: err => {
+          this.busy.set(false);
+          this.toast.showHttpError(err);
+        }
+      });
+      return;
+    }
+    this.billing.checkout(plan.id, this.cycle()).subscribe({
       next: session => {
         void this.paddle.openCheckout(session, () => {
           this.toast.show('billing.checkoutSuccess');
           this.refreshUntilActive();
         }).catch(() => this.toast.show('billing.checkoutError', true));
         this.busy.set(false);
+      },
+      error: err => {
+        this.busy.set(false);
+        this.toast.showHttpError(err);
+      }
+    });
+  }
+
+  confirmChange(): void {
+    const change = this.preview();
+    if (!change || this.busy()) {
+      return;
+    }
+    this.busy.set(true);
+    this.billing.changePlan(change.newPlanId, change.newCycle as BillingCycle).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.preview.set(null);
+        this.toast.show('billing.changeSubmitted');
+        this.billing.loadSubscription().subscribe();
       },
       error: err => {
         this.busy.set(false);

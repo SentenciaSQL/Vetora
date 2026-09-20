@@ -46,6 +46,12 @@ public class Subscription {
     @Column(name = "paddle_transaction_id", length = 64)
     private String paddleTransactionId;
 
+    @Column(name = "paddle_product_id", length = 64)
+    private String paddleProductId;
+
+    @Column(name = "paddle_price_id", length = 64)
+    private String paddlePriceId;
+
     @Column(name = "billing_cycle", length = 20)
     private String billingCycle;
 
@@ -155,6 +161,18 @@ public class Subscription {
     }
     public void setPaddleTransactionId(String paddleTransactionId) {
         this.paddleTransactionId = paddleTransactionId;
+    }
+    public String getPaddleProductId() {
+        return paddleProductId;
+    }
+    public void setPaddleProductId(String paddleProductId) {
+        this.paddleProductId = paddleProductId;
+    }
+    public String getPaddlePriceId() {
+        return paddlePriceId;
+    }
+    public void setPaddlePriceId(String paddlePriceId) {
+        this.paddlePriceId = paddlePriceId;
     }
     public String getBillingCycle() {
         return billingCycle;

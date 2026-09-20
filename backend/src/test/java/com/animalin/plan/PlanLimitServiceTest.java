@@ -1,5 +1,6 @@
 package com.animalin.plan;
 
+import com.animalin.billing.BillingDtos;
 import com.animalin.branch.BranchRepository;
 import com.animalin.common.exception.ApiException;
 import com.animalin.messaging.MessageRepository;
@@ -99,6 +100,24 @@ class PlanLimitServiceTest {
                     assertThat(api.getDetails()).containsEntry("resource", "users");
                     assertThat(api.getDetails()).containsEntry("plan", "BASIC");
                 });
+    }
+
+    @Test
+    void limitsStayTiedToTheInternalPlanRegardlessOfBillingCycle() {
+        when(tenantRepository.findById(10L)).thenReturn(Optional.of(tenant));
+        when(membershipRepository.countByTenantIdAndStatus(10L, "ACTIVE")).thenReturn(2L);
+        when(veterinarianRepository.countByTenantIdAndStatus(10L, "ACTIVE")).thenReturn(1L);
+        when(branchRepository.countByTenantIdAndActiveTrue(10L)).thenReturn(1L);
+        when(storedFileRepository.sumSizeBytesByTenantId(10L)).thenReturn(0L);
+        when(messageRepository.countByTenantIdAndCreatedAtGreaterThanEqual(eq(10L), any())).thenReturn(0L);
+        BillingDtos.PlanUsage monthly = service.usage(10L);
+        plan.setPaddleMonthlyPriceId("pri_month");
+        plan.setPaddleAnnualPriceId("pri_year");
+        BillingDtos.PlanUsage annual = service.usage(10L);
+        assertThat(monthly.users().limit()).isEqualTo(annual.users().limit());
+        assertThat(monthly.veterinarians().limit()).isEqualTo(annual.veterinarians().limit());
+        assertThat(monthly.branches().limit()).isEqualTo(annual.branches().limit());
+        assertThat(monthly.users().limit()).isEqualTo(5);
     }
 
     @Test

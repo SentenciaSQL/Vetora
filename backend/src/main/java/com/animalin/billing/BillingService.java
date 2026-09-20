@@ -20,12 +20,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class BillingService {
+
+    private static final String PRORATION_MODE = "prorated_immediately";
 
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
@@ -94,33 +99,25 @@ public class BillingService {
     public BillingDtos.CheckoutResponse prepareCheckout(BillingDtos.CheckoutRequest request) {
         Long tenantId = requireBillingTenant();
         requireTenantAdmin();
-        if (request == null || !StringUtils.hasText(request.priceId())) {
-            throw ApiException.badRequest("Debe indicar un identificador de precio");
-        }
-        Plan plan = requireActivePlanForPrice(request.priceId());
-        String cycle = plan.getPaddleAnnualPriceId() != null && plan.getPaddleAnnualPriceId().equals(request.priceId())
-                ? SubscriptionStatuses.CYCLE_ANNUAL
-                : SubscriptionStatuses.CYCLE_MONTHLY;
-        if (StringUtils.hasText(request.billingCycle()) && !cycle.equalsIgnoreCase(request.billingCycle())) {
-            throw ApiException.badRequest("El ciclo de facturación no coincide con el precio seleccionado");
-        }
-        String interval = SubscriptionStatuses.CYCLE_ANNUAL.equals(cycle) ? "year" : "month";
-        planCatalogService.requireActiveUsdPrice(plan, request.priceId(), interval);
+        SubscriptionCycle cycle = SubscriptionCycle.parse(request == null ? null : request.billingCycle());
+        Plan plan = requireActivePlan(request == null ? null : request.planId());
+        String priceId = resolvePriceId(plan, cycle);
+        planCatalogService.requireActiveUsdPrice(plan, priceId, cycle.paddleInterval());
         Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenantId).orElse(null);
         if (subscription != null
                 && StringUtils.hasText(subscription.getPaddleSubscriptionId())
                 && (SubscriptionStatuses.ACTIVE.equals(subscription.getStatus())
                 || SubscriptionStatuses.TRIALING.equals(subscription.getStatus())
                 || SubscriptionStatuses.TRIAL.equals(subscription.getStatus()))) {
-            throw ApiException.conflict("La veterinaria ya tiene una suscripción activa. Use el portal de cliente para cambiar el plan.");
+            throw ApiException.conflict("La veterinaria ya tiene una suscripción activa. Use el cambio de plan para cambiar el ciclo o el nivel.");
         }
         Tenant tenant = tenantRepository.findById(tenantId).orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         User user = userRepository.findById(TenantContext.userId()).orElseThrow(() -> ApiException.unauthorized("No hay un usuario autenticado"));
         return new BillingDtos.CheckoutResponse(
                 paddleProperties.sandbox() ? "sandbox" : "production",
                 paddleProperties.clientToken(),
-                request.priceId(),
-                cycle,
+                priceId,
+                cycle.name(),
                 Map.of(
                         "tenant_id", String.valueOf(tenant.getId()),
                         "tenant_slug", tenant.getSlug()
@@ -176,47 +173,86 @@ public class BillingService {
         return currentSubscription();
     }
 
+    @Transactional(readOnly = true)
+    public BillingDtos.ChangePreviewResponse previewChange(BillingDtos.ChangePlanRequest request) {
+        Long tenantId = requireBillingTenant();
+        requireTenantAdmin();
+        SubscriptionCycle cycle = SubscriptionCycle.parse(request == null ? null : request.billingCycle());
+        Plan newPlan = requireActivePlan(request == null ? null : request.planId());
+        String priceId = resolvePriceId(newPlan, cycle);
+        planCatalogService.requireActiveUsdPrice(newPlan, priceId, cycle.paddleInterval());
+        Subscription subscription = requirePaddleSubscription(tenantId);
+        Plan currentPlan = subscription.getPlan();
+        try {
+            PaddleDtos.SubscriptionPreview preview = paddleClient.previewSubscriptionUpdate(
+                    subscription.getPaddleSubscriptionId(),
+                    changeRequest(priceId, tenantId)
+            );
+            Instant nextBilling = preview == null ? subscription.getNextBillingAt()
+                    : preview.nextBilledAt() != null ? preview.nextBilledAt() : subscription.getNextBillingAt();
+            return toPreview(currentPlan, subscription.getBillingCycle(), newPlan, cycle.name(),
+                    estimatedAmount(preview), currencyOf(preview, subscription), nextBilling);
+        } catch (PaddleApiException ex) {
+            throw translatePaddle(ex);
+        }
+    }
+
     @Transactional
     public BillingDtos.SubscriptionResponse changePlan(BillingDtos.ChangePlanRequest request) {
         Long tenantId = requireBillingTenant();
         requireTenantAdmin();
-        if (request == null || !StringUtils.hasText(request.priceId())) {
-            throw ApiException.badRequest("Debe indicar un identificador de precio");
-        }
-        Plan plan = requireActivePlanForPrice(request.priceId());
-        String interval = request.priceId().equals(plan.getPaddleAnnualPriceId()) ? "year" : "month";
-        planCatalogService.requireActiveUsdPrice(plan, request.priceId(), interval);
-        Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenantId)
-                .orElseThrow(() -> ApiException.notFound("Suscripción no encontrada"));
-        if (!StringUtils.hasText(subscription.getPaddleSubscriptionId())) {
-            throw ApiException.badRequest("No hay una suscripción de Paddle. Use el checkout para contratar un plan.");
-        }
+        SubscriptionCycle cycle = SubscriptionCycle.parse(request == null ? null : request.billingCycle());
+        Plan plan = requireActivePlan(request == null ? null : request.planId());
+        String priceId = resolvePriceId(plan, cycle);
+        planCatalogService.requireActiveUsdPrice(plan, priceId, cycle.paddleInterval());
+        Subscription subscription = requirePaddleSubscription(tenantId);
         try {
             paddleClient.updateSubscription(
                     subscription.getPaddleSubscriptionId(),
-                    new PaddleDtos.UpdateSubscriptionRequest(
-                            List.of(new PaddleDtos.UpdateSubscriptionItem(request.priceId(), 1)),
-                            "prorated_immediately",
-                            Map.of("tenant_id", String.valueOf(tenantId))
-                    )
+                    changeRequest(priceId, tenantId)
             );
         } catch (PaddleApiException ex) {
             throw translatePaddle(ex);
         }
-        subscription.setPlan(plan);
         return currentSubscription();
     }
 
-    public Plan requireActivePlanForPrice(String priceId) {
-        Plan plan = planRepository.findByPaddleMonthlyPriceIdOrPaddleAnnualPriceId(priceId, priceId)
-                .orElseThrow(() -> ApiException.badRequest("El precio de Paddle no corresponde a un plan de Animexa"));
+    public Plan requireActivePlan(Long planId) {
+        if (planId == null) {
+            throw ApiException.badRequest("Debe indicar el identificador interno del plan");
+        }
+        Plan plan = planRepository.findById(planId)
+                .orElseThrow(() -> ApiException.notFound("Plan no encontrado"));
         if (!plan.isActive()) {
             throw ApiException.badRequest("El plan seleccionado no está disponible");
         }
-        if (!priceId.equals(plan.getPaddleMonthlyPriceId()) && !priceId.equals(plan.getPaddleAnnualPriceId())) {
-            throw ApiException.badRequest("El precio de Paddle no corresponde a un plan de Animexa");
-        }
         return plan;
+    }
+
+    public String resolvePriceId(Plan plan, SubscriptionCycle cycle) {
+        if (cycle == SubscriptionCycle.ANNUAL) {
+            if (!StringUtils.hasText(plan.getPaddleAnnualPriceId())) {
+                throw ApiException.badRequest(
+                        "La venta anual no está disponible para este plan. Configure un Paddle Annual Price ID válido (pri_).");
+            }
+            return plan.getPaddleAnnualPriceId();
+        }
+        if (!StringUtils.hasText(plan.getPaddleMonthlyPriceId())) {
+            throw ApiException.badRequest("El plan no tiene un Paddle Monthly Price ID válido (pri_).");
+        }
+        return plan.getPaddleMonthlyPriceId();
+    }
+
+    private Subscription requirePaddleSubscription(Long tenantId) {
+        Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenantId)
+                .orElseThrow(() -> ApiException.notFound("Suscripción no encontrada"));
+        if (!tenantId.equals(subscription.getTenant().getId())) {
+            throw ApiException.forbidden("No puede consultar la suscripción de otra veterinaria");
+        }
+        if (!StringUtils.hasText(subscription.getPaddleSubscriptionId())) {
+            throw ApiException.badRequest("No hay una suscripción de Paddle. Use el checkout para contratar un plan.");
+        }
+        return subscription;
     }
 
     private Long requireBillingTenant() {
@@ -244,11 +280,40 @@ public class BillingService {
                 plan.getCurrency() == null ? "USD" : plan.getCurrency(),
                 plan.getMonthlyPrice(),
                 plan.getAnnualPrice(),
+                monthlyEquivalent(plan),
+                savingsPercent(plan),
+                StringUtils.hasText(plan.getPaddleMonthlyPriceId()),
+                annualAvailable(plan),
                 plan.getPaddleMonthlyPriceId(),
                 plan.getPaddleAnnualPriceId(),
                 plan.isActive(),
                 limits(plan)
         );
+    }
+
+    static boolean annualAvailable(Plan plan) {
+        return plan.getAnnualPrice() != null
+                && plan.getAnnualPrice().compareTo(BigDecimal.ZERO) > 0
+                && StringUtils.hasText(plan.getPaddleAnnualPriceId())
+                && plan.getPaddleAnnualPriceId().startsWith("pri_");
+    }
+
+    static BigDecimal monthlyEquivalent(Plan plan) {
+        if (plan.getAnnualPrice() == null || plan.getAnnualPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        return plan.getAnnualPrice().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+    }
+
+    static BigDecimal savingsPercent(Plan plan) {
+        if (plan.getMonthlyPrice() == null || plan.getMonthlyPrice().compareTo(BigDecimal.ZERO) <= 0
+                || plan.getAnnualPrice() == null || plan.getAnnualPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+        BigDecimal billedMonthly = plan.getMonthlyPrice().multiply(BigDecimal.valueOf(12));
+        return billedMonthly.subtract(plan.getAnnualPrice())
+                .multiply(BigDecimal.valueOf(100))
+                .divide(billedMonthly, 1, RoundingMode.HALF_UP);
     }
 
     static BillingDtos.PlanLimits limits(Plan plan) {
@@ -281,6 +346,8 @@ public class BillingService {
                 status,
                 subscription == null ? null : subscription.getBillingCycle(),
                 subscription == null || subscription.getCurrency() == null ? "USD" : subscription.getCurrency(),
+                subscription == null ? null : subscription.getPaddleProductId(),
+                subscription == null ? null : subscription.getPaddlePriceId(),
                 subscription == null || subscription.isTrial() || SubscriptionStatuses.isTrial(status),
                 subscription == null ? null : subscription.getStartedAt(),
                 subscription == null ? null : subscription.getCurrentPeriodStartsAt(),
@@ -297,10 +364,86 @@ public class BillingService {
                 SubscriptionStatuses.GRACE_PERIOD.equals(status),
                 blocked,
                 subscription != null && StringUtils.hasText(subscription.getPaddleCustomerId()),
+                subscription != null && StringUtils.hasText(subscription.getPaddleSubscriptionId()),
                 SubscriptionStatuses.isTrial(status),
                 plan == null ? null : limits(plan),
                 usage
         );
+    }
+
+    private BillingDtos.ChangePreviewResponse toPreview(Plan currentPlan,
+                                                        String currentCycle,
+                                                        Plan newPlan,
+                                                        String newCycle,
+                                                        BigDecimal estimatedAmount,
+                                                        String currency,
+                                                        Instant nextBillingAt) {
+        String locale = locale();
+        boolean english = "en".equalsIgnoreCase(locale);
+        return new BillingDtos.ChangePreviewResponse(
+                currentPlan == null ? null : currentPlan.getId(),
+                currentPlan == null ? null : currentPlan.getCode(),
+                currentPlan == null ? null : (english ? currentPlan.getNameEn() : currentPlan.getNameEs()),
+                currentCycle,
+                newPlan.getId(),
+                newPlan.getCode(),
+                english ? newPlan.getNameEn() : newPlan.getNameEs(),
+                newCycle,
+                estimatedAmount,
+                currency,
+                nextBillingAt,
+                PRORATION_MODE
+        );
+    }
+
+    private static PaddleDtos.UpdateSubscriptionRequest changeRequest(String priceId, Long tenantId) {
+        return new PaddleDtos.UpdateSubscriptionRequest(
+                List.of(new PaddleDtos.UpdateSubscriptionItem(priceId, 1)),
+                PRORATION_MODE,
+                Map.of("tenant_id", String.valueOf(tenantId))
+        );
+    }
+
+    private static BigDecimal estimatedAmount(PaddleDtos.SubscriptionPreview preview) {
+        if (preview == null) {
+            return null;
+        }
+        BigDecimal immediate = totalsAmount(preview.immediateTransaction());
+        if (immediate != null) {
+            return immediate;
+        }
+        return totalsAmount(preview.nextTransaction());
+    }
+
+    private static BigDecimal totalsAmount(PaddleDtos.PreviewTransaction transaction) {
+        if (transaction == null || transaction.details() == null || transaction.details().totals() == null) {
+            return null;
+        }
+        return moneyFromPaddle(transaction.details().totals().grandTotal());
+    }
+
+    private static String currencyOf(PaddleDtos.SubscriptionPreview preview, Subscription subscription) {
+        if (preview != null && StringUtils.hasText(preview.currencyCode())) {
+            return preview.currencyCode();
+        }
+        if (preview != null && preview.immediateTransaction() != null
+                && preview.immediateTransaction().details() != null
+                && preview.immediateTransaction().details().totals() != null
+                && StringUtils.hasText(preview.immediateTransaction().details().totals().currencyCode())) {
+            return preview.immediateTransaction().details().totals().currencyCode();
+        }
+        return subscription.getCurrency() == null ? "USD" : subscription.getCurrency();
+    }
+
+    static BigDecimal moneyFromPaddle(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        BigDecimal value = new BigDecimal(raw.trim());
+        if (raw.contains(".")) {
+            return value.setScale(2, RoundingMode.HALF_UP);
+        }
+        return value.movePointLeft(2).setScale(2, RoundingMode.HALF_UP);
     }
 
     private String locale() {

@@ -52,6 +52,11 @@ public class BillingController {
         return billingService.cancel(request);
     }
 
+    @PostMapping("/subscription/change-plan/preview")
+    public BillingDtos.ChangePreviewResponse previewChange(@RequestBody BillingDtos.ChangePlanRequest request) {
+        return billingService.previewChange(request);
+    }
+
     @PostMapping("/subscription/change-plan")
     public BillingDtos.SubscriptionResponse changePlan(@Valid @RequestBody BillingDtos.ChangePlanRequest request) {
         return billingService.changePlan(request);
