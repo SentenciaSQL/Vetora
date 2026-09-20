@@ -12,8 +12,8 @@ export class BrandingService {
   loadForSession(): void {
     if (this.auth.isSuperAdmin() || !this.auth.user()?.tenantId) {
       this.branding.set({
-        name: 'Vetora',
-        commercialName: 'Vetora',
+        name: 'Animexa',
+        commercialName: 'Animexa',
         logoUrl: '/assets/branding/logo.png',
         iconUrl: '/assets/branding/logo.png',
         primaryLanguage: 'es'
@@ -22,7 +22,7 @@ export class BrandingService {
     }
     this.api.get<Branding>('/settings/branding').subscribe({
       next: value => this.branding.set(value),
-      error: () => this.branding.set({ name: 'Vetora', commercialName: 'Vetora', logoUrl: '/assets/branding/logo.png' })
+      error: () => this.branding.set({ name: 'Animexa', commercialName: 'Animexa', logoUrl: '/assets/branding/logo.png' })
     });
   }
 
@@ -32,7 +32,7 @@ export class BrandingService {
 
   displayName(): string {
     const brand = this.branding();
-    return brand?.commercialName || brand?.name || 'Vetora';
+    return brand?.commercialName || brand?.name || 'Animexa';
   }
 
   logoUrl(dark: boolean): string | null {
