@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { TranslateModule } from '@ngx-translate/core';
+import { provideTranslateService } from '@ngx-translate/core';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
 import { AdminPlansPage, emptyPlanDraft, flattenAdminPlan, payloadFromDraft, validatePlanDraft } from './plans.page';
@@ -86,8 +86,9 @@ describe('Admin plan form', () => {
     api.get.and.returnValue(of([]));
     api.post.and.returnValue(of({}));
     TestBed.configureTestingModule({
-      imports: [AdminPlansPage, TranslateModule.forRoot()],
+      imports: [AdminPlansPage],
       providers: [
+        provideTranslateService(),
         { provide: ApiService, useValue: api },
         { provide: ToastService, useValue: { show() {}, showHttpError() {} } }
       ]
