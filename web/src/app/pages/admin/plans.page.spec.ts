@@ -3,7 +3,7 @@ import { of } from 'rxjs';
 import { provideTranslateService } from '@ngx-translate/core';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
-import { AdminPlansPage, emptyPlanDraft, flattenAdminPlan, payloadFromDraft, validatePlanDraft } from './plans.page';
+import { AdminPlansPage, annualSaleBlocked, emptyPlanDraft, flattenAdminPlan, payloadFromDraft, validatePlanDraft } from './plans.page';
 
 describe('Admin plan form', () => {
   it('rejects empty codes, negative prices and invalid Paddle ids', () => {
@@ -19,8 +19,8 @@ describe('Admin plan form', () => {
       paddleAnnualPriceId: 'pri_ok'
     });
     expect(errors).toContain('El código del plan no puede estar vacío');
-    expect(errors).toContain('El precio mensual no puede ser negativo');
-    expect(errors).toContain('El precio anual no puede ser negativo');
+    expect(errors).toContain('El precio mensual debe ser mayor que cero');
+    expect(errors).toContain('El precio anual debe ser mayor que cero');
     expect(errors).toContain('La moneda debe ser USD');
     expect(errors).toContain('El límite de usuarios no puede ser negativo');
     expect(errors).toContain('El Paddle Product ID debe comenzar por pro_');
@@ -31,12 +31,40 @@ describe('Admin plan form', () => {
     expect(validatePlanDraft({
       ...emptyPlanDraft(),
       code: 'BASIC',
-      monthlyPrice: 29,
-      annualPrice: 290,
+      monthlyPrice: 19,
+      annualPrice: 190,
       paddleProductId: 'pro_basic',
       paddleMonthlyPriceId: 'pri_month',
       paddleAnnualPriceId: 'pri_year'
     })).toEqual([]);
+  });
+
+  it('rejects annual prices that are not cheaper than twelve months and equal price ids', () => {
+    const errors = validatePlanDraft({
+      ...emptyPlanDraft(),
+      code: 'BASIC',
+      monthlyPrice: 19,
+      annualPrice: 228,
+      paddleProductId: 'pro_basic',
+      paddleMonthlyPriceId: 'pri_same',
+      paddleAnnualPriceId: 'pri_same'
+    });
+    expect(errors).toContain('El precio anual debe ser menor que el precio mensual multiplicado por 12');
+    expect(errors).toContain('Los Price ID mensual y anual no pueden ser iguales');
+  });
+
+  it('allows saving an annual amount before the annual price id is pasted', () => {
+    const draft = {
+      ...emptyPlanDraft(),
+      code: 'BASIC',
+      monthlyPrice: 19,
+      annualPrice: 190,
+      paddleProductId: 'pro_basic',
+      paddleMonthlyPriceId: 'pri_month',
+      paddleAnnualPriceId: ''
+    };
+    expect(validatePlanDraft(draft)).toEqual([]);
+    expect(annualSaleBlocked(draft)).toBeTrue();
   });
 
   it('flattens nested limits for the editor', () => {

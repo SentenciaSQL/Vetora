@@ -2,7 +2,9 @@ import { Injectable, inject, signal } from '@angular/core';
 import { tap } from 'rxjs/operators';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { BillingConfig, BillingPlan, CheckoutSession, PortalSession, TenantSubscription } from '../models';
+import { BillingConfig, BillingPlan, ChangePreview, CheckoutSession, PortalSession, TenantSubscription } from '../models';
+
+export type BillingCycle = 'MONTHLY' | 'ANNUAL';
 
 @Injectable({ providedIn: 'root' })
 export class BillingService {
@@ -22,8 +24,12 @@ export class BillingService {
     return this.api.get<BillingPlan[]>('/billing/plans');
   }
 
-  checkout(priceId: string, billingCycle = 'MONTHLY'): Observable<CheckoutSession> {
-    return this.api.post<CheckoutSession>('/billing/checkout', { priceId, billingCycle });
+  checkout(planId: number, billingCycle: BillingCycle = 'MONTHLY'): Observable<CheckoutSession> {
+    return this.api.post<CheckoutSession>('/billing/checkout', { planId, billingCycle });
+  }
+
+  previewChange(planId: number, billingCycle: BillingCycle): Observable<ChangePreview> {
+    return this.api.post<ChangePreview>('/billing/subscription/change-plan/preview', { planId, billingCycle });
   }
 
   customerPortal(): Observable<PortalSession> {
@@ -36,8 +42,8 @@ export class BillingService {
     );
   }
 
-  changePlan(priceId: string): Observable<TenantSubscription> {
-    return this.api.post<TenantSubscription>('/billing/subscription/change-plan', { priceId }).pipe(
+  changePlan(planId: number, billingCycle: BillingCycle): Observable<TenantSubscription> {
+    return this.api.post<TenantSubscription>('/billing/subscription/change-plan', { planId, billingCycle }).pipe(
       tap(sub => this.subscription.set(sub))
     );
   }

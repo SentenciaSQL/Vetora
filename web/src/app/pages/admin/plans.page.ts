@@ -59,11 +59,15 @@ export function validatePlanDraft(plan: PlanDraft, requireCode = true): string[]
   if (requireCode && !plan.code?.trim()) {
     errors.push('El código del plan no puede estar vacío');
   }
-  if (plan.monthlyPrice == null || Number(plan.monthlyPrice) < 0) {
-    errors.push('El precio mensual no puede ser negativo');
+  if (plan.monthlyPrice == null || Number(plan.monthlyPrice) <= 0) {
+    errors.push('El precio mensual debe ser mayor que cero');
   }
-  if (plan.annualPrice != null && Number(plan.annualPrice) < 0) {
-    errors.push('El precio anual no puede ser negativo');
+  const hasAnnual = plan.annualPrice != null && plan.annualPrice !== ('' as unknown) && !Number.isNaN(Number(plan.annualPrice));
+  if (hasAnnual && Number(plan.annualPrice) <= 0) {
+    errors.push('El precio anual debe ser mayor que cero');
+  }
+  if (hasAnnual && Number(plan.monthlyPrice) > 0 && Number(plan.annualPrice) >= Number(plan.monthlyPrice) * 12) {
+    errors.push('El precio anual debe ser menor que el precio mensual multiplicado por 12');
   }
   const currency = (plan.currency || 'USD').toUpperCase();
   if (currency !== 'USD') {
@@ -89,7 +93,15 @@ export function validatePlanDraft(plan: PlanDraft, requireCode = true): string[]
   if (plan.paddleAnnualPriceId && !String(plan.paddleAnnualPriceId).startsWith('pri_')) {
     errors.push('El Paddle Annual Price ID debe comenzar por pri_');
   }
+  if (plan.paddleMonthlyPriceId && plan.paddleAnnualPriceId
+      && String(plan.paddleMonthlyPriceId) === String(plan.paddleAnnualPriceId)) {
+    errors.push('Los Price ID mensual y anual no pueden ser iguales');
+  }
   return errors;
+}
+
+export function annualSaleBlocked(plan: PlanDraft): boolean {
+  return plan.annualPrice != null && Number(plan.annualPrice) > 0 && !String(plan.paddleAnnualPriceId || '').startsWith('pri_');
 }
 
 export function payloadFromDraft(plan: PlanDraft) {
@@ -177,6 +189,9 @@ export function payloadFromDraft(plan: PlanDraft) {
           @if (p.formError) {
             <p class="text-sm text-rose-600">{{ p.formError }}</p>
           }
+          @if (annualSaleBlocked(p)) {
+            <p class="text-xs text-amber-700">{{ 'admin.annualIdRequired' | translate }}</p>
+          }
           <div class="flex flex-wrap gap-2">
             <button type="submit" class="btn-primary text-sm" [disabled]="busy()">{{ 'common.save' | translate }}</button>
             <button type="button" class="btn-secondary text-sm" [disabled]="busy()" (click)="validate(p)">{{ 'admin.validatePaddle' | translate }}</button>
@@ -250,6 +265,7 @@ export class AdminPlansPage implements OnInit {
   creating = signal(false);
   busy = signal(false);
   lang = 'es';
+  readonly annualSaleBlocked = annualSaleBlocked;
 
   ngOnInit() {
     this.lang = this.i18n.getCurrentLang() || 'es';
@@ -355,8 +371,12 @@ export class AdminPlansPage implements OnInit {
       return;
     }
     const amount = cycle === 'MONTHLY' ? Number(plan.monthlyPrice) : Number(plan.annualPrice);
-    if (amount == null || Number.isNaN(amount) || amount < 0) {
-      plan.formError = cycle === 'MONTHLY' ? 'El precio mensual no puede ser negativo' : 'El precio anual no puede ser negativo';
+    if (amount == null || Number.isNaN(amount) || amount <= 0) {
+      plan.formError = cycle === 'MONTHLY' ? 'El precio mensual debe ser mayor que cero' : 'El precio anual debe ser mayor que cero';
+      return;
+    }
+    if (cycle === 'ANNUAL' && Number(plan.monthlyPrice) > 0 && amount >= Number(plan.monthlyPrice) * 12) {
+      plan.formError = 'El precio anual debe ser menor que el precio mensual multiplicado por 12';
       return;
     }
     if (!confirm(this.i18n.instant('admin.rotatePriceConfirm'))) {

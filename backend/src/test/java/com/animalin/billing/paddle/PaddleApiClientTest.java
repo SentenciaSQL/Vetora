@@ -60,4 +60,23 @@ class PaddleApiClientTest {
                 .hasMessageContaining("customer not found")
                 .hasMessageNotContaining("pdl_sdbx_apikey_test");
     }
+
+    @Test
+    void previewsSubscriptionUpdateWithoutExposingSecrets() {
+        server.expect(requestTo("https://sandbox-api.paddle.com/subscriptions/sub_1/preview"))
+                .andExpect(method(POST))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer pdl_sdbx_apikey_test"))
+                .andRespond(withSuccess("""
+                        {"data":{"id":"sub_1","status":"active","currency_code":"USD","next_billed_at":"2027-01-15T12:00:00Z","immediate_transaction":{"details":{"totals":{"grand_total":"15830","subtotal":"15830","currency_code":"USD"}}}}}
+                        """, MediaType.APPLICATION_JSON));
+        PaddleDtos.SubscriptionPreview preview = client.previewSubscriptionUpdate(
+                "sub_1",
+                new PaddleDtos.UpdateSubscriptionRequest(
+                        java.util.List.of(new PaddleDtos.UpdateSubscriptionItem("pri_year", 1)),
+                        "prorated_immediately",
+                        java.util.Map.of("tenant_id", "1")));
+        assertThat(preview.currencyCode()).isEqualTo("USD");
+        assertThat(preview.immediateTransaction().details().totals().grandTotal()).isEqualTo("15830");
+        server.verify();
+    }
 }

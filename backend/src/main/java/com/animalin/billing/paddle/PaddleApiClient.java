@@ -67,6 +67,11 @@ public class PaddleApiClient implements PaddleClient {
     }
 
     @Override
+    public PaddleDtos.SubscriptionPreview previewSubscriptionUpdate(String subscriptionId, PaddleDtos.UpdateSubscriptionRequest request) {
+        return post("/subscriptions/" + subscriptionId + "/preview", request, PaddleDtos.SubscriptionPreview.class);
+    }
+
+    @Override
     public PaddleDtos.Subscription cancelSubscription(String subscriptionId, PaddleDtos.CancelSubscriptionRequest request) {
         return post("/subscriptions/" + subscriptionId + "/cancel", request, PaddleDtos.Subscription.class);
     }
