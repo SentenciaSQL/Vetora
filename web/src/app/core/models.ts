@@ -177,7 +177,21 @@ export interface BillingConfig {
   environment: 'sandbox' | 'production';
   clientToken: string;
   gracePeriodDays: number;
+  trialDays?: number;
   plans: BillingPlan[];
+}
+
+export interface UsageMetric {
+  current: number;
+  limit: number;
+}
+
+export interface PlanUsage {
+  users: UsageMetric;
+  veterinarians: UsageMetric;
+  branches: UsageMetric;
+  storageMb: UsageMetric;
+  messagesMonth: UsageMetric;
 }
 
 export interface TenantSubscription {
@@ -205,6 +219,57 @@ export interface TenantSubscription {
   gracePeriod: boolean;
   suspended: boolean;
   hasPaddleCustomer: boolean;
+  trialAccess?: boolean;
+  limits?: PlanLimits;
+  usage?: PlanUsage;
+}
+
+export interface AdminPlan {
+  id?: number;
+  code: string;
+  nameEs: string;
+  nameEn: string;
+  descriptionEs?: string;
+  descriptionEn?: string;
+  currency: string;
+  monthlyPrice: number;
+  annualPrice?: number | null;
+  paddleProductId?: string | null;
+  paddleMonthlyPriceId?: string | null;
+  paddleAnnualPriceId?: string | null;
+  paddleMonthlyPriceStatus?: string | null;
+  paddleAnnualPriceStatus?: string | null;
+  paddleLastSyncedAt?: string | null;
+  paddleSyncStatus?: string;
+  active: boolean;
+  subscriberCount?: number;
+  limits?: PlanLimits;
+  maxUsers: number;
+  maxVeterinarians: number;
+  maxBranches: number;
+  maxStorageMb: number;
+  maxMessagesMonth: number;
+  reportsEnabled: boolean;
+  messagingEnabled: boolean;
+  laboratoryEnabled: boolean;
+}
+
+export interface PaddlePriceDiff {
+  cycle: string;
+  priceId: string;
+  localAmount: number;
+  paddleAmount: number;
+  currency: string;
+  interval: string;
+  status: string;
+  matches: boolean;
+}
+
+export interface PaddleSyncResult {
+  plan: AdminPlan;
+  differences: PaddlePriceDiff[];
+  inSync: boolean;
+  environment: string;
 }
 
 export interface CheckoutSession {
@@ -231,5 +296,10 @@ export interface ApiErrorBody {
     status?: string;
     gracePeriodEndsAt?: string;
     suspendedAt?: string;
+    resource?: string;
+    current?: number;
+    limit?: number;
+    plan?: string;
+    feature?: string;
   };
 }

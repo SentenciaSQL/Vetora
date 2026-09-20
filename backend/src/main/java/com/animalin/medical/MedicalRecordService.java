@@ -257,6 +257,35 @@ public class MedicalRecordService {
     }
 
     @Transactional
+    public AppDtos.LaboratoryResponse updateLaboratory(Long id, AppDtos.LaboratoryRequest request) {
+        accessGuard.requirePermission("MEDICAL_RECORD_WRITE");
+        LaboratoryResult lab = laboratoryResultRepository.findByIdAndTenantId(id, accessGuard.requireStaffTenant())
+                .orElseThrow(() -> ApiException.notFound("Resultado de laboratorio no encontrado"));
+        planLimitService.assertLaboratoryEnabled(lab.getTenantId());
+        if (request.name() != null) {
+            lab.setName(request.name());
+        }
+        if (request.labName() != null) {
+            lab.setLabName(request.labName());
+        }
+        if (request.collectedAt() != null) {
+            lab.setCollectedAt(request.collectedAt());
+        }
+        if (request.resultSummary() != null) {
+            lab.setResultSummary(request.resultSummary());
+        }
+        if (request.status() != null) {
+            lab.setStatus(request.status());
+        }
+        if (request.veterinarianId() != null) {
+            lab.setVeterinarian(veterinarianRepository.findByIdAndTenantId(request.veterinarianId(), lab.getTenantId())
+                    .orElseThrow(() -> ApiException.notFound("Veterinario no encontrado")));
+        }
+        auditService.record("UPDATE", "LAB", lab.getId(), lab.getName());
+        return toLab(lab);
+    }
+
+    @Transactional
     public AppDtos.TreatmentResponse updateTreatment(Long id, AppDtos.TreatmentRequest request) {
         accessGuard.requirePermission("MEDICAL_RECORD_WRITE");
         Treatment treatment = treatmentRepository.findByIdAndTenantId(id, accessGuard.requireStaffTenant())

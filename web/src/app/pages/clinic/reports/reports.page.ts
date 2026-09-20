@@ -71,7 +71,7 @@ export class ReportsPage implements OnInit {
         a.click();
         URL.revokeObjectURL(url);
       },
-      error: () => this.toast.show('common.error', true)
+      error: (e) => this.toast.show(e.error?.message || 'common.error', true)
     });
   }
 }

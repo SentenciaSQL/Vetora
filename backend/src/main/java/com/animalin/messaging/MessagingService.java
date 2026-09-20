@@ -47,6 +47,10 @@ public class MessagingService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> list() {
+        Long tenantId = accessGuard.isOwnerContext() ? TenantContext.tenantIdOrNull() : accessGuard.requireStaffTenant();
+        if (tenantId != null) {
+            planLimitService.assertMessagingEnabled(tenantId);
+        }
         List<Conversation> conversations = accessGuard.isOwnerContext()
                 ? conversationRepository.findByParticipant(TenantContext.userId())
                 : conversationRepository.findByTenantIdOrderByUpdatedAtDesc(accessGuard.requireStaffTenant());
@@ -70,6 +74,7 @@ public class MessagingService {
     @Transactional(readOnly = true)
     public List<AppDtos.MessageResponse> messages(Long id) {
         Conversation conversation = requireConversation(id);
+        planLimitService.assertMessagingEnabled(conversation.getTenantId());
         return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId()).stream()
                 .map(m -> new AppDtos.MessageResponse(
                         m.getId(),
@@ -120,6 +125,7 @@ public class MessagingService {
     @Transactional
     public AppDtos.MessageResponse send(Long conversationId, SendRequest request) {
         Conversation conversation = requireConversation(conversationId);
+        planLimitService.assertCanSendMessage(conversation.getTenantId());
         User sender = userRepository.getReferenceById(TenantContext.userId());
         Message message = new Message();
         message.setTenantId(conversation.getTenantId());

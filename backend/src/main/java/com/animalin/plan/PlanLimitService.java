@@ -1,13 +1,26 @@
 package com.animalin.plan;
 
+import com.animalin.billing.BillingDtos;
 import com.animalin.branch.BranchRepository;
 import com.animalin.common.exception.ApiException;
+import com.animalin.messaging.MessageRepository;
+import com.animalin.security.TenantContext;
+import com.animalin.storage.StoredFileRepository;
 import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
 import com.animalin.veterinarian.VeterinarianRepository;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 public class PlanLimitService {
@@ -16,18 +29,33 @@ public class PlanLimitService {
     private final VeterinarianRepository veterinarianRepository;
     private final BranchRepository branchRepository;
     private final TenantMembershipRepository membershipRepository;
+    private final StoredFileRepository storedFileRepository;
+    private final MessageRepository messageRepository;
+    private final MessageSource messageSource;
+    private final Clock clock;
 
-    public PlanLimitService(TenantRepository tenantRepository, VeterinarianRepository veterinarianRepository,
-                            BranchRepository branchRepository, TenantMembershipRepository membershipRepository) {
+    public PlanLimitService(TenantRepository tenantRepository,
+                            VeterinarianRepository veterinarianRepository,
+                            BranchRepository branchRepository,
+                            TenantMembershipRepository membershipRepository,
+                            StoredFileRepository storedFileRepository,
+                            MessageRepository messageRepository,
+                            MessageSource messageSource,
+                            Clock clock) {
         this.tenantRepository = tenantRepository;
         this.veterinarianRepository = veterinarianRepository;
         this.branchRepository = branchRepository;
         this.membershipRepository = membershipRepository;
+        this.storedFileRepository = storedFileRepository;
+        this.messageRepository = messageRepository;
+        this.messageSource = messageSource;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
     public Plan requirePlan(Long tenantId) {
-        Tenant tenant = tenantRepository.findById(tenantId)
+        Long resolved = requireAuthenticatedTenant(tenantId);
+        Tenant tenant = tenantRepository.findById(resolved)
                 .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         if (tenant.getPlan() == null) {
             throw ApiException.badRequest("La veterinaria no tiene un plan asignado");
@@ -36,44 +64,131 @@ public class PlanLimitService {
     }
 
     public void assertCanAddVeterinarian(Long tenantId) {
-        Plan plan = requirePlan(tenantId);
-        long count = veterinarianRepository.countByTenantId(tenantId);
+        Long resolved = requireAuthenticatedTenant(tenantId);
+        Plan plan = requirePlan(resolved);
+        long count = veterinarianRepository.countByTenantIdAndStatus(resolved, "ACTIVE");
         if (count >= plan.getMaxVeterinarians()) {
-            throw ApiException.conflict("El plan " + plan.getCode() + " no permite más veterinarios");
+            throw limit("veterinarians", count, plan.getMaxVeterinarians(), plan, "plan.limit.veterinarians");
         }
     }
 
     public void assertCanAddBranch(Long tenantId) {
-        Plan plan = requirePlan(tenantId);
-        long count = branchRepository.countByTenantId(tenantId);
+        Long resolved = requireAuthenticatedTenant(tenantId);
+        Plan plan = requirePlan(resolved);
+        long count = branchRepository.countByTenantIdAndActiveTrue(resolved);
         if (count >= plan.getMaxBranches()) {
-            throw ApiException.conflict("El plan " + plan.getCode() + " no permite más sucursales");
+            throw limit("branches", count, plan.getMaxBranches(), plan, "plan.limit.branches");
         }
     }
 
     public void assertCanAddStaffUser(Long tenantId) {
-        Plan plan = requirePlan(tenantId);
-        long count = membershipRepository.countByTenantIdAndStatus(tenantId, "ACTIVE");
+        Long resolved = requireAuthenticatedTenant(tenantId);
+        Plan plan = requirePlan(resolved);
+        long count = membershipRepository.countByTenantIdAndStatus(resolved, "ACTIVE");
         if (count >= plan.getMaxUsers()) {
-            throw ApiException.conflict("El plan " + plan.getCode() + " no permite más usuarios");
+            throw limit("users", count, plan.getMaxUsers(), plan, "plan.limit.users");
+        }
+    }
+
+    public void assertStorageAvailable(Long tenantId, long additionalBytes) {
+        if (tenantId == null) {
+            return;
+        }
+        Long resolved = requireAuthenticatedTenant(tenantId);
+        Plan plan = requirePlan(resolved);
+        long used = storedFileRepository.sumSizeBytesByTenantId(resolved);
+        long limitBytes = (long) plan.getMaxStorageMb() * 1024L * 1024L;
+        if (used + additionalBytes > limitBytes) {
+            throw limit("storage", used / (1024L * 1024L), plan.getMaxStorageMb(), plan, "plan.limit.storage");
+        }
+    }
+
+    public void assertCanSendMessage(Long tenantId) {
+        Long resolved = requireAuthenticatedTenant(tenantId);
+        Plan plan = requirePlan(resolved);
+        assertMessagingEnabled(resolved);
+        Instant from = YearMonth.from(clock.instant().atZone(ZoneOffset.UTC)).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        long count = messageRepository.countByTenantIdAndCreatedAtGreaterThanEqual(resolved, from);
+        if (count >= plan.getMaxMessagesMonth()) {
+            throw limit("messages", count, plan.getMaxMessagesMonth(), plan, "plan.limit.messages");
         }
     }
 
     public void assertReportsEnabled(Long tenantId) {
-        if (!requirePlan(tenantId).isReportsEnabled()) {
-            throw ApiException.forbidden("Los reportes no están incluidos en el plan actual");
+        Plan plan = requirePlan(tenantId);
+        if (!plan.isReportsEnabled()) {
+            throw feature("reports", plan, "plan.feature.reports");
         }
     }
 
     public void assertMessagingEnabled(Long tenantId) {
-        if (!requirePlan(tenantId).isMessagingEnabled()) {
-            throw ApiException.forbidden("La mensajería no está incluida en el plan actual");
+        Plan plan = requirePlan(tenantId);
+        if (!plan.isMessagingEnabled()) {
+            throw feature("messaging", plan, "plan.feature.messaging");
         }
     }
 
     public void assertLaboratoryEnabled(Long tenantId) {
-        if (!requirePlan(tenantId).isLaboratoryEnabled()) {
-            throw ApiException.forbidden("El laboratorio no está incluido en el plan actual");
+        Plan plan = requirePlan(tenantId);
+        if (!plan.isLaboratoryEnabled()) {
+            throw feature("laboratory", plan, "plan.feature.laboratory");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public BillingDtos.PlanUsage usage(Long tenantId) {
+        Long resolved = requireAuthenticatedTenant(tenantId);
+        Plan plan = requirePlan(resolved);
+        Instant from = YearMonth.from(clock.instant().atZone(ZoneOffset.UTC)).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
+        long storageBytes = storedFileRepository.sumSizeBytesByTenantId(resolved);
+        return new BillingDtos.PlanUsage(
+                new BillingDtos.UsageMetric(membershipRepository.countByTenantIdAndStatus(resolved, "ACTIVE"), plan.getMaxUsers()),
+                new BillingDtos.UsageMetric(veterinarianRepository.countByTenantIdAndStatus(resolved, "ACTIVE"), plan.getMaxVeterinarians()),
+                new BillingDtos.UsageMetric(branchRepository.countByTenantIdAndActiveTrue(resolved), plan.getMaxBranches()),
+                new BillingDtos.UsageMetric(Math.round(storageBytes / (1024.0 * 1024.0)), plan.getMaxStorageMb()),
+                new BillingDtos.UsageMetric(messageRepository.countByTenantIdAndCreatedAtGreaterThanEqual(resolved, from), plan.getMaxMessagesMonth())
+        );
+    }
+
+    private Long requireAuthenticatedTenant(Long tenantId) {
+        if (TenantContext.isSuperAdmin()) {
+            return tenantId;
+        }
+        Long current = TenantContext.tenantIdOrNull();
+        if (current == null) {
+            throw ApiException.unauthorized("No hay un tenant autenticado");
+        }
+        if (tenantId != null && !current.equals(tenantId)) {
+            throw ApiException.forbidden("No puede consultar los límites de otra veterinaria");
+        }
+        return current;
+    }
+
+    private ApiException limit(String resource, long current, int limit, Plan plan, String key) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("resource", resource);
+        details.put("current", current);
+        details.put("limit", limit);
+        details.put("plan", plan.getCode());
+        return ApiException.planLimitReached(message(key), details);
+    }
+
+    private ApiException feature(String feature, Plan plan, String key) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("feature", feature);
+        details.put("plan", plan.getCode());
+        return ApiException.planFeatureUnavailable(message(key), details);
+    }
+
+    private String message(String key) {
+        return messageSource.getMessage(key, null, key, locale());
+    }
+
+    private Locale locale() {
+        TenantContext.AuthPrincipal principal = TenantContext.getOrNull();
+        if (principal != null && "en".equalsIgnoreCase(principal.locale())) {
+            return Locale.ENGLISH;
+        }
+        return Locale.forLanguageTag("es");
     }
 }
