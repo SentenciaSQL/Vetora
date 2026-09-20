@@ -33,7 +33,7 @@ export class PaddleService {
     return this.initializing;
   }
 
-  async openCheckout(session: CheckoutSession, onComplete?: () => void): Promise<void> {
+  async openCheckout(session: CheckoutSession, onComplete?: () => void, successUrl?: string): Promise<void> {
     const paddle = await this.ensure({
       environment: session.environment,
       clientToken: session.clientToken,
@@ -56,7 +56,7 @@ export class PaddleService {
       customer: session.customerEmail ? { email: session.customerEmail } : undefined,
       settings: {
         locale: session.locale || 'es',
-        successUrl: `${window.location.origin}/billing?checkout=success`
+        successUrl: successUrl || `${window.location.origin}/billing?checkout=success`
       }
     });
   }

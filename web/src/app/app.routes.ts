@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, medicalWriteGuard, staffGuard, superAdminGuard, billingAccessGuard } from './core/guards/auth.guard';
+import { authGuard, guestGuard, medicalWriteGuard, staffGuard, superAdminGuard, billingAccessGuard, clinicSignupGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -16,6 +16,29 @@ export const routes: Routes = [
     path: 'register',
     canActivate: [guestGuard],
     loadComponent: () => import('./pages/auth/register.page').then(m => m.RegisterPage)
+  },
+  {
+    path: 'register-clinic',
+    canActivate: [clinicSignupGuard],
+    loadComponent: () => import('./pages/auth/register-clinic.page').then(m => m.RegisterClinicPage)
+  },
+  {
+    path: 'verify-email',
+    loadComponent: () => import('./pages/auth/verify-email.page').then(m => m.VerifyEmailPage)
+  },
+  {
+    path: 'signup/processing',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/auth/signup-processing.page').then(m => m.SignupProcessingPage)
+  },
+  {
+    path: 'signup/success',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/auth/signup-result.page').then(m => m.SignupResultPage)
+  },
+  {
+    path: 'accept-invite',
+    loadComponent: () => import('./pages/auth/accept-invite.page').then(m => m.AcceptInvitePage)
   },
   {
     path: 'forgot',

@@ -18,6 +18,7 @@ import { AuthService } from '../../core/services/auth.service';
         @if (error()) { <p class="text-sm text-rose-600">{{ error() }}</p> }
         <button class="btn-primary w-full" [disabled]="form.invalid">{{ 'auth.register' | translate }}</button>
       </form>
+      <a routerLink="/register-clinic" class="mt-3 text-sm font-medium text-brand-700">{{ 'signup.clinicCta' | translate }}</a>
       <a routerLink="/login" class="mt-4 text-sm text-brand-700">{{ 'auth.hasAccount' | translate }}</a>
     </div>
   `

@@ -1,6 +1,9 @@
 package com.animalin.auth;
 
+import com.animalin.employee.StaffInviteService;
 import com.animalin.security.TenantContext;
+import com.animalin.signup.ClinicSignupService;
+import com.animalin.signup.SignupDtos;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
@@ -9,6 +12,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,9 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final ClinicSignupService signupService;
+    private final StaffInviteService staffInviteService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, ClinicSignupService signupService, StaffInviteService staffInviteService) {
         this.authService = authService;
+        this.signupService = signupService;
+        this.staffInviteService = staffInviteService;
     }
 
 
@@ -32,6 +40,33 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public AuthDtos.TokenResponse register(@Valid @RequestBody AuthDtos.RegisterOwnerRequest request) {
         return authService.registerOwner(request);
+    }
+
+    @PostMapping("/register-clinic")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AuthDtos.TokenResponse registerClinic(@Valid @RequestBody SignupDtos.RegisterClinicRequest request) {
+        return signupService.register(request);
+    }
+
+    @PostMapping("/verify-email")
+    public SignupDtos.SignupStatusResponse verifyEmail(@Valid @RequestBody SignupDtos.VerifyEmailRequest request) {
+        return signupService.verifyEmail(request);
+    }
+
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resendVerification(@Valid @RequestBody SignupDtos.ResendVerificationRequest request) {
+        signupService.resendVerification(request);
+    }
+
+    @GetMapping("/invite")
+    public SignupDtos.InvitePreviewResponse invitePreview(@RequestParam String token) {
+        return staffInviteService.preview(token);
+    }
+
+    @PostMapping("/accept-invite")
+    public AuthDtos.TokenResponse acceptInvite(@Valid @RequestBody SignupDtos.AcceptInviteRequest request) {
+        return staffInviteService.accept(request);
     }
 
     @PostMapping("/refresh")

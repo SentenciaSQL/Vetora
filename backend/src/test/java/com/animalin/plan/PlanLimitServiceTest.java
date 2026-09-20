@@ -6,6 +6,7 @@ import com.animalin.common.exception.ApiException;
 import com.animalin.messaging.MessageRepository;
 import com.animalin.security.TenantContext;
 import com.animalin.storage.StoredFileRepository;
+import com.animalin.employee.StaffInvitationRepository;
 import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
@@ -38,6 +39,7 @@ class PlanLimitServiceTest {
     @Mock VeterinarianRepository veterinarianRepository;
     @Mock BranchRepository branchRepository;
     @Mock TenantMembershipRepository membershipRepository;
+    @Mock StaffInvitationRepository invitationRepository;
     @Mock StoredFileRepository storedFileRepository;
     @Mock MessageRepository messageRepository;
     @Mock MessageSource messageSource;
@@ -50,7 +52,7 @@ class PlanLimitServiceTest {
     void setUp() {
         service = new PlanLimitService(
                 tenantRepository, veterinarianRepository, branchRepository, membershipRepository,
-                storedFileRepository, messageRepository, messageSource,
+                invitationRepository, storedFileRepository, messageRepository, messageSource,
                 Clock.fixed(Instant.parse("2026-09-20T12:00:00Z"), ZoneOffset.UTC));
         plan = new Plan();
         plan.setId(1L);

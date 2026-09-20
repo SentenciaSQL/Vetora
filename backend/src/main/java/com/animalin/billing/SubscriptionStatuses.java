@@ -6,6 +6,9 @@ import java.time.Instant;
 
 public final class SubscriptionStatuses {
 
+    public static final String PENDING = "PENDING";
+    public static final String PENDING_PAYMENT = "PENDING_PAYMENT";
+    public static final String PENDING_EMAIL_VERIFICATION = "PENDING_EMAIL_VERIFICATION";
     public static final String TRIAL = "TRIAL";
     public static final String TRIALING = "TRIALING";
     public static final String ACTIVE = "ACTIVE";

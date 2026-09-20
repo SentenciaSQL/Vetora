@@ -20,6 +20,15 @@ export const guestGuard: CanActivateFn = () => {
   return router.createUrlTree([auth.homePath()]);
 };
 
+export const clinicSignupGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (!auth.isAuthenticated || auth.needsClinicSetup() || auth.isTenantOwner()) {
+    return true;
+  }
+  return router.createUrlTree([auth.homePath()]);
+};
+
 export const superAdminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);

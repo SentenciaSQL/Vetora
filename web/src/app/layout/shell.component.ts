@@ -168,18 +168,18 @@ export class ShellComponent implements OnInit {
     { path: '/admin/subscriptions', label: 'nav.subscriptions', icon: 'subscriptions', roles: ['SUPER_ADMIN'] },
     { path: '/admin/users', label: 'nav.users', icon: 'users', roles: ['SUPER_ADMIN'] },
     { path: '/admin/audit', label: 'nav.audit', icon: 'audit', roles: ['SUPER_ADMIN'] },
-    { path: '/owners', label: 'nav.owners', icon: 'owners', roles: ['TENANT_ADMIN', 'RECEPTIONIST', 'VETERINARIAN'] },
+    { path: '/owners', label: 'nav.owners', icon: 'owners', roles: ['TENANT_OWNER', 'TENANT_ADMIN', 'RECEPTIONIST', 'VETERINARIAN'] },
     { path: '/pets', label: 'nav.pets', icon: 'pets' },
     { path: '/calendar', label: 'nav.calendar', icon: 'calendar' },
     { path: '/consultations/new', label: 'nav.consultations', icon: 'consultations', permission: 'MEDICAL_RECORD_WRITE' },
-    { path: '/team', label: 'nav.team', icon: 'team', roles: ['TENANT_ADMIN'] },
-    { path: '/branches', label: 'nav.branches', icon: 'branches', roles: ['TENANT_ADMIN'] },
-    { path: '/services', label: 'nav.services', icon: 'services', roles: ['TENANT_ADMIN'] },
+    { path: '/team', label: 'nav.team', icon: 'team', roles: ['TENANT_OWNER', 'TENANT_ADMIN'] },
+    { path: '/branches', label: 'nav.branches', icon: 'branches', roles: ['TENANT_OWNER', 'TENANT_ADMIN'] },
+    { path: '/services', label: 'nav.services', icon: 'services', roles: ['TENANT_OWNER', 'TENANT_ADMIN'] },
     { path: '/messages', label: 'nav.messages', icon: 'messages' },
-    { path: '/billing', label: 'nav.billing', icon: 'subscriptions', roles: ['TENANT_ADMIN'] },
+    { path: '/billing', label: 'nav.billing', icon: 'subscriptions', roles: ['TENANT_OWNER', 'TENANT_ADMIN'] },
     { path: '/reports', label: 'nav.reports', icon: 'reports', permission: 'REPORT_VIEW' },
-    { path: '/settings', label: 'nav.settings', icon: 'settings', roles: ['TENANT_ADMIN'] },
-    { path: '/audit', label: 'nav.audit', icon: 'audit', roles: ['TENANT_ADMIN'] },
+    { path: '/settings', label: 'nav.settings', icon: 'settings', roles: ['TENANT_OWNER', 'TENANT_ADMIN'] },
+    { path: '/audit', label: 'nav.audit', icon: 'audit', roles: ['TENANT_OWNER', 'TENANT_ADMIN'] },
     { path: '/profile', label: 'nav.profile', icon: 'profile' }
   ];
 
@@ -206,6 +206,10 @@ export class ShellComponent implements OnInit {
   }));
 
   ngOnInit(): void {
+    if (this.auth.needsClinicSetup() && !this.router.url.startsWith('/register-clinic') && !this.router.url.startsWith('/verify-email') && !this.router.url.startsWith('/signup')) {
+      void this.router.navigateByUrl(this.auth.homePath());
+      return;
+    }
     this.branding.loadForSession();
     if (this.auth.isStaff() && !this.auth.isSuperAdmin()) {
       this.billing.loadSubscription().subscribe(sub => {

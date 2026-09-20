@@ -41,6 +41,7 @@ public class BillingService {
     private final AccessGuard accessGuard;
     private final PlanCatalogService planCatalogService;
     private final PlanLimitService planLimitService;
+    private final com.animalin.config.AnimalinProperties properties;
     private final Clock clock;
 
     public BillingService(PlanRepository planRepository,
@@ -52,6 +53,7 @@ public class BillingService {
                           AccessGuard accessGuard,
                           PlanCatalogService planCatalogService,
                           PlanLimitService planLimitService,
+                          com.animalin.config.AnimalinProperties properties,
                           Clock clock) {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
@@ -62,7 +64,16 @@ public class BillingService {
         this.accessGuard = accessGuard;
         this.planCatalogService = planCatalogService;
         this.planLimitService = planLimitService;
+        this.properties = properties;
         this.clock = clock;
+    }
+
+    public int trialDays() {
+        return properties.trialDays();
+    }
+
+    public void requireActiveUsdPrice(Plan plan, String priceId, String interval) {
+        planCatalogService.requireActiveUsdPrice(plan, priceId, interval);
     }
 
     @Transactional(readOnly = true)
@@ -76,7 +87,7 @@ public class BillingService {
                 paddleProperties.sandbox() ? "sandbox" : "production",
                 paddleProperties.clientToken(),
                 paddleProperties.gracePeriodDays(),
-                14,
+                trialDays(),
                 plans
         );
     }
@@ -261,8 +272,8 @@ public class BillingService {
     }
 
     private void requireTenantAdmin() {
-        if (!TenantContext.hasRole("TENANT_ADMIN") && !TenantContext.isSuperAdmin()) {
-            throw ApiException.forbidden("Solo el administrador de la veterinaria puede gestionar la facturación");
+        if (!TenantContext.hasRole("TENANT_OWNER") && !TenantContext.hasRole("TENANT_ADMIN") && !TenantContext.isSuperAdmin()) {
+            throw ApiException.forbidden("Solo el propietario o el administrador de la veterinaria puede gestionar la facturación");
         }
     }
 
@@ -291,21 +302,21 @@ public class BillingService {
         );
     }
 
-    static boolean annualAvailable(Plan plan) {
+    public static boolean annualAvailable(Plan plan) {
         return plan.getAnnualPrice() != null
                 && plan.getAnnualPrice().compareTo(BigDecimal.ZERO) > 0
                 && StringUtils.hasText(plan.getPaddleAnnualPriceId())
                 && plan.getPaddleAnnualPriceId().startsWith("pri_");
     }
 
-    static BigDecimal monthlyEquivalent(Plan plan) {
+    public static BigDecimal monthlyEquivalent(Plan plan) {
         if (plan.getAnnualPrice() == null || plan.getAnnualPrice().compareTo(BigDecimal.ZERO) <= 0) {
             return null;
         }
         return plan.getAnnualPrice().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
     }
 
-    static BigDecimal savingsPercent(Plan plan) {
+    public static BigDecimal savingsPercent(Plan plan) {
         if (plan.getMonthlyPrice() == null || plan.getMonthlyPrice().compareTo(BigDecimal.ZERO) <= 0
                 || plan.getAnnualPrice() == null || plan.getAnnualPrice().compareTo(BigDecimal.ZERO) <= 0) {
             return null;
@@ -316,7 +327,7 @@ public class BillingService {
                 .divide(billedMonthly, 1, RoundingMode.HALF_UP);
     }
 
-    static BillingDtos.PlanLimits limits(Plan plan) {
+    public static BillingDtos.PlanLimits limits(Plan plan) {
         return new BillingDtos.PlanLimits(
                 plan.getMaxUsers(),
                 plan.getMaxVeterinarians(),

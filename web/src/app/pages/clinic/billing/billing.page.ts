@@ -19,21 +19,21 @@ export function selectedPriceId(plan: BillingPlan, cycle: BillingCycle): string 
   return plan.paddleMonthlyPriceId || null;
 }
 
-export function cycleAvailable(plan: BillingPlan, cycle: BillingCycle): boolean {
+export function cycleAvailable(plan: Pick<BillingPlan, 'annualAvailable' | 'monthlyAvailable' | 'paddleAnnualPriceId' | 'paddleMonthlyPriceId'>, cycle: BillingCycle): boolean {
   if (cycle === 'ANNUAL') {
-    return plan.annualAvailable !== false && !!plan.paddleAnnualPriceId;
+    return plan.annualAvailable !== false && (plan.annualAvailable === true || !!plan.paddleAnnualPriceId);
   }
-  return plan.monthlyAvailable !== false && !!plan.paddleMonthlyPriceId;
+  return plan.monthlyAvailable !== false && (plan.monthlyAvailable === true || !!plan.paddleMonthlyPriceId);
 }
 
-export function displayedPrice(plan: BillingPlan, cycle: BillingCycle): number {
+export function displayedPrice(plan: Pick<BillingPlan, 'monthlyPrice' | 'annualPrice'>, cycle: BillingCycle): number {
   if (cycle === 'ANNUAL' && plan.annualPrice != null) {
     return Number(plan.annualPrice);
   }
   return Number(plan.monthlyPrice);
 }
 
-export function monthlyEquivalentAmount(plan: BillingPlan): number | null {
+export function monthlyEquivalentAmount(plan: Pick<BillingPlan, 'monthlyEquivalent' | 'annualPrice'>): number | null {
   if (plan.monthlyEquivalent != null) {
     return Number(plan.monthlyEquivalent);
   }
@@ -43,7 +43,7 @@ export function monthlyEquivalentAmount(plan: BillingPlan): number | null {
   return Math.round((Number(plan.annualPrice) / 12) * 100) / 100;
 }
 
-export function savingsPercentAmount(plan: BillingPlan): number | null {
+export function savingsPercentAmount(plan: Pick<BillingPlan, 'savingsPercent' | 'monthlyPrice' | 'annualPrice'>): number | null {
   if (plan.savingsPercent != null) {
     return Number(plan.savingsPercent);
   }
@@ -64,7 +64,7 @@ export function isPopularPlan(code?: string | null): boolean {
 }
 
 export function isSuccessfulCheckoutStatus(status?: string | null): boolean {
-  return status === 'ACTIVE' || status === 'TRIALING';
+  return status === 'ACTIVE' || status === 'TRIALING' || status === 'TRIAL';
 }
 
 export function formatUsage(metric?: UsageMetric | null): string {
@@ -254,7 +254,7 @@ export class BillingPage implements OnInit {
   }
 
   canManage(): boolean {
-    return this.auth.hasRole('TENANT_ADMIN');
+    return this.auth.hasRole('TENANT_OWNER') || this.auth.hasRole('TENANT_ADMIN');
   }
 
   hasActivePaddleSubscription(): boolean {

@@ -4,6 +4,7 @@ import com.animalin.audit.AuditService;
 import com.animalin.billing.paddle.PaddleDtos;
 import com.animalin.plan.Plan;
 import com.animalin.plan.PlanRepository;
+import com.animalin.signup.ClinicSignupRepository;
 import com.animalin.tenant.Subscription;
 import com.animalin.tenant.SubscriptionRepository;
 import com.animalin.tenant.Tenant;
@@ -31,6 +32,7 @@ class SubscriptionSyncServiceTest {
     @Mock SubscriptionRepository subscriptionRepository;
     @Mock TenantRepository tenantRepository;
     @Mock PlanRepository planRepository;
+    @Mock ClinicSignupRepository signupRepository;
     @Mock AuditService auditService;
 
     private Clock clock;
@@ -47,7 +49,7 @@ class SubscriptionSyncServiceTest {
                 new PaddleProperties.Jobs(true, "0 5 0 * * *")
         );
         service = new SubscriptionSyncService(
-                subscriptionRepository, tenantRepository, planRepository, properties, auditService, clock);
+                subscriptionRepository, tenantRepository, planRepository, signupRepository, properties, auditService, clock);
         plan = new Plan();
         plan.setId(3L);
         plan.setCode("PROFESSIONAL");

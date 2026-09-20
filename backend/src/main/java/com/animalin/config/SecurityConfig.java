@@ -33,12 +33,15 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final TenantSubscriptionAccessFilter subscriptionAccessFilter;
+    private final com.animalin.security.PublicRateLimitFilter publicRateLimitFilter;
     private final AnimalinProperties properties;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter, TenantSubscriptionAccessFilter subscriptionAccessFilter,
+                          com.animalin.security.PublicRateLimitFilter publicRateLimitFilter,
                           AnimalinProperties properties) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.subscriptionAccessFilter = subscriptionAccessFilter;
+        this.publicRateLimitFilter = publicRateLimitFilter;
         this.properties = properties;
     }
 
@@ -49,8 +52,10 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh",
-                                "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password").permitAll()
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/register-clinic",
+                                "/api/v1/auth/refresh", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
+                                "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",
+                                "/api/v1/auth/invite", "/api/v1/auth/accept-invite").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhooks/paddle").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -59,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(publicRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(subscriptionAccessFilter, JwtAuthFilter.class);
         return http.build();
@@ -103,6 +109,14 @@ public class SecurityConfig {
     public FilterRegistrationBean<TenantSubscriptionAccessFilter> subscriptionFilterRegistration(
             TenantSubscriptionAccessFilter filter) {
         FilterRegistrationBean<TenantSubscriptionAccessFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<com.animalin.security.PublicRateLimitFilter> rateLimitFilterRegistration(
+            com.animalin.security.PublicRateLimitFilter filter) {
+        FilterRegistrationBean<com.animalin.security.PublicRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }
