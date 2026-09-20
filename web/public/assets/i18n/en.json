@@ -183,6 +183,17 @@
     "clinic": "Clinic",
     "name": "Name",
     "species": "Species",
+    "speciesOptions": {
+      "DOG": "Dog",
+      "CAT": "Cat",
+      "BIRD": "Bird",
+      "RABBIT": "Rabbit",
+      "RODENT": "Rodent",
+      "REPTILE": "Reptile",
+      "HORSE": "Horse",
+      "OTHER": "Other"
+    },
+    "noClinics": "No clinics are available right now",
     "breed": "Breed",
     "owner": "Owner",
     "weight": "Weight",

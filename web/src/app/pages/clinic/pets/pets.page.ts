@@ -2,12 +2,15 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { catchError, of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
-import { Owner, PageResponse, Pet, PublicClinic } from '../../../core/models';
+import { Owner, PageResponse, Pet, PublicClinic, TenantSummary } from '../../../core/models';
+
+export const PET_SPECIES = ['DOG', 'CAT', 'BIRD', 'RABBIT', 'RODENT', 'REPTILE', 'HORSE', 'OTHER'] as const;
 
 export function canRegisterPet(isStaff: boolean, isPetOwner: boolean, isSuperAdmin: boolean): boolean {
   return !isSuperAdmin && (isStaff || isPetOwner);
@@ -31,6 +34,38 @@ export function ownerPetPayload(value: {
     breed: value.breed,
     sex: value.sex
   };
+}
+
+export function clinicsFromMemberships(memberships?: TenantSummary[] | null): PublicClinic[] {
+  return (memberships || [])
+    .filter(m => !!m.slug)
+    .map(m => ({
+      slug: m.slug,
+      name: m.name,
+      commercialName: m.commercialName,
+      logoUrl: m.logoUrl
+    }));
+}
+
+export function mergeClinics(...lists: Array<PublicClinic[] | null | undefined>): PublicClinic[] {
+  const bySlug = new Map<string, PublicClinic>();
+  for (const list of lists) {
+    for (const clinic of list || []) {
+      if (clinic?.slug && !bySlug.has(clinic.slug)) {
+        bySlug.set(clinic.slug, clinic);
+      }
+    }
+  }
+  return [...bySlug.values()].sort((a, b) =>
+    (a.commercialName || a.name).localeCompare(b.commercialName || b.name, undefined, { sensitivity: 'base' })
+  );
+}
+
+export function speciesLabelKey(code?: string | null): string {
+  const normalized = (code || '').toUpperCase();
+  return PET_SPECIES.includes(normalized as (typeof PET_SPECIES)[number])
+    ? `pets.speciesOptions.${normalized}`
+    : '';
 }
 
 @Component({
@@ -69,7 +104,11 @@ export function ownerPetPayload(value: {
             </div>
             <div>
               <p class="font-semibold group-hover:text-brand-800">{{ p.name }}</p>
-              <p class="text-sm text-slate-500">{{ p.species }} · {{ p.breed }}</p>
+              <p class="text-sm text-slate-500">
+                @if (speciesLabelKey(p.species); as speciesKey) { {{ speciesKey | translate }} }
+                @else { {{ p.species }} }
+                @if (p.breed) { · {{ p.breed }} }
+              </p>
               <p class="text-xs text-slate-400">{{ p.ownerName }}</p>
             </div>
           </div>
@@ -90,10 +129,17 @@ export function ownerPetPayload(value: {
               <option value="">{{ 'pets.pickClinic' | translate }}</option>
               @for (c of clinics(); track c.slug) { <option [value]="c.slug">{{ c.commercialName || c.name }}</option> }
             </select>
+            @if (clinics().length === 0) {
+              <p class="text-sm text-rose-600">{{ 'pets.noClinics' | translate }}</p>
+            }
           }
           <input class="input" formControlName="name" [placeholder]="'pets.name' | translate" />
           <div class="grid grid-cols-2 gap-3">
-            <input class="input" formControlName="species" [placeholder]="'pets.species' | translate" />
+            <select class="input" formControlName="species">
+              @for (code of speciesOptions; track code) {
+                <option [value]="code">{{ 'pets.speciesOptions.' + code | translate }}</option>
+              }
+            </select>
             <input class="input" formControlName="breed" [placeholder]="'pets.breed' | translate" />
           </div>
           <select class="input" formControlName="sex">
@@ -119,17 +165,22 @@ export class PetsPage implements OnInit {
   rows = signal<Pet[]>([]);
   owners = signal<Owner[]>([]);
   clinics = signal<PublicClinic[]>([]);
+  speciesOptions = PET_SPECIES;
+  speciesLabelKey = speciesLabelKey;
   open = false;
   form = this.fb.group({
     ownerId: [''],
     tenantSlug: [''],
     name: ['', Validators.required],
-    species: ['DOG'],
+    species: ['DOG', Validators.required],
     breed: [''],
     sex: ['UNKNOWN']
   });
 
   ngOnInit() {
+    if (!this.auth.isStaff()) {
+      this.loadClinics();
+    }
     this.route.queryParamMap.subscribe(params => {
       const ownerId = params.get('owner');
       this.load(ownerId);
@@ -160,16 +211,11 @@ export class PetsPage implements OnInit {
   }
 
   loadClinics() {
-    this.api.get<PublicClinic[]>('/public/clinics').subscribe(list => {
-      const clinics = list || [];
-      this.clinics.set(clinics);
-      const preferred = this.auth.user()?.tenantSlug
-        || this.auth.user()?.memberships?.[0]?.slug
-        || (clinics.length === 1 ? clinics[0].slug : '');
-      if (preferred && !this.form.value.tenantSlug) {
-        this.form.patchValue({ tenantSlug: preferred });
-      }
-    });
+    const membershipClinics = clinicsFromMemberships(this.auth.user()?.memberships);
+    this.applyClinics(membershipClinics);
+    this.api.get<PublicClinic[]>('/clinics').pipe(
+      catchError(() => this.api.get<PublicClinic[]>('/public/clinics').pipe(catchError(() => of([]))))
+    ).subscribe(list => this.applyClinics(mergeClinics(membershipClinics, list)));
   }
 
   save() {
@@ -182,6 +228,10 @@ export class PetsPage implements OnInit {
       return;
     }
     const tenantSlug = value.tenantSlug || this.clinics()[0]?.slug || '';
+    if (!tenantSlug) {
+      this.toast.show('pets.noClinics', true);
+      return;
+    }
     this.api.post(petCreateEndpoint(false), ownerPetPayload({
       tenantSlug,
       name: value.name || '',
@@ -197,10 +247,21 @@ export class PetsPage implements OnInit {
     });
   }
 
+  private applyClinics(clinics: PublicClinic[]) {
+    this.clinics.set(clinics);
+    const preferred = this.form.value.tenantSlug
+      || this.auth.user()?.tenantSlug
+      || this.auth.user()?.memberships?.[0]?.slug
+      || (clinics.length === 1 ? clinics[0].slug : '');
+    if (preferred && clinics.some(c => c.slug === preferred)) {
+      this.form.patchValue({ tenantSlug: preferred });
+    }
+  }
+
   private afterSave() {
     this.toast.show('common.saved');
     this.open = false;
-    this.form.patchValue({ name: '', breed: '', sex: 'UNKNOWN' });
+    this.form.patchValue({ name: '', breed: '', sex: 'UNKNOWN', species: 'DOG' });
     this.load(this.route.snapshot.queryParamMap.get('owner'));
   }
 }

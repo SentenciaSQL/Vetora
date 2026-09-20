@@ -183,6 +183,17 @@
     "clinic": "Veterinaria",
     "name": "Nombre",
     "species": "Especie",
+    "speciesOptions": {
+      "DOG": "Perro",
+      "CAT": "Gato",
+      "BIRD": "Ave",
+      "RABBIT": "Conejo",
+      "RODENT": "Roedor",
+      "REPTILE": "Reptil",
+      "HORSE": "Caballo",
+      "OTHER": "Otro"
+    },
+    "noClinics": "No hay veterinarias disponibles en este momento",
     "breed": "Raza",
     "owner": "Propietario",
     "weight": "Peso",
