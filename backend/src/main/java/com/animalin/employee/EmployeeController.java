@@ -59,6 +59,7 @@ public class EmployeeController {
     }
 
     @GetMapping
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> list() {
         accessGuard.requirePermission("STAFF_MANAGE");
         Long tenantId = accessGuard.requireStaffTenant();
