@@ -6,11 +6,14 @@ import com.animalin.common.api.PageResponse;
 import com.animalin.common.exception.ApiException;
 import com.animalin.dto.AppDtos;
 import com.animalin.owner.Owner;
+import com.animalin.owner.OwnerService;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
 import com.animalin.storage.StorageService;
 import com.animalin.storage.StoredFile;
 import com.animalin.tenant.Tenant;
+import com.animalin.tenant.TenantMembership;
+import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
 import com.animalin.veterinarian.Veterinarian;
 import com.animalin.veterinarian.VeterinarianRepository;
@@ -30,16 +33,20 @@ public class PetService {
     private final VeterinarianRepository veterinarianRepository;
     private final BranchRepository branchRepository;
     private final TenantRepository tenantRepository;
+    private final TenantMembershipRepository membershipRepository;
+    private final OwnerService ownerService;
     private final AccessGuard accessGuard;
     private final AuditService auditService;
     private final StorageService storageService;
 
-    public PetService(PetRepository petRepository, PetWeightLogRepository weightLogRepository, VeterinarianRepository veterinarianRepository, BranchRepository branchRepository, TenantRepository tenantRepository, AccessGuard accessGuard, AuditService auditService, StorageService storageService) {
+    public PetService(PetRepository petRepository, PetWeightLogRepository weightLogRepository, VeterinarianRepository veterinarianRepository, BranchRepository branchRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, OwnerService ownerService, AccessGuard accessGuard, AuditService auditService, StorageService storageService) {
         this.petRepository = petRepository;
         this.weightLogRepository = weightLogRepository;
         this.veterinarianRepository = veterinarianRepository;
         this.branchRepository = branchRepository;
         this.tenantRepository = tenantRepository;
+        this.membershipRepository = membershipRepository;
+        this.ownerService = ownerService;
         this.accessGuard = accessGuard;
         this.auditService = auditService;
         this.storageService = storageService;
@@ -83,6 +90,43 @@ public class PetService {
         }
         petRepository.save(pet);
         auditService.record("CREATE", "PET", pet.getId(), pet.getName());
+        return toDto(pet);
+    }
+
+    @Transactional
+    public AppDtos.PetResponse createMine(AppDtos.OwnerPetRequest request) {
+        if (!accessGuard.isOwnerContext()) {
+            throw ApiException.forbidden("Solo los propietarios pueden registrar mascotas propias");
+        }
+        if (request == null || !StringUtils.hasText(request.name()) || !StringUtils.hasText(request.species())) {
+            throw ApiException.badRequest("Nombre y especie son obligatorios");
+        }
+        Tenant tenant = resolveOwnerClinic(request.tenantSlug());
+        Owner owner = ownerService.ensureForAuthenticatedUser(tenant);
+        Pet pet = new Pet();
+        pet.setTenantId(tenant.getId());
+        pet.setOwner(owner);
+        pet.setName(request.name().trim());
+        pet.setSpecies(request.species().trim());
+        pet.setBreed(emptyToNull(request.breed()));
+        pet.setSex(StringUtils.hasText(request.sex()) ? request.sex().trim() : "UNKNOWN");
+        pet.setBirthDate(request.birthDate());
+        pet.setWeightKg(request.weightKg());
+        pet.setColor(emptyToNull(request.color()));
+        pet.setMicrochip(emptyToNull(request.microchip()));
+        pet.setStatus("ACTIVE");
+        if (pet.getWeightKg() != null) {
+            petRepository.save(pet);
+            logWeight(pet, pet.getWeightKg(), "Registro inicial");
+        }
+        petRepository.save(pet);
+        TenantContext.AuthPrincipal principal = TenantContext.getOrNull();
+        auditService.record(
+                tenant.getId(),
+                principal == null ? null : principal.userId(),
+                principal == null ? null : principal.email(),
+                "CREATE", "PET", pet.getId(), pet.getName(), null, null
+        );
         return toDto(pet);
     }
 
@@ -139,6 +183,35 @@ public class PetService {
         weightLogRepository.save(log);
         pet.setWeightKg(request.weightKg());
         return new AppDtos.WeightResponse(log.getId(), log.getPetId(), log.getRecordedAt(), log.getWeightKg(), log.getNotes());
+    }
+
+    private Tenant resolveOwnerClinic(String tenantSlug) {
+        if (StringUtils.hasText(tenantSlug)) {
+            Tenant tenant = tenantRepository.findBySlug(tenantSlug.trim())
+                    .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
+            requireActiveClinic(tenant);
+            return tenant;
+        }
+        Long contextTenantId = TenantContext.tenantIdOrNull();
+        if (contextTenantId != null) {
+            Tenant tenant = tenantRepository.findById(contextTenantId)
+                    .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
+            requireActiveClinic(tenant);
+            return tenant;
+        }
+        List<TenantMembership> memberships = membershipRepository.findActiveByUserId(TenantContext.userId());
+        if (memberships.size() == 1) {
+            Tenant tenant = memberships.getFirst().getTenant();
+            requireActiveClinic(tenant);
+            return tenant;
+        }
+        throw ApiException.badRequest("Debe indicar la veterinaria");
+    }
+
+    private void requireActiveClinic(Tenant tenant) {
+        if ("SUSPENDED".equals(tenant.getStatus()) || "CANCELLED".equals(tenant.getStatus())) {
+            throw ApiException.forbidden("Esta veterinaria no está activa");
+        }
     }
 
     private void apply(Pet pet, AppDtos.PetRequest request, Long tenantId) {

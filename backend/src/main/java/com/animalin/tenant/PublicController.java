@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/public")
 public class PublicController {
@@ -14,6 +16,11 @@ public class PublicController {
 
     public PublicController(BrandingService brandingService) {
         this.brandingService = brandingService;
+    }
+
+    @GetMapping("/clinics")
+    public List<AppDtos.PublicClinicResponse> clinics() {
+        return brandingService.listPublicClinics();
     }
 
     @GetMapping("/tenants/{slug}/branding")

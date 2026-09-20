@@ -33,6 +33,15 @@ export interface TokenResponse {
   user: UserProfile;
 }
 
+export interface PublicClinic {
+  slug: string;
+  name: string;
+  commercialName?: string;
+  city?: string;
+  country?: string;
+  logoUrl?: string;
+}
+
 export interface Branding {
   tenantId?: number;
   slug?: string;

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @Service
 public class BrandingService {
 
@@ -40,6 +42,13 @@ public class BrandingService {
     @Transactional(readOnly = true)
     public AppDtos.BrandingResponse publicBySlug(String slug) {
         return toDto(tenantRepository.findBySlug(slug).orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada")));
+    }
+
+    @Transactional(readOnly = true)
+    public List<AppDtos.PublicClinicResponse> listPublicClinics() {
+        return tenantRepository.findByStatusInOrderByNameAsc(List.of("ACTIVE", "TRIAL")).stream()
+                .map(this::toPublicClinic)
+                .toList();
     }
 
     @Transactional
@@ -124,6 +133,17 @@ public class BrandingService {
         }
         auditService.recordChange("BRANDING", "TENANT", tenant.getId(), "logo:" + variant, previous, url);
         return toDto(tenant);
+    }
+
+    public AppDtos.PublicClinicResponse toPublicClinic(Tenant tenant) {
+        return new AppDtos.PublicClinicResponse(
+                tenant.getSlug(),
+                tenant.getName(),
+                tenant.getCommercialName(),
+                tenant.getCity(),
+                tenant.getCountry(),
+                tenant.getLogoUrl()
+        );
     }
 
     public AppDtos.BrandingResponse toDto(Tenant tenant) {

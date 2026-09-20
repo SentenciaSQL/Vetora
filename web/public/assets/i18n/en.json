@@ -108,7 +108,8 @@
     "emptyAgenda": "No appointments scheduled for today",
     "ownerTitle": "Your pets’ care",
     "ownerSubtitle": "Appointments, vaccines and treatments at a glance",
-    "reminders": "Reminders"
+    "reminders": "Reminders",
+    "registerPet": "Register pet"
   },
   "admin": {
     "title": "Super admin",
@@ -175,7 +176,11 @@
   "pets": {
     "title": "Pets",
     "subtitle": "Clinic patients",
+    "ownerSubtitle": "Your registered pets",
     "new": "New pet",
+    "register": "Register pet",
+    "pickClinic": "Choose a clinic",
+    "clinic": "Clinic",
     "name": "Name",
     "species": "Species",
     "breed": "Breed",
@@ -185,6 +190,8 @@
     "allergies": "Allergies",
     "conditions": "Conditions",
     "empty": "No pets registered",
+    "emptyOwner": "You have not registered a pet yet",
+    "emptyHint": "Register your pet to book appointments and view its history",
     "male": "Male",
     "female": "Female",
     "unknown": "Unspecified",

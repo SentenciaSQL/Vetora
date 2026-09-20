@@ -48,7 +48,8 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
         </div>
       </div>
       <div class="mt-6 flex flex-wrap gap-3">
-        <a routerLink="/pets" class="btn-primary">{{ 'nav.pets' | translate }}</a>
+        <a routerLink="/pets" [queryParams]="{ register: 1 }" class="btn-primary">{{ 'pets.register' | translate }}</a>
+        <a routerLink="/pets" class="btn-secondary">{{ 'nav.pets' | translate }}</a>
         <a routerLink="/calendar" class="btn-secondary">{{ 'nav.calendar' | translate }}</a>
         <a routerLink="/messages" class="btn-secondary">{{ 'nav.messages' | translate }}</a>
       </div>

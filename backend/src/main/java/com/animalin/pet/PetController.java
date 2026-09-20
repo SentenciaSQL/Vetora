@@ -59,6 +59,12 @@ public class PetController {
         return petService.create(request);
     }
 
+    @PostMapping("/mine")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AppDtos.PetResponse createMine(@RequestBody AppDtos.OwnerPetRequest request) {
+        return petService.createMine(request);
+    }
+
     @PutMapping("/{id}")
     public AppDtos.PetResponse update(@PathVariable Long id, @RequestBody AppDtos.PetRequest request) {
         return petService.update(id, request);

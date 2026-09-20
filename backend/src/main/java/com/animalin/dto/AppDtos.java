@@ -12,6 +12,16 @@ public final class AppDtos {
     public record IdName(Long id, String name) {
     }
 
+    public record PublicClinicResponse(
+            String slug,
+            String name,
+            String commercialName,
+            String city,
+            String country,
+            String logoUrl
+    ) {
+    }
+
     public record BrandingResponse(
             Long tenantId,
             String slug,
@@ -52,6 +62,12 @@ public final class AppDtos {
             String species, String breed, String sex, LocalDate birthDate, BigDecimal weightKg,
             String color, String microchip, String reproductiveStatus, Boolean sterilized,
             String allergies, String medicalConditions, String notes, String status
+    ) {
+    }
+
+    public record OwnerPetRequest(
+            String tenantSlug, String name, String species, String breed, String sex,
+            LocalDate birthDate, BigDecimal weightKg, String color, String microchip
     ) {
     }
 
