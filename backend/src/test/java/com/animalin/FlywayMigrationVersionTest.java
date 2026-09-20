@@ -34,7 +34,8 @@ class FlywayMigrationVersionTest {
                 "V1__init_schema.sql",
                 "V2__seed_catalog.sql",
                 "V3__medications_audit_columns.sql",
-                "V4__paddle_billing.sql"
+                "V4__paddle_billing.sql",
+                "V5__plan_limits_and_paddle_sync.sql"
         );
         assertThat(sourceFiles)
                 .noneMatch(name -> name.equals("V3__add_audit_columns_to_medications.sql"));
@@ -62,7 +63,7 @@ class FlywayMigrationVersionTest {
                     .isNull();
         }
 
-        assertThat(versions).containsKeys("1", "2", "3", "4");
+        assertThat(versions).containsKeys("1", "2", "3", "4", "5");
         return names;
     }
 

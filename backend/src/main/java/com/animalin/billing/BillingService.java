@@ -5,6 +5,7 @@ import com.animalin.billing.paddle.PaddleClient;
 import com.animalin.billing.paddle.PaddleDtos;
 import com.animalin.common.exception.ApiException;
 import com.animalin.plan.Plan;
+import com.animalin.plan.PlanLimitService;
 import com.animalin.plan.PlanRepository;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +34,9 @@ public class BillingService {
     private final PaddleClient paddleClient;
     private final PaddleProperties paddleProperties;
     private final AccessGuard accessGuard;
+    private final PlanCatalogService planCatalogService;
+    private final PlanLimitService planLimitService;
+    private final Clock clock;
 
     public BillingService(PlanRepository planRepository,
                           SubscriptionRepository subscriptionRepository,
@@ -39,7 +44,10 @@ public class BillingService {
                           UserRepository userRepository,
                           PaddleClient paddleClient,
                           PaddleProperties paddleProperties,
-                          AccessGuard accessGuard) {
+                          AccessGuard accessGuard,
+                          PlanCatalogService planCatalogService,
+                          PlanLimitService planLimitService,
+                          Clock clock) {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.tenantRepository = tenantRepository;
@@ -47,6 +55,9 @@ public class BillingService {
         this.paddleClient = paddleClient;
         this.paddleProperties = paddleProperties;
         this.accessGuard = accessGuard;
+        this.planCatalogService = planCatalogService;
+        this.planLimitService = planLimitService;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +71,7 @@ public class BillingService {
                 paddleProperties.sandbox() ? "sandbox" : "production",
                 paddleProperties.clientToken(),
                 paddleProperties.gracePeriodDays(),
+                14,
                 plans
         );
     }
@@ -86,20 +98,23 @@ public class BillingService {
             throw ApiException.badRequest("Debe indicar un identificador de precio");
         }
         Plan plan = requireActivePlanForPrice(request.priceId());
-        Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenantId).orElse(null);
-        if (subscription != null
-                && StringUtils.hasText(subscription.getPaddleSubscriptionId())
-                && SubscriptionStatuses.ACTIVE.equals(subscription.getStatus())) {
-            throw ApiException.conflict("La veterinaria ya tiene una suscripción activa. Use el portal de cliente para cambiar el plan.");
-        }
-        Tenant tenant = tenantRepository.findById(tenantId).orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         String cycle = plan.getPaddleAnnualPriceId() != null && plan.getPaddleAnnualPriceId().equals(request.priceId())
                 ? SubscriptionStatuses.CYCLE_ANNUAL
                 : SubscriptionStatuses.CYCLE_MONTHLY;
-        if (StringUtils.hasText(request.billingCycle())
-                && !cycle.equalsIgnoreCase(request.billingCycle())) {
+        if (StringUtils.hasText(request.billingCycle()) && !cycle.equalsIgnoreCase(request.billingCycle())) {
             throw ApiException.badRequest("El ciclo de facturación no coincide con el precio seleccionado");
         }
+        String interval = SubscriptionStatuses.CYCLE_ANNUAL.equals(cycle) ? "year" : "month";
+        planCatalogService.requireActiveUsdPrice(plan, request.priceId(), interval);
+        Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenantId).orElse(null);
+        if (subscription != null
+                && StringUtils.hasText(subscription.getPaddleSubscriptionId())
+                && (SubscriptionStatuses.ACTIVE.equals(subscription.getStatus())
+                || SubscriptionStatuses.TRIALING.equals(subscription.getStatus())
+                || SubscriptionStatuses.TRIAL.equals(subscription.getStatus()))) {
+            throw ApiException.conflict("La veterinaria ya tiene una suscripción activa. Use el portal de cliente para cambiar el plan.");
+        }
+        Tenant tenant = tenantRepository.findById(tenantId).orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         User user = userRepository.findById(TenantContext.userId()).orElseThrow(() -> ApiException.unauthorized("No hay un usuario autenticado"));
         return new BillingDtos.CheckoutResponse(
                 paddleProperties.sandbox() ? "sandbox" : "production",
@@ -169,6 +184,8 @@ public class BillingService {
             throw ApiException.badRequest("Debe indicar un identificador de precio");
         }
         Plan plan = requireActivePlanForPrice(request.priceId());
+        String interval = request.priceId().equals(plan.getPaddleAnnualPriceId()) ? "year" : "month";
+        planCatalogService.requireActiveUsdPrice(plan, request.priceId(), interval);
         Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenantId)
                 .orElseThrow(() -> ApiException.notFound("Suscripción no encontrada"));
         if (!StringUtils.hasText(subscription.getPaddleSubscriptionId())) {
@@ -252,6 +269,9 @@ public class BillingService {
         Plan plan = subscription != null && subscription.getPlan() != null ? subscription.getPlan() : tenant.getPlan();
         String status = subscription != null ? subscription.getStatus() : tenant.getStatus();
         boolean english = "en".equalsIgnoreCase(locale);
+        boolean blocked = subscription != null && SubscriptionStatuses.blocksTenant(subscription, clock.instant());
+        boolean access = !blocked && (SubscriptionStatuses.grantsAccess(status) || SubscriptionStatuses.CANCELED.equals(status));
+        BillingDtos.PlanUsage usage = planLimitService.usage(tenant.getId());
         return new BillingDtos.SubscriptionResponse(
                 subscription == null ? null : subscription.getId(),
                 tenant.getId(),
@@ -261,7 +281,7 @@ public class BillingService {
                 status,
                 subscription == null ? null : subscription.getBillingCycle(),
                 subscription == null || subscription.getCurrency() == null ? "USD" : subscription.getCurrency(),
-                subscription == null || subscription.isTrial(),
+                subscription == null || subscription.isTrial() || SubscriptionStatuses.isTrial(status),
                 subscription == null ? null : subscription.getStartedAt(),
                 subscription == null ? null : subscription.getCurrentPeriodStartsAt(),
                 subscription == null ? null : subscription.getCurrentPeriodEndsAt(),
@@ -273,10 +293,13 @@ public class BillingService {
                 subscription == null ? null : subscription.getSuspendedAt(),
                 subscription == null ? null : subscription.getScheduledChangeAction(),
                 subscription == null ? null : subscription.getScheduledChangeEffectiveAt(),
-                SubscriptionStatuses.grantsAccess(status),
+                access,
                 SubscriptionStatuses.GRACE_PERIOD.equals(status),
-                SubscriptionStatuses.blocksTenant(status),
-                subscription != null && StringUtils.hasText(subscription.getPaddleCustomerId())
+                blocked,
+                subscription != null && StringUtils.hasText(subscription.getPaddleCustomerId()),
+                SubscriptionStatuses.isTrial(status),
+                plan == null ? null : limits(plan),
+                usage
         );
     }
 

@@ -127,6 +127,9 @@ public class VeterinarianController {
         accessGuard.requirePermission("STAFF_MANAGE");
         Veterinarian vet = veterinarianRepository.findByIdAndTenantId(id, accessGuard.requireStaffTenant())
                 .orElseThrow(() -> ApiException.notFound("Veterinario no encontrado"));
+        if ("ACTIVE".equals(request.status()) && !"ACTIVE".equals(vet.getStatus())) {
+            planLimitService.assertCanAddVeterinarian(vet.getTenantId());
+        }
         if (request.specialty() != null) vet.setSpecialty(request.specialty());
         if (request.licenseNumber() != null) vet.setLicenseNumber(request.licenseNumber());
         if (request.bio() != null) vet.setBio(request.bio());

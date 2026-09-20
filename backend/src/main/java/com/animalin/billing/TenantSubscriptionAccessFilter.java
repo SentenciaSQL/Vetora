@@ -1,5 +1,6 @@
 package com.animalin.billing;
 
+import com.animalin.billing.SubscriptionStatuses;
 import com.animalin.common.api.ApiError;
 import com.animalin.common.exception.ApiException;
 import com.animalin.security.TenantContext;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +28,12 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
 
     private final SubscriptionRepository subscriptionRepository;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
-    public TenantSubscriptionAccessFilter(SubscriptionRepository subscriptionRepository, ObjectMapper objectMapper) {
+    public TenantSubscriptionAccessFilter(SubscriptionRepository subscriptionRepository, ObjectMapper objectMapper, Clock clock) {
         this.subscriptionRepository = subscriptionRepository;
         this.objectMapper = objectMapper;
+        this.clock = clock;
     }
 
     @Override
@@ -68,7 +73,7 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
                 .stream()
                 .findFirst()
                 .orElse(null);
-        if (subscription == null || !SubscriptionStatuses.blocksTenant(subscription.getStatus())) {
+        if (subscription == null || !blocks(subscription)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -102,8 +107,24 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
             return true;
         }
         return "/api/v1/auth/me".equals(path)
+                || path.startsWith("/api/v1/auth/me")
                 || "/api/v1/auth/logout".equals(path)
                 || "/api/v1/auth/switch-tenant".equals(path)
                 || "/api/v1/auth/change-password".equals(path);
+    }
+
+    private boolean blocks(SubscriptionAccessView subscription) {
+        Instant now = clock.instant();
+        String status = subscription.getStatus();
+        if (SubscriptionStatuses.SUSPENDED.equals(status) || SubscriptionStatuses.PAUSED.equals(status)) {
+            return true;
+        }
+        if (SubscriptionStatuses.CANCELED.equals(status)) {
+            Instant effective = subscription.getScheduledChangeEffectiveAt() != null
+                    ? subscription.getScheduledChangeEffectiveAt()
+                    : subscription.getCurrentPeriodEndsAt();
+            return effective == null || !effective.isAfter(now);
+        }
+        return false;
     }
 }

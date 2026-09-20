@@ -99,6 +99,11 @@ public class MedicalRecordController {
         return medicalRecordService.createLaboratory(request);
     }
 
+    @PutMapping("/labs/{id}")
+    public AppDtos.LaboratoryResponse updateLab(@PathVariable Long id, @RequestBody AppDtos.LaboratoryRequest request) {
+        return medicalRecordService.updateLaboratory(id, request);
+    }
+
     @PutMapping("/treatments/{id}")
     public AppDtos.TreatmentResponse updateTreatment(@PathVariable Long id, @RequestBody AppDtos.TreatmentRequest request) {
         return medicalRecordService.updateTreatment(id, request);
