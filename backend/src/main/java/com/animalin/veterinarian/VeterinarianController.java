@@ -2,8 +2,10 @@ package com.animalin.veterinarian;
 
 import com.animalin.audit.AuditService;
 import com.animalin.common.exception.ApiException;
+import com.animalin.pet.PetRepository;
 import com.animalin.plan.PlanLimitService;
 import com.animalin.security.AccessGuard;
+import com.animalin.security.TenantContext;
 import com.animalin.tenant.TenantMembership;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
@@ -40,8 +42,9 @@ public class VeterinarianController {
     private final AccessGuard accessGuard;
     private final AuditService auditService;
     private final PlanLimitService planLimitService;
+    private final PetRepository petRepository;
 
-    public VeterinarianController(VeterinarianRepository veterinarianRepository, VeterinarianScheduleRepository scheduleRepository, UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, PasswordEncoder passwordEncoder, AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService) {
+    public VeterinarianController(VeterinarianRepository veterinarianRepository, VeterinarianScheduleRepository scheduleRepository, UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, PasswordEncoder passwordEncoder, AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService, PetRepository petRepository) {
         this.veterinarianRepository = veterinarianRepository;
         this.scheduleRepository = scheduleRepository;
         this.userRepository = userRepository;
@@ -52,11 +55,18 @@ public class VeterinarianController {
         this.accessGuard = accessGuard;
         this.auditService = auditService;
         this.planLimitService = planLimitService;
+        this.petRepository = petRepository;
     }
 
     @GetMapping
     @Transactional(readOnly = true)
     public List<Map<String, Object>> list() {
+        if (accessGuard.isOwnerContext()) {
+            return ownerTenantIds().stream()
+                    .flatMap(tenantId -> veterinarianRepository.findByTenantIdAndStatus(tenantId, "ACTIVE").stream())
+                    .map(this::toMap)
+                    .toList();
+        }
         return veterinarianRepository.findByTenantIdAndStatus(accessGuard.requireStaffTenant(), "ACTIVE")
                 .stream().map(this::toMap).toList();
     }
@@ -136,6 +146,15 @@ public class VeterinarianController {
         if (request.branchId() != null) vet.setBranchId(request.branchId());
         if (request.status() != null) vet.setStatus(request.status());
         return toMap(vet);
+    }
+
+    private List<Long> ownerTenantIds() {
+        java.util.LinkedHashSet<Long> ids = new java.util.LinkedHashSet<>();
+        membershipRepository.findActiveByUserId(TenantContext.userId())
+                .forEach(m -> ids.add(m.getTenant().getId()));
+        petRepository.findByOwner_User_Id(TenantContext.userId())
+                .forEach(pet -> ids.add(pet.getTenantId()));
+        return List.copyOf(ids);
     }
 
     private Map<String, Object> toMap(Veterinarian vet) {

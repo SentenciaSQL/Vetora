@@ -1,5 +1,6 @@
 package com.animalin.catalog;
 
+import com.animalin.pet.PetRepository;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
 import com.animalin.tenant.TenantMembershipRepository;
@@ -24,24 +25,30 @@ public class ClinicServiceController {
     private final ClinicServiceRepository repository;
     private final AccessGuard accessGuard;
     private final TenantMembershipRepository membershipRepository;
+    private final PetRepository petRepository;
 
     public ClinicServiceController(ClinicServiceRepository repository, AccessGuard accessGuard,
-                                   TenantMembershipRepository membershipRepository) {
+                                   TenantMembershipRepository membershipRepository, PetRepository petRepository) {
         this.repository = repository;
         this.accessGuard = accessGuard;
         this.membershipRepository = membershipRepository;
+        this.petRepository = petRepository;
     }
 
 
     @GetMapping
     public List<ClinicService> list() {
-        Long tenantId = accessGuard.isOwnerContext()
-                ? null
-                : accessGuard.requireStaffTenant();
-        if (tenantId == null) {
-            throw com.animalin.common.exception.ApiException.badRequest("Indique la veterinaria");
+        if (accessGuard.isOwnerContext()) {
+            java.util.LinkedHashSet<Long> tenantIds = new java.util.LinkedHashSet<>();
+            membershipRepository.findActiveByUserId(TenantContext.userId())
+                    .forEach(m -> tenantIds.add(m.getTenant().getId()));
+            petRepository.findByOwner_User_Id(TenantContext.userId())
+                    .forEach(pet -> tenantIds.add(pet.getTenantId()));
+            return tenantIds.stream()
+                    .flatMap(tenantId -> repository.findByTenantIdAndActiveTrue(tenantId).stream())
+                    .toList();
         }
-        return repository.findByTenantIdAndActiveTrue(tenantId);
+        return repository.findByTenantIdAndActiveTrue(accessGuard.requireStaffTenant());
     }
 
     @GetMapping("/tenant/{tenantId}")
