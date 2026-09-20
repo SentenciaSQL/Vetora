@@ -18,3 +18,4 @@ application-secrets.properties
 uploads/
 *.log
 backend/application-secrets.properties
+backend/application-secrets.properties
