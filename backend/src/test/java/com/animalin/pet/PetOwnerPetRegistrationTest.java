@@ -198,6 +198,9 @@ class PetOwnerPetRegistrationTest {
                         .content("{\"firstName\":\"Ana\",\"lastName\":\"Owner\",\"email\":\"" + email + "\",\"password\":\"Owner123!\"}"))
                 .andExpect(status().isCreated())
                 .andReturn();
+        User created = userRepository.findByEmailIgnoreCase(email).orElseThrow();
+        created.setEmailVerified(true);
+        userRepository.save(created);
         return objectMapper.readValue(result.getResponse().getContentAsString(), AuthDtos.TokenResponse.class).accessToken();
     }
 
@@ -229,6 +232,7 @@ class PetOwnerPetRegistrationTest {
         user.setFirstName("Admin");
         user.setLastName(email);
         user.setPasswordHash(passwordEncoder.encode("Admin123!"));
+        user.setEmailVerified(true);
         user.getRoles().add(role);
         return userRepository.save(user);
     }

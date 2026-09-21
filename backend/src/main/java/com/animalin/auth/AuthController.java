@@ -55,8 +55,9 @@ public class AuthController {
 
     @PostMapping("/resend-verification")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public void resendVerification(@Valid @RequestBody SignupDtos.ResendVerificationRequest request) {
+    public AuthDtos.MessageResponse resendVerification(@Valid @RequestBody SignupDtos.ResendVerificationRequest request) {
         signupService.resendVerification(request);
+        return AuthDtos.MessageResponse.verificationResent();
     }
 
     @GetMapping("/invite")
@@ -82,8 +83,9 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public void forgot(@Valid @RequestBody AuthDtos.ForgotPasswordRequest request) {
+    public AuthDtos.MessageResponse forgot(@Valid @RequestBody AuthDtos.ForgotPasswordRequest request) {
         authService.forgotPassword(request);
+        return AuthDtos.MessageResponse.passwordReset();
     }
 
     @PostMapping("/reset-password")

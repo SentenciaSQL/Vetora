@@ -42,7 +42,7 @@ public class AuthPrincipalLoader {
         }
         return Optional.of(new TenantContext.AuthPrincipal(
                 user.getId(), user.getEmail(), user.fullName(), tenantId, null,
-                roles, permissions, user.getLocale(), user.getTheme()
+                roles, permissions, user.getLocale(), user.getTheme(), user.isEmailVerified()
         ));
     }
 }

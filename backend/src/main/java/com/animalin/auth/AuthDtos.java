@@ -41,6 +41,18 @@ public final class AuthDtos {
     public record SwitchTenantRequest(@NotBlank String tenantSlug) {
     }
 
+    public record MessageResponse(String message) {
+        public static MessageResponse passwordReset() {
+            return new MessageResponse(
+                    "Si existe una cuenta asociada a ese correo, recibirás las instrucciones para restablecer tu contraseña.");
+        }
+
+        public static MessageResponse verificationResent() {
+            return new MessageResponse(
+                    "Si el correo existe y aún no está verificado, enviaremos un nuevo enlace.");
+        }
+    }
+
     public record TokenResponse(
             String accessToken,
             String refreshToken,

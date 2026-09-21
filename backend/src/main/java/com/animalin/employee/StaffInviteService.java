@@ -6,7 +6,9 @@ import com.animalin.auth.AuthService;
 import com.animalin.auth.SecureTokenService;
 import com.animalin.common.exception.ApiException;
 import com.animalin.config.AnimalinProperties;
-import com.animalin.notification.NotificationService;
+import com.animalin.email.EmailService;
+import com.animalin.email.ResendEmailService;
+import com.animalin.email.TransactionalEmailSender;
 import com.animalin.plan.PlanLimitService;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
@@ -43,7 +45,8 @@ public class StaffInviteService {
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureTokenService tokens;
-    private final NotificationService notificationService;
+    private final EmailService emailService;
+    private final TransactionalEmailSender transactionalEmailSender;
     private final PlanLimitService planLimitService;
     private final AccessGuard accessGuard;
     private final AuditService auditService;
@@ -59,7 +62,8 @@ public class StaffInviteService {
                               EmployeeRepository employeeRepository,
                               PasswordEncoder passwordEncoder,
                               SecureTokenService tokens,
-                              NotificationService notificationService,
+                              EmailService emailService,
+                              TransactionalEmailSender transactionalEmailSender,
                               PlanLimitService planLimitService,
                               AccessGuard accessGuard,
                               AuditService auditService,
@@ -74,7 +78,8 @@ public class StaffInviteService {
         this.employeeRepository = employeeRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
-        this.notificationService = notificationService;
+        this.emailService = emailService;
+        this.transactionalEmailSender = transactionalEmailSender;
         this.planLimitService = planLimitService;
         this.accessGuard = accessGuard;
         this.auditService = auditService;
@@ -131,10 +136,19 @@ public class StaffInviteService {
         invitation.setExpiresAt(clock.instant().plus(properties.signupOrDefault().inviteDays(), ChronoUnit.DAYS));
         invitationRepository.save(invitation);
 
-        String link = properties.signupOrDefault().publicAppUrl().replaceAll("/$", "") + "/accept-invite?token=" + raw;
-        notificationService.sendPlainEmail(email,
-                "Invitación a " + tenant.getName(),
-                "Lo invitaron a unirse a " + tenant.getName() + " en Lunaveta como " + roleCode + ".\n" + link);
+        String inviteeName = StringUtils.hasText(request.firstName())
+                ? request.firstName()
+                : invitation.getEmail();
+        int inviteDays = properties.signupOrDefault().inviteDays();
+        transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_STAFF_INVITE, email, () ->
+                emailService.sendStaffInvitation(
+                        email,
+                        inviteeName,
+                        tenant.getName(),
+                        roleCode,
+                        raw,
+                        tenant.getLogoUrl(),
+                        inviteDays));
         auditService.record(tenantId, TenantContext.userId(), TenantContext.get().email(),
                 "INVITE", "STAFF_INVITATION", invitation.getId(), email, null, roleCode);
         return toResponse(invitation);

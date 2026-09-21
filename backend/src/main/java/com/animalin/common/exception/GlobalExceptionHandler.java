@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.animalin.common.api.ApiError;
+import com.animalin.email.EmailDeliveryException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
@@ -60,6 +61,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDenied(AccessDeniedException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 ApiError.of(403, "FORBIDDEN", "No tiene permisos para esta operación", request.getRequestURI(), List.of())
+        );
+    }
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ApiError> handleEmail(EmailDeliveryException ex, HttpServletRequest request) {
+        log.warn("Email delivery failed type={} httpStatus={}", ex.getEmailType(), ex.getHttpStatus());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+                ApiError.of(502, "EMAIL_DELIVERY_FAILED",
+                        "No se pudo enviar el correo. Inténtelo más tarde.", request.getRequestURI(), List.of())
         );
     }
 

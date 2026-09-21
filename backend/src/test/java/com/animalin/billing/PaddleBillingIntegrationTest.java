@@ -771,6 +771,7 @@ class PaddleBillingIntegrationTest {
         user.setFirstName("Admin");
         user.setLastName(email);
         user.setPasswordHash(passwordEncoder.encode(password));
+        user.setEmailVerified(true);
         user.getRoles().add(role);
         return userRepository.save(user);
     }
