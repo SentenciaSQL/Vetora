@@ -7,6 +7,7 @@ cd mobile
 flutter create . --project-name animalin --org com.animalin
 flutter pub get
 flutter run --dart-define=API_URL=http://10.0.2.2:8080/api/v1
+flutter run --dart-define=API_URL=http://10.0.2.2:8080/api/v1 --dart-define=WEB_URL=https://lunaveta.com
 ```
 
 Usuarios de demostración: `juan.owner@animalin.app` / `Admin123!`
