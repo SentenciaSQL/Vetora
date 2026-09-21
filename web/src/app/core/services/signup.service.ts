@@ -25,7 +25,7 @@ export class SignupService {
 
   register(payload: Record<string, unknown>): Observable<TokenResponse> {
     return this.api.post<TokenResponse>('/auth/register-clinic', payload).pipe(
-      tap(response => this.auth.store(response))
+      tap(response => this.auth.store(response, true))
     );
   }
 
@@ -55,7 +55,7 @@ export class SignupService {
 
   refreshOwnerSession(): Observable<TokenResponse> {
     return this.api.post<TokenResponse>('/signup/session', {}).pipe(
-      tap(response => this.auth.store(response))
+      tap(response => this.auth.store(response, false))
     );
   }
 
@@ -77,7 +77,7 @@ export class SignupService {
 
   acceptInvite(payload: Record<string, unknown>): Observable<TokenResponse> {
     return this.api.post<TokenResponse>('/auth/accept-invite', payload).pipe(
-      tap(response => this.auth.store(response))
+      tap(response => this.auth.store(response, true))
     );
   }
 

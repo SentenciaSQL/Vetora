@@ -4,6 +4,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { ApiService } from '../../../core/services/api.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 
 @Component({
   standalone: true,
@@ -28,6 +29,7 @@ export class ProfilePage {
   private auth = inject(AuthService);
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private session = inject(SessionInactivityService);
   private fb = inject(FormBuilder);
   form = this.fb.group({
     firstName: [this.auth.user()?.firstName || '', Validators.required],
@@ -40,6 +42,9 @@ export class ProfilePage {
   });
 
   save() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.auth.patchMe({
       firstName: this.form.value.firstName || '',
       lastName: this.form.value.lastName || '',
@@ -51,6 +56,9 @@ export class ProfilePage {
   }
 
   changePwd() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.api.post('/auth/change-password', this.pwd.value).subscribe({
       next: () => this.toast.show('common.saved'),
       error: () => this.toast.show('common.error', true)

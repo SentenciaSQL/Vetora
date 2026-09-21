@@ -1,6 +1,7 @@
 package com.animalin.admin;
 
 import com.animalin.billing.BillingDtos;
+import com.animalin.auth.AuthService;
 import com.animalin.billing.PlanCatalogService;
 import com.animalin.tenant.Tenant;
 import org.springframework.http.HttpHeaders;
@@ -28,13 +29,16 @@ public class AdminController {
     private final AdminService adminService;
     private final AdminDashboardService adminDashboardService;
     private final PlanCatalogService planCatalogService;
+    private final AuthService authService;
 
     public AdminController(AdminService adminService,
                            AdminDashboardService adminDashboardService,
-                           PlanCatalogService planCatalogService) {
+                           PlanCatalogService planCatalogService,
+                           AuthService authService) {
         this.adminService = adminService;
         this.adminDashboardService = adminDashboardService;
         this.planCatalogService = planCatalogService;
+        this.authService = authService;
     }
 
     @GetMapping("/metrics")
@@ -88,44 +92,52 @@ public class AdminController {
     @PostMapping("/tenants")
     @ResponseStatus(HttpStatus.CREATED)
     public Tenant create(@RequestBody AdminService.CreateTenantRequest request) {
+        authService.requireActiveSession();
         return adminService.createTenant(request);
     }
 
     @PostMapping("/tenants/{id}/status")
     public Tenant status(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        authService.requireActiveSession();
         return adminService.changeStatus(id, body.get("status"));
     }
 
     @PutMapping("/tenants/{id}")
     public Tenant updateTenant(@PathVariable Long id, @RequestBody AdminService.UpdateTenantRequest request) {
+        authService.requireActiveSession();
         return adminService.updateTenant(id, request);
     }
 
     @PutMapping("/plans/{id}")
     public BillingDtos.AdminPlanResponse updatePlan(@PathVariable Long id, @RequestBody BillingDtos.UpdatePlanRequest request) {
+        authService.requireActiveSession();
         return planCatalogService.update(id, request);
     }
 
     @PostMapping("/plans")
     @ResponseStatus(HttpStatus.CREATED)
     public BillingDtos.AdminPlanResponse createPlan(@RequestBody BillingDtos.CreatePlanRequest request) {
+        authService.requireActiveSession();
         return planCatalogService.create(request);
     }
 
     @PostMapping("/plans/{id}/status")
     public BillingDtos.AdminPlanResponse planStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        authService.requireActiveSession();
         boolean active = body.get("active") == null || Boolean.TRUE.equals(body.get("active"));
         return planCatalogService.archive(id, active);
     }
 
     @PostMapping("/plans/{id}/paddle/validate")
     public BillingDtos.PaddleSyncResult validatePlan(@PathVariable Long id) {
+        authService.requireActiveSession();
         return planCatalogService.validateFromPaddle(id);
     }
 
     @PostMapping("/plans/{id}/paddle/prices")
     public BillingDtos.AdminPlanResponse rotatePlanPrice(@PathVariable Long id,
                                                          @RequestBody BillingDtos.RotatePriceRequest request) {
+        authService.requireActiveSession();
         return planCatalogService.rotatePrice(id, request);
     }
 

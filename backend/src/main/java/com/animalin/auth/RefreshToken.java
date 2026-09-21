@@ -45,6 +45,9 @@ public class RefreshToken {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(name = "last_activity_at", nullable = false)
+    private Instant lastActivityAt = Instant.now();
+
     public Long getId() {
         return id;
     }
@@ -92,5 +95,11 @@ public class RefreshToken {
     }
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+    public Instant getLastActivityAt() {
+        return lastActivityAt;
+    }
+    public void setLastActivityAt(Instant lastActivityAt) {
+        this.lastActivityAt = lastActivityAt;
     }
 }

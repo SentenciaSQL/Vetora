@@ -29,6 +29,15 @@ public final class AuthDtos {
     public record RefreshRequest(@NotBlank String refreshToken) {
     }
 
+    public record LogoutRequest(String refreshToken, String reason) {
+    }
+
+    public record SessionConfigResponse(long inactivityTimeoutMinutes, long warningBeforeMinutes) {
+    }
+
+    public record ActivityResponse(boolean active, long inactivityTimeoutMinutes) {
+    }
+
     public record ForgotPasswordRequest(@Email @NotBlank String email) {
     }
 

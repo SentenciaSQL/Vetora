@@ -1,6 +1,7 @@
 package com.animalin.audit;
 
 import com.animalin.common.api.PageResponse;
+import com.animalin.auth.AuthService;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
 import org.springframework.data.domain.Pageable;
@@ -15,10 +16,12 @@ public class AuditController {
 
     private final AuditService auditService;
     private final AccessGuard accessGuard;
+    private final AuthService authService;
 
-    public AuditController(AuditService auditService, AccessGuard accessGuard) {
+    public AuditController(AuditService auditService, AccessGuard accessGuard, AuthService authService) {
         this.auditService = auditService;
         this.accessGuard = accessGuard;
+        this.authService = authService;
     }
 
     @GetMapping("/audit")
@@ -32,6 +35,7 @@ public class AuditController {
             @RequestParam(required = false) Long tenantId,
             Pageable pageable) {
         TenantContext.requireSuperAdmin();
+        authService.requireActiveSession();
         return PageResponse.of(auditService.listEntries(tenantId, pageable));
     }
 }

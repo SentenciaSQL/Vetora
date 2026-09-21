@@ -39,6 +39,9 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
               <label class="mb-1 block text-sm font-medium" for="password">{{ 'auth.password' | translate }}</label>
               <input id="password" class="input" type="password" formControlName="password" autocomplete="current-password" />
             </div>
+            @if (expired()) {
+              <p class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">{{ 'auth.sessionExpired' | translate }}</p>
+            }
             @if (error()) {
               <p class="text-sm text-rose-600">{{ error() | translate }}</p>
             }
@@ -73,6 +76,7 @@ export class LoginPage implements OnInit {
   private route = inject(ActivatedRoute);
   branding = inject(BrandingService);
   error = signal('');
+  expired = signal(false);
   needsVerification = signal(false);
   loading = false;
   year = new Date().getFullYear();
@@ -82,6 +86,10 @@ export class LoginPage implements OnInit {
   });
 
   ngOnInit(): void {
+    this.expired.set(this.route.snapshot.queryParamMap.get('expired') === 'inactivity');
+    this.route.queryParamMap.subscribe(params => {
+      this.expired.set(params.get('expired') === 'inactivity');
+    });
     const slug = this.route.snapshot.paramMap.get('slug');
     if (slug) {
       this.branding.loadPublic(slug).subscribe(b => this.branding.branding.set(b));
@@ -96,6 +104,7 @@ export class LoginPage implements OnInit {
     }
     this.loading = true;
     this.error.set('');
+    this.expired.set(false);
     this.needsVerification.set(false);
     const slug = this.route.snapshot.paramMap.get('slug') || undefined;
     this.auth.login(this.form.value.email!, this.form.value.password!, slug).subscribe({

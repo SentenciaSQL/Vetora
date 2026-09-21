@@ -1,30 +1,47 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
-import { inject } from '@angular/core';
+import { inject, Injector } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { catchError, finalize, Observable, shareReplay, switchMap, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { ApiErrorBody, TokenResponse } from '../models';
 import { AuthService } from '../services/auth.service';
-import { ApiErrorBody } from '../models';
+import { SessionInactivityService } from '../services/session-inactivity.service';
 
-let refreshing = false;
+let refresh$: Observable<TokenResponse> | null = null;
+
+function isAppApi(url: string): boolean {
+  if (/paddle\.(com|io|js)/i.test(url)) {
+    return false;
+  }
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url.includes('/api/v1') || (!!environment.apiUrl && url.startsWith(environment.apiUrl));
+  }
+  return true;
+}
+
+function isAuthCall(url: string): boolean {
+  return url.includes('/auth/login')
+    || url.includes('/auth/register')
+    || url.includes('/auth/register-clinic')
+    || url.includes('/auth/refresh')
+    || url.includes('/auth/logout')
+    || url.includes('/auth/forgot-password')
+    || url.includes('/auth/reset-password')
+    || url.includes('/auth/verify-email')
+    || url.includes('/auth/resend-verification')
+    || url.includes('/auth/invite')
+    || url.includes('/auth/accept-invite')
+    || url.includes('/public/')
+    || url.includes('/assets/');
+}
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const injector = inject(Injector);
   const token = auth.accessToken();
-  const isAuthCall = req.url.includes('/auth/login')
-    || req.url.includes('/auth/register')
-    || req.url.includes('/auth/register-clinic')
-    || req.url.includes('/auth/refresh')
-    || req.url.includes('/auth/forgot-password')
-    || req.url.includes('/auth/reset-password')
-    || req.url.includes('/auth/verify-email')
-    || req.url.includes('/auth/resend-verification')
-    || req.url.includes('/auth/invite')
-    || req.url.includes('/auth/accept-invite')
-    || req.url.includes('/public/')
-    || req.url.includes('/assets/');
-
-  const authorized = token && !isAuthCall
+  const skipAuth = isAuthCall(req.url) || !isAppApi(req.url);
+  const authorized = token && !skipAuth
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
     : req;
 
@@ -39,19 +56,37 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         void router.navigate(['/billing']);
         return throwError(() => error);
       }
-      if (error.status !== 401 || isAuthCall || refreshing || !auth.refreshToken()) {
+      if (error.status === 403) {
         return throwError(() => error);
       }
-      refreshing = true;
-      return auth.refresh().pipe(
+      if (error.status !== 401 || skipAuth) {
+        return throwError(() => error);
+      }
+      const session = injector.get(SessionInactivityService);
+      if (body?.code === 'SESSION_INACTIVE' || session.isExpired()) {
+        session.expire(body?.code === 'SESSION_INACTIVE' ? 'INACTIVITY' : 'INACTIVITY');
+        return throwError(() => error);
+      }
+      if (!auth.refreshToken()) {
+        session.expire('UNAUTHORIZED');
+        return throwError(() => error);
+      }
+      if (!refresh$) {
+        refresh$ = auth.refresh().pipe(
+          shareReplay(1),
+          finalize(() => {
+            refresh$ = null;
+          })
+        );
+      }
+      return refresh$.pipe(
         switchMap(() => {
-          refreshing = false;
           const retry = req.clone({ setHeaders: { Authorization: `Bearer ${auth.accessToken()}` } });
           return next(retry);
         }),
         catchError(refreshError => {
-          refreshing = false;
-          auth.logout();
+          const refreshBody = (refreshError as HttpErrorResponse).error as ApiErrorBody | undefined;
+          session.expire(refreshBody?.code === 'SESSION_INACTIVE' ? 'INACTIVITY' : 'UNAUTHORIZED');
           return throwError(() => refreshError);
         })
       );
