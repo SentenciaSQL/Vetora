@@ -2,6 +2,7 @@ package com.animalin.storage;
 
 import com.animalin.common.exception.ApiException;
 import com.animalin.config.AnimalinProperties;
+import com.animalin.pet.PetRepository;
 import com.animalin.plan.PlanLimitService;
 import com.animalin.security.TenantContext;
 import com.animalin.user.UserRepository;
@@ -22,13 +23,15 @@ public class StorageService {
 
     private final StoredFileRepository storedFileRepository;
     private final UserRepository userRepository;
+    private final PetRepository petRepository;
     private final AnimalinProperties properties;
     private final PlanLimitService planLimitService;
 
     public StorageService(StoredFileRepository storedFileRepository, UserRepository userRepository,
-                          AnimalinProperties properties, PlanLimitService planLimitService) {
+                          PetRepository petRepository, AnimalinProperties properties, PlanLimitService planLimitService) {
         this.storedFileRepository = storedFileRepository;
         this.userRepository = userRepository;
+        this.petRepository = petRepository;
         this.properties = properties;
         this.planLimitService = planLimitService;
     }
@@ -79,10 +82,21 @@ public class StorageService {
         if (file.getTenantId() != null && tenantId != null && file.getTenantId().equals(tenantId)) {
             return file;
         }
-        if (TenantContext.hasRole("PET_OWNER") && file.getTenantId() != null) {
+        if (TenantContext.hasRole("PET_OWNER") && ownerCanRead(file)) {
             return file;
         }
         throw ApiException.notFound("Archivo no encontrado");
+    }
+
+    private boolean ownerCanRead(StoredFile file) {
+        Long userId = TenantContext.userId();
+        if (userId == null || file.getTenantId() == null) {
+            return false;
+        }
+        if ("PET".equals(file.getEntityType()) && file.getEntityId() != null) {
+            return petRepository.existsByOwner_User_IdAndId(userId, file.getEntityId());
+        }
+        return petRepository.existsByOwner_User_IdAndTenantId(userId, file.getTenantId());
     }
 
     public Resource resource(StoredFile file) {

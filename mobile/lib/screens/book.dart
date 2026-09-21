@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/auth.dart';
+import '../core/format.dart';
 import '../core/l10n.dart';
 
 class BookScreen extends StatefulWidget {
@@ -39,24 +40,32 @@ class _BookScreenState extends State<BookScreen> {
   }
 
   Future<void> loadCatalog() async {
-    tenantId = pet?['tenantId'] as int?;
+    tenantId = asInt(pet?['tenantId'], 0) == 0 ? null : asInt(pet?['tenantId']);
     if (tenantId == null) return;
-    branches = await widget.auth.api.get('/branches/tenant/$tenantId') as List? ?? [];
-    services = await widget.auth.api.get('/services/tenant/$tenantId') as List? ?? [];
-    vets = await widget.auth.api.get('/veterinarians/tenant/$tenantId') as List? ?? [];
-    setState(() {});
+    try {
+      branches = asList(await widget.auth.api.get('/branches/tenant/$tenantId'));
+      services = asList(await widget.auth.api.get('/services/tenant/$tenantId'));
+      vets = asList(await widget.auth.api.get('/veterinarians/tenant/$tenantId'));
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) setState(() => error = userMessage(e));
+    }
   }
 
   Future<void> loadSlots() async {
     if (vet == null) return;
     final day = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    slots = await widget.auth.api.get('/appointments/availability', {
-      'veterinarianId': '${vet!['id']}',
-      if (branch != null) 'branchId': '${branch!['id']}',
-      if (service != null) 'serviceId': '${service!['id']}',
-      'date': day,
-    }) as List? ?? [];
-    setState(() {});
+    try {
+      slots = asList(await widget.auth.api.get('/appointments/availability', {
+        'veterinarianId': '${vet!['id']}',
+        if (branch != null) 'branchId': '${branch!['id']}',
+        if (service != null) 'serviceId': '${service!['id']}',
+        'date': day,
+      }));
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) setState(() => error = userMessage(e));
+    }
   }
 
   Future<void> submit() async {
@@ -72,7 +81,7 @@ class _BookScreenState extends State<BookScreen> {
       });
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      setState(() => error = i.t('invalid'));
+      setState(() => error = userMessage(e));
     } finally {
       if (mounted) setState(() => loading = false);
     }

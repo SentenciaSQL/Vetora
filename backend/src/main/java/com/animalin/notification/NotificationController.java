@@ -1,6 +1,7 @@
 package com.animalin.notification;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,12 @@ public class NotificationController {
 
     @PostMapping("/push-token")
     public void pushToken(@RequestBody Map<String, String> body) {
-        notificationService.registerPushToken(body.get("token"), body.get("platform"));
+        notificationService.registerPushToken(body == null ? null : body.get("token"),
+                body == null ? null : body.get("platform"));
+    }
+
+    @DeleteMapping("/push-token")
+    public void deletePushToken(@RequestBody(required = false) Map<String, String> body) {
+        notificationService.unregisterPushToken(body == null ? null : body.get("token"));
     }
 }

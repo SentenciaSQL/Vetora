@@ -12,6 +12,8 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
     Optional<Pet> findByIdAndTenantId(Long id, Long tenantId);
     List<Pet> findByOwnerIdAndTenantId(Long ownerId, Long tenantId);
     List<Pet> findByOwner_User_Id(Long userId);
+    boolean existsByOwner_User_IdAndTenantId(Long userId, Long tenantId);
+    boolean existsByOwner_User_IdAndId(Long userId, Long petId);
     @Query("""
             select p from Pet p
             join p.owner o
