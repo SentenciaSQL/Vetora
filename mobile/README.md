@@ -18,7 +18,7 @@ En release, si no se pasa `API_URL`, se usa el backend de producción. En debug,
 ```bash
 cd mobile
 flutter pub get
-flutter run --dart-define=API_URL=http://10.0.2.2:8080/api/v1 --dart-define=WEB_URL=https://lunaveta.com
+flutter run --dart-define=API_URL=https://vetora-production-4eac.up.railway.app/api/v1 --dart-define=WEB_URL=https://lunaveta.com
 ```
 
 Emulador Android: `10.0.2.2` apunta al `localhost` del equipo anfitrión.
