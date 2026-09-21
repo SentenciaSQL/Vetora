@@ -438,7 +438,19 @@
     "send": "Enviar",
     "empty": "Seleccione una conversación",
     "new": "Nueva conversación",
-    "subject": "Asunto"
+    "subject": "Asunto",
+    "noConversations": "No hay conversaciones todavía",
+    "noPreview": "Sin mensajes",
+    "loading": "Cargando mensajes…",
+    "threadEmpty": "Aún no hay mensajes en esta conversación",
+    "loadError": "No se pudo cargar el chat. Inténtelo de nuevo.",
+    "sendError": "No se pudo enviar el mensaje",
+    "forbidden": "No tiene permiso para ver esta conversación",
+    "retry": "Reintentar",
+    "placeholder": "Escriba un mensaje",
+    "unreadAria": "{{count}} mensajes no leídos",
+    "unreadShort": "mensajes no leídos",
+    "loadOlder": "Cargar mensajes anteriores"
   },
   "reports": {
     "title": "Reportes",

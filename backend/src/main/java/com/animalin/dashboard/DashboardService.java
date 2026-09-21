@@ -93,7 +93,7 @@ public class DashboardService {
                 Map.entry("newPets", petRepository.countByTenantIdAndCreatedAtAfter(tenantId, monthAgo)),
                 Map.entry("upcomingVaccines", due.size()),
                 Map.entry("activeTreatments", treatmentRepository.findByTenantIdAndStatus(tenantId, "ACTIVE").size()),
-                Map.entry("unreadMessages", messageRepository.countByConversation_TenantIdAndReadAtIsNullAndSenderIdNot(tenantId, TenantContext.userId())),
+                Map.entry("unreadMessages", messageRepository.countUnreadForTenantUser(tenantId, TenantContext.userId())),
                 Map.entry("todayAgenda", today.stream().limit(12).map(this::briefAppointment).toList()),
                 Map.entry("upcomingAppointments", appointmentRepository.calendar(tenantId, todayEnd, weekEnd, null, null, null)
                         .stream().limit(8).map(this::briefAppointment).toList()),
@@ -137,11 +137,7 @@ public class DashboardService {
                         "startDate", t.getStartDate() == null ? "" : t.getStartDate().toString()
                 ))
                 .toList();
-        long unreadMessages = pets.stream()
-                .map(Pet::getTenantId)
-                .distinct()
-                .mapToLong(tid -> messageRepository.countByConversation_TenantIdAndReadAtIsNullAndSenderIdNot(tid, userId))
-                .sum();
+        long unreadMessages = messageRepository.countUnreadForParticipant(userId);
         return Map.of(
                 "pets", pets.stream().map(p -> Map.<String, Object>of(
                         "id", p.getId(),

@@ -1,9 +1,10 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, Injector, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { catchError, Observable, of, tap } from 'rxjs';
 import { TokenResponse, UserProfile } from '../models';
 import { ApiService } from './api.service';
+import { MessageInboxService } from './message-inbox.service';
 import { ThemeService, ThemeMode } from './theme.service';
 
 const ACCESS = 'animalin.access';
@@ -18,6 +19,7 @@ export class AuthService {
   private router = inject(Router);
   private i18n = inject(TranslateService);
   private theme = inject(ThemeService);
+  private injector = inject(Injector);
 
   user = signal<UserProfile | null>(this.readUser());
   accessToken = signal<string | null>(localStorage.getItem(ACCESS));
@@ -70,6 +72,7 @@ export class AuthService {
     this.accessToken.set(null);
     this.refreshToken.set(null);
     this.user.set(null);
+    this.injector.get(MessageInboxService).stop();
   }
 
   forgot(email: string) {

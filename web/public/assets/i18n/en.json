@@ -438,7 +438,19 @@
     "send": "Send",
     "empty": "Select a conversation",
     "new": "New conversation",
-    "subject": "Subject"
+    "subject": "Subject",
+    "noConversations": "There are no conversations yet",
+    "noPreview": "No messages",
+    "loading": "Loading messages…",
+    "threadEmpty": "There are no messages in this conversation yet",
+    "loadError": "The chat could not be loaded. Please try again.",
+    "sendError": "The message could not be sent",
+    "forbidden": "You do not have permission to view this conversation",
+    "retry": "Try again",
+    "placeholder": "Write a message",
+    "unreadAria": "{{count}} unread messages",
+    "unreadShort": "unread messages",
+    "loadOlder": "Load earlier messages"
   },
   "reports": {
     "title": "Reports",
