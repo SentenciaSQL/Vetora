@@ -101,7 +101,7 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
           <input class="input" type="file" accept="image/*" (change)="onLogo($event)" />
           <div class="flex justify-between">
             <button type="button" class="btn-secondary" (click)="go(1)">{{ 'common.back' | translate }}</button>
-            <button type="button" class="btn-primary" [disabled]="clinic.invalid || slugTaken()">{{ 'common.continue' | translate }}</button>
+            <button type="submit" class="btn-primary" [disabled]="clinic.invalid || slugTaken()">{{ 'common.continue' | translate }}</button>
           </div>
         </form>
       }
