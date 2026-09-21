@@ -1,8 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { tap } from 'rxjs/operators';
-import { Observable } from 'rxjs';
+import { catchError, Observable, of, tap } from 'rxjs';
 import { TokenResponse, UserProfile } from '../models';
 import { ApiService } from './api.service';
 import { ThemeService, ThemeMode } from './theme.service';
@@ -10,6 +9,7 @@ import { ThemeService, ThemeMode } from './theme.service';
 const ACCESS = 'animalin.access';
 const REFRESH = 'animalin.refresh';
 const USER = 'animalin.user';
+const LIVE_TENANT = ['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'GRACE_PERIOD', 'SUSPENDED', 'PAUSED', 'CANCELED', 'CANCELLED'];
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -49,13 +49,17 @@ export class AuthService {
     if (refresh) {
       this.api.post('/auth/logout', { refreshToken: refresh }).subscribe();
     }
+    this.clearSession();
+    void this.router.navigate(['/login']);
+  }
+
+  clearSession(): void {
     localStorage.removeItem(ACCESS);
     localStorage.removeItem(REFRESH);
     localStorage.removeItem(USER);
     this.accessToken.set(null);
     this.refreshToken.set(null);
     this.user.set(null);
-    void this.router.navigate(['/login']);
   }
 
   forgot(email: string) {
@@ -67,7 +71,7 @@ export class AuthService {
   }
 
   patchMe(payload: Partial<Pick<UserProfile, 'firstName' | 'lastName' | 'phone' | 'locale' | 'theme'>>) {
-    return this.api.patch<UserProfile>('/auth/me', payload).pipe(tap(user => this.setUser(user)));
+    return this.api.patch<UserProfile>('/auth/me', payload).pipe(tap(user => this.applyUser(user)));
   }
 
   switchTenant(tenantSlug: string) {
@@ -77,7 +81,27 @@ export class AuthService {
   }
 
   reloadProfile() {
-    return this.api.get<UserProfile>('/auth/me').pipe(tap(user => this.setUser(user)));
+    return this.api.get<UserProfile>('/auth/me').pipe(tap(user => this.applyUser(user)));
+  }
+
+  hydrate(): Observable<UserProfile | null> {
+    if (!this.accessToken()) {
+      return of(null);
+    }
+    return this.reloadProfile().pipe(
+      catchError(() => of(this.user()))
+    );
+  }
+
+  applyUser(user: UserProfile): void {
+    localStorage.setItem(USER, JSON.stringify(user));
+    this.user.set(user);
+    const locale = user.locale || 'es';
+    this.i18n.use(locale);
+    document.documentElement.lang = locale;
+    if (user.theme === 'light' || user.theme === 'dark' || user.theme === 'system') {
+      this.theme.set(user.theme as ThemeMode);
+    }
   }
 
   hasRole(role: string): boolean {
@@ -105,9 +129,65 @@ export class AuthService {
     return this.hasRole('SUPER_ADMIN');
   }
 
+  onboardingComplete(): boolean {
+    const user = this.user();
+    if (!user || !this.isTenantOwner()) {
+      return true;
+    }
+    if (user.onboardingComplete || user.signupStatus === 'COMPLETED' || user.accessGranted) {
+      return true;
+    }
+    return !!user.tenantStatus && LIVE_TENANT.includes(user.tenantStatus);
+  }
+
+  accessGranted(): boolean {
+    const user = this.user();
+    if (user?.accessGranted) {
+      return true;
+    }
+    return ['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'GRACE_PERIOD'].includes(user?.tenantStatus || '');
+  }
+
+  checkoutPending(): boolean {
+    const user = this.user();
+    if (!user || this.onboardingComplete() || user.accessGranted) {
+      return false;
+    }
+    return !!user.checkoutPending;
+  }
+
+  isSuspended(): boolean {
+    const status = this.user()?.tenantStatus;
+    return status === 'SUSPENDED' || status === 'PAUSED';
+  }
+
   needsClinicSetup(): boolean {
     const user = this.user();
-    return this.isTenantOwner() && (!user?.emailVerified || !user.tenantId || user.tenantStatus === 'PENDING_PAYMENT');
+    if (!this.isTenantOwner() || this.onboardingComplete()) {
+      return false;
+    }
+    return !!user?.emailVerified && !user.tenantId;
+  }
+
+  needsPlanSelection(): boolean {
+    const user = this.user();
+    if (!this.isTenantOwner() || this.onboardingComplete() || this.checkoutPending()) {
+      return false;
+    }
+    return !!user?.tenantId && (user.signupStatus === 'PENDING_PAYMENT' || !user.accessGranted);
+  }
+
+  shouldLeaveAppRoute(url: string): boolean {
+    if (this.onboardingComplete() || this.accessGranted()) {
+      return false;
+    }
+    if (this.isSuspended()) {
+      return !url.startsWith('/billing') && !url.startsWith('/profile');
+    }
+    if (this.needsClinicSetup() || this.needsPlanSelection() || this.checkoutPending()) {
+      return true;
+    }
+    return false;
   }
 
   homePath(): string {
@@ -115,11 +195,25 @@ export class AuthService {
       return '/admin';
     }
     const user = this.user();
-    if (user && !user.emailVerified) {
+    if (user && user.emailVerified === false) {
       return '/verify-email';
     }
-    if (this.isTenantOwner() && (!user?.tenantId || user.tenantStatus === 'PENDING_PAYMENT')) {
-      return '/register-clinic';
+    if (this.isSuspended()) {
+      return '/billing';
+    }
+    if (this.onboardingComplete() || this.accessGranted()) {
+      return '/dashboard';
+    }
+    if (this.isTenantOwner()) {
+      if (!user?.tenantId) {
+        return '/register-clinic';
+      }
+      if (this.checkoutPending()) {
+        return '/signup/processing';
+      }
+      if (this.needsPlanSelection()) {
+        return '/register-clinic';
+      }
     }
     return '/dashboard';
   }
@@ -129,18 +223,7 @@ export class AuthService {
     localStorage.setItem(REFRESH, response.refreshToken);
     this.accessToken.set(response.accessToken);
     this.refreshToken.set(response.refreshToken);
-    this.setUser(response.user);
-  }
-
-  private setUser(user: UserProfile): void {
-    localStorage.setItem(USER, JSON.stringify(user));
-    this.user.set(user);
-    const locale = user.locale || 'es';
-    this.i18n.use(locale);
-    document.documentElement.lang = locale;
-    if (user.theme === 'light' || user.theme === 'dark' || user.theme === 'system') {
-      this.theme.set(user.theme as ThemeMode);
-    }
+    this.applyUser(response.user);
   }
 
   private readUser(): UserProfile | null {

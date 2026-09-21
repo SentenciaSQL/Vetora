@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../core/services/auth.service';
+import { apiErrorMessage } from '../../core/http-error';
 
 @Component({
   standalone: true,
@@ -16,10 +17,13 @@ import { AuthService } from '../../core/services/auth.service';
         <input class="input" type="email" formControlName="email" [placeholder]="'auth.email' | translate" />
         <input class="input" type="password" formControlName="password" [placeholder]="'auth.password' | translate" />
         @if (error()) { <p class="text-sm text-rose-600">{{ error() }}</p> }
-        <button class="btn-primary w-full" [disabled]="form.invalid">{{ 'auth.register' | translate }}</button>
+        <button type="submit" class="btn-primary w-full" [disabled]="form.invalid">{{ 'auth.register' | translate }}</button>
       </form>
       <a routerLink="/register-clinic" class="mt-3 text-sm font-medium text-brand-700">{{ 'signup.clinicCta' | translate }}</a>
-      <a routerLink="/login" class="mt-4 text-sm text-brand-700">{{ 'auth.hasAccount' | translate }}</a>
+      <a routerLink="/login"
+         class="mt-4 cursor-pointer text-sm font-medium text-brand-700 underline decoration-brand-500/70 underline-offset-2 hover:text-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+        {{ 'auth.hasAccount' | translate }}
+      </a>
     </div>
   `
 })
@@ -39,7 +43,7 @@ export class RegisterPage {
   submit(): void {
     this.auth.register(this.form.getRawValue() as Record<string, string>).subscribe({
       next: () => void this.router.navigateByUrl('/verify-email'),
-      error: err => this.error.set(err.error?.message || 'common.error')
+      error: err => this.error.set(apiErrorMessage(err, 'common.error'))
     });
   }
 }

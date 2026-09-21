@@ -63,6 +63,9 @@ public class Tenant extends BaseEntity {
     @Column(name = "trial_ends_at")
     private Instant trialEndsAt;
 
+    @Column(name = "trial_used", nullable = false)
+    private boolean trialUsed = false;
+
     public String getSlug() {
         return slug;
     }
@@ -182,5 +185,11 @@ public class Tenant extends BaseEntity {
     }
     public void setTrialEndsAt(Instant trialEndsAt) {
         this.trialEndsAt = trialEndsAt;
+    }
+    public boolean isTrialUsed() {
+        return trialUsed;
+    }
+    public void setTrialUsed(boolean trialUsed) {
+        this.trialUsed = trialUsed;
     }
 }

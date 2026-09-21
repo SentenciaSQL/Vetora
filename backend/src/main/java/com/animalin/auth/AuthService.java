@@ -1,6 +1,8 @@
 package com.animalin.auth;
 
 import com.animalin.audit.AuditService;
+import com.animalin.billing.SubscriptionStatuses;
+import com.animalin.billing.TrialPolicy;
 import com.animalin.common.exception.ApiException;
 import com.animalin.config.AnimalinProperties;
 import com.animalin.email.EmailService;
@@ -8,6 +10,10 @@ import com.animalin.email.ResendEmailService;
 import com.animalin.email.TransactionalEmailSender;
 import com.animalin.security.JwtService;
 import com.animalin.security.TenantContext;
+import com.animalin.signup.ClinicSignup;
+import com.animalin.signup.ClinicSignupRepository;
+import com.animalin.tenant.Subscription;
+import com.animalin.tenant.SubscriptionRepository;
 import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantMembership;
 import com.animalin.tenant.TenantMembershipRepository;
@@ -16,9 +22,12 @@ import com.animalin.user.Role;
 import com.animalin.user.RoleRepository;
 import com.animalin.user.User;
 import com.animalin.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
@@ -28,6 +37,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -35,6 +45,8 @@ public class AuthService {
     private final TenantMembershipRepository membershipRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final ClinicSignupRepository signupRepository;
+    private final SubscriptionRepository subscriptionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AnimalinProperties properties;
@@ -45,13 +57,15 @@ public class AuthService {
     private final SecureTokenService tokens;
     private final Clock clock;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, RefreshTokenRepository refreshTokenRepository, PasswordResetTokenRepository passwordResetTokenRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AnimalinProperties properties, AuditService auditService, EmailService emailService, TransactionalEmailSender transactionalEmailSender, EmailVerificationIssuer verificationIssuer, SecureTokenService tokens, Clock clock) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, RefreshTokenRepository refreshTokenRepository, PasswordResetTokenRepository passwordResetTokenRepository, ClinicSignupRepository signupRepository, SubscriptionRepository subscriptionRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AnimalinProperties properties, AuditService auditService, EmailService emailService, TransactionalEmailSender transactionalEmailSender, EmailVerificationIssuer verificationIssuer, SecureTokenService tokens, Clock clock) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.tenantRepository = tenantRepository;
         this.membershipRepository = membershipRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.signupRepository = signupRepository;
+        this.subscriptionRepository = subscriptionRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.properties = properties;
@@ -80,7 +94,16 @@ public class AuthService {
         user.setLastLoginAt(clock.instant());
         auditService.record(tenant == null ? null : tenant.getId(), user.getId(), user.getEmail(),
                 "LOGIN", "USER", user.getId(), "Inicio de sesión", null, null);
-        return issueTokens(user, tenant, memberships);
+        AuthDtos.TokenResponse tokens = issueTokens(user, tenant, memberships);
+        AuthDtos.UserProfile profile = tokens.user();
+        log.info("Login userId={} tenantId={} signupStatus={} tenantStatus={} onboardingComplete={} accessGranted={}",
+                user.getId(),
+                profile.tenantId(),
+                profile.signupStatus(),
+                profile.tenantStatus(),
+                profile.onboardingComplete(),
+                profile.accessGranted());
+        return tokens;
     }
 
     @Transactional
@@ -206,7 +229,7 @@ public class AuthService {
                         tenant == null ? null : tenant.getLogoUrl()));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthDtos.UserProfile me() {
         User user = userRepository.findByIdWithRoles(TenantContext.userId())
                 .orElseThrow(() -> ApiException.unauthorized("Sesión inválida"));
@@ -252,17 +275,10 @@ public class AuthService {
             if (!allowed) {
                 throw ApiException.forbidden("No pertenece a esta veterinaria");
             }
-            if ("SUSPENDED".equals(tenant.getStatus()) || "CANCELLED".equals(tenant.getStatus())) {
-                throw ApiException.forbidden("Esta veterinaria no está activa");
-            }
             return tenant;
         }
         if (memberships.size() == 1) {
-            Tenant tenant = memberships.getFirst().getTenant();
-            if ("SUSPENDED".equals(tenant.getStatus()) || "CANCELLED".equals(tenant.getStatus())) {
-                throw ApiException.forbidden("Esta veterinaria no está activa");
-            }
-            return tenant;
+            return memberships.getFirst().getTenant();
         }
         if (memberships.isEmpty()) {
             if (petOwner || ownerRole) {
@@ -333,15 +349,58 @@ public class AuthService {
                         m.getTenant().getLogoUrl()
                 ))
                 .toList();
+        boolean tenantOwner = roles.contains("TENANT_OWNER") || "TENANT_OWNER".equals(role);
+        ClinicSignup signup = tenantOwner ? signupRepository.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).orElse(null) : null;
+        Tenant effectiveTenant = tenant != null ? tenant : (signup == null ? null : signup.getTenant());
+        Subscription subscription = effectiveTenant == null ? null
+                : subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(effectiveTenant.getId()).orElse(null);
+        String signupStatus = signupStatus(user, tenantOwner, signup, effectiveTenant, subscription);
+        boolean onboardingComplete = !tenantOwner
+                || TrialPolicy.onboardingComplete(signupStatus, effectiveTenant, subscription);
+        boolean accessGranted = effectiveTenant != null && SubscriptionStatuses.grantsAccess(effectiveTenant.getStatus());
+        boolean checkoutPending = tenantOwner && !onboardingComplete && !accessGranted
+                && signup != null && signup.getCheckoutCreatedAt() != null;
+        if (!TransactionSynchronizationManager.isCurrentTransactionReadOnly()
+                && tenantOwner && onboardingComplete && signup != null && !ClinicSignup.COMPLETED.equals(signup.getStatus())
+                && effectiveTenant != null
+                && (SubscriptionStatuses.ACTIVE.equals(effectiveTenant.getStatus())
+                || SubscriptionStatuses.TRIAL.equals(effectiveTenant.getStatus())
+                || SubscriptionStatuses.TRIALING.equals(effectiveTenant.getStatus())
+                || SubscriptionStatuses.PAST_DUE.equals(effectiveTenant.getStatus())
+                || SubscriptionStatuses.GRACE_PERIOD.equals(effectiveTenant.getStatus())
+                || SubscriptionStatuses.SUSPENDED.equals(effectiveTenant.getStatus()))) {
+            signup.setStatus(ClinicSignup.COMPLETED);
+            if (signup.getCompletedAt() == null) {
+                signup.setCompletedAt(clock.instant());
+            }
+            signupStatus = ClinicSignup.COMPLETED;
+        }
         return new AuthDtos.UserProfile(
                 user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.fullName(),
                 user.getPhone(), user.getLocale(), user.getTheme(),
-                tenant == null ? null : tenant.getId(),
-                tenant == null ? null : tenant.getName(),
-                tenant == null ? null : tenant.getSlug(),
-                tenant == null ? null : tenant.getStatus(),
-                role, roles, permissions, user.isEmailVerified(), summaries
+                effectiveTenant == null ? null : effectiveTenant.getId(),
+                effectiveTenant == null ? null : effectiveTenant.getName(),
+                effectiveTenant == null ? null : effectiveTenant.getSlug(),
+                effectiveTenant == null ? null : effectiveTenant.getStatus(),
+                role, roles, permissions, user.isEmailVerified(),
+                signupStatus, onboardingComplete, accessGranted, checkoutPending, summaries
         );
+    }
+
+    private String signupStatus(User user, boolean tenantOwner, ClinicSignup signup, Tenant tenant, Subscription subscription) {
+        if (!tenantOwner) {
+            return null;
+        }
+        if (TrialPolicy.onboardingComplete(signup == null ? null : signup.getStatus(), tenant, subscription)) {
+            return ClinicSignup.COMPLETED;
+        }
+        if (signup != null) {
+            return signup.getStatus();
+        }
+        if (tenant != null) {
+            return ClinicSignup.PENDING_PAYMENT;
+        }
+        return user.isEmailVerified() ? ClinicSignup.EMAIL_VERIFIED : ClinicSignup.PENDING_EMAIL_VERIFICATION;
     }
 
     private Tenant firstTenant(User user) {
