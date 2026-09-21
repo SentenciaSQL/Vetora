@@ -6,4 +6,5 @@ import java.util.List;
 public interface PushTokenRepository extends JpaRepository<PushToken, Long> {
     List<PushToken> findByUserId(Long userId);
     void deleteByUserIdAndToken(Long userId, String token);
+    void deleteByUserId(Long userId);
 }

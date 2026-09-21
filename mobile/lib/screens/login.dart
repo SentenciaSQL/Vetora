@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/auth.dart';
+import '../core/format.dart';
 import '../core/l10n.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -64,8 +65,8 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         await widget.auth.login(email.text.trim(), password.text);
       }
-    } catch (_) {
-      setState(() => error = i.t('invalid'));
+    } catch (e) {
+      setState(() => error = userMessage(e));
     } finally {
       if (mounted) setState(() => loading = false);
     }

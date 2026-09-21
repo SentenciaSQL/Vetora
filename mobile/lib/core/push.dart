@@ -1,9 +1,22 @@
-/// Prepared hook for Firebase Cloud Messaging.
-/// Register the device token with POST /api/v1/notifications/push-token
-/// once google-services.json / GoogleService-Info.plist are configured.
+import 'api.dart';
+
 class PushService {
-  static Future<void> register(dynamic api, String? token) async {
-    if (token == null || token.isEmpty) return;
-    await api.post('/notifications/push-token', {'token': token, 'platform': 'mobile'});
+  static String? _token;
+
+  static Future<void> register(ApiClient api) async {
+    try {
+      if (_token == null || _token!.isEmpty) return;
+      await api.post('/notifications/push-token', {'token': _token, 'platform': 'mobile'}, true);
+    } catch (_) {}
+  }
+
+  static Future<void> unregister(ApiClient api) async {
+    try {
+      await api.delete('/notifications/push-token', {
+        if (_token != null && _token!.isNotEmpty) 'token': _token,
+        'platform': 'mobile',
+      }, true);
+    } catch (_) {}
+    _token = null;
   }
 }

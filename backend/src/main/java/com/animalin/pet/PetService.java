@@ -152,8 +152,10 @@ public class PetService {
 
     @Transactional
     public AppDtos.PetResponse uploadPhoto(Long id, MultipartFile file) {
-        accessGuard.requirePermission("PET_UPDATE");
         Pet pet = accessGuard.requirePet(id);
+        if (!accessGuard.isOwnerContext()) {
+            accessGuard.requirePermission("PET_UPDATE");
+        }
         StoredFile stored = storageService.store(file, "PHOTO", "PET", pet.getId(), true,
                 "tenants/" + pet.getTenantId() + "/pets/" + pet.getId());
         pet.setPhotoUrl(storageService.publicUrl(stored));

@@ -72,12 +72,28 @@ public class NotificationService {
 
     @Transactional
     public void registerPushToken(String token, String platform) {
-        User user = userRepository.findById(TenantContext.userId()).orElseThrow();
+        if (token == null || token.isBlank()) {
+            return;
+        }
+        Long userId = TenantContext.userId();
+        String value = token.trim();
+        pushTokenRepository.deleteByUserIdAndToken(userId, value);
+        User user = userRepository.findById(userId).orElseThrow();
         PushToken push = new PushToken();
         push.setUser(user);
-        push.setToken(token);
-        push.setPlatform(platform);
+        push.setToken(value);
+        push.setPlatform(platform == null || platform.isBlank() ? "mobile" : platform);
         pushTokenRepository.save(push);
+    }
+
+    @Transactional
+    public void unregisterPushToken(String token) {
+        Long userId = TenantContext.userId();
+        if (token == null || token.isBlank()) {
+            pushTokenRepository.deleteByUserId(userId);
+            return;
+        }
+        pushTokenRepository.deleteByUserIdAndToken(userId, token.trim());
     }
 
     private void sendPushPrepared(Long userId, String title, String body) {

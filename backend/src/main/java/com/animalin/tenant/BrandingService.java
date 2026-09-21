@@ -5,6 +5,8 @@ import com.animalin.common.exception.ApiException;
 import com.animalin.dto.AppDtos;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
+import com.animalin.pet.Pet;
+import com.animalin.pet.PetRepository;
 import com.animalin.storage.StorageService;
 import com.animalin.storage.StoredFile;
 import org.springframework.stereotype.Service;
@@ -12,19 +14,25 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class BrandingService {
 
     private final TenantRepository tenantRepository;
     private final TenantSettingsRepository settingsRepository;
+    private final PetRepository petRepository;
     private final AccessGuard accessGuard;
     private final StorageService storageService;
     private final AuditService auditService;
 
-    public BrandingService(TenantRepository tenantRepository, TenantSettingsRepository settingsRepository, AccessGuard accessGuard, StorageService storageService, AuditService auditService) {
+    public BrandingService(TenantRepository tenantRepository, TenantSettingsRepository settingsRepository,
+                           PetRepository petRepository, AccessGuard accessGuard, StorageService storageService,
+                           AuditService auditService) {
         this.tenantRepository = tenantRepository;
         this.settingsRepository = settingsRepository;
+        this.petRepository = petRepository;
         this.accessGuard = accessGuard;
         this.storageService = storageService;
         this.auditService = auditService;
@@ -49,6 +57,25 @@ public class BrandingService {
         return tenantRepository.findByStatusInOrderByNameAsc(List.of("ACTIVE", "TRIAL")).stream()
                 .map(this::toPublicClinic)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<AppDtos.PublicClinicResponse> relatedClinics() {
+        if (accessGuard.isOwnerContext()) {
+            List<Long> tenantIds = petRepository.findByOwner_User_Id(TenantContext.userId()).stream()
+                    .map(Pet::getTenantId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            return tenantRepository.findAllById(tenantIds).stream()
+                    .map(this::toPublicClinic)
+                    .collect(Collectors.toList());
+        }
+        Long tenantId = TenantContext.tenantIdOrNull();
+        if (tenantId == null) {
+            return List.of();
+        }
+        return tenantRepository.findById(tenantId).map(tenant -> List.of(toPublicClinic(tenant))).orElse(List.of());
     }
 
     @Transactional
@@ -142,7 +169,11 @@ public class BrandingService {
                 tenant.getCommercialName(),
                 tenant.getCity(),
                 tenant.getCountry(),
-                tenant.getLogoUrl()
+                tenant.getLogoUrl(),
+                tenant.getPhone(),
+                tenant.getEmail(),
+                tenant.getAddress(),
+                tenant.getTimezone()
         );
     }
 

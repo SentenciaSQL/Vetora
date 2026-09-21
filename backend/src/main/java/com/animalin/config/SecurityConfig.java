@@ -1,5 +1,6 @@
 package com.animalin.config;
 
+import com.animalin.billing.MobileBillingGuardFilter;
 import com.animalin.billing.TenantSubscriptionAccessFilter;
 import com.animalin.security.JwtAuthFilter;
 import com.animalin.security.TenantContext;
@@ -33,16 +34,19 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final TenantSubscriptionAccessFilter subscriptionAccessFilter;
+    private final MobileBillingGuardFilter mobileBillingGuardFilter;
     private final com.animalin.security.EmailVerificationAccessFilter emailVerificationAccessFilter;
     private final com.animalin.security.PublicRateLimitFilter publicRateLimitFilter;
     private final AnimalinProperties properties;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter, TenantSubscriptionAccessFilter subscriptionAccessFilter,
+                          MobileBillingGuardFilter mobileBillingGuardFilter,
                           com.animalin.security.EmailVerificationAccessFilter emailVerificationAccessFilter,
                           com.animalin.security.PublicRateLimitFilter publicRateLimitFilter,
                           AnimalinProperties properties) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.subscriptionAccessFilter = subscriptionAccessFilter;
+        this.mobileBillingGuardFilter = mobileBillingGuardFilter;
         this.emailVerificationAccessFilter = emailVerificationAccessFilter;
         this.publicRateLimitFilter = publicRateLimitFilter;
         this.properties = properties;
@@ -70,7 +74,8 @@ public class SecurityConfig {
                 .addFilterBefore(publicRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(emailVerificationAccessFilter, JwtAuthFilter.class)
-                .addFilterAfter(subscriptionAccessFilter, com.animalin.security.EmailVerificationAccessFilter.class);
+                .addFilterAfter(subscriptionAccessFilter, com.animalin.security.EmailVerificationAccessFilter.class)
+                .addFilterAfter(mobileBillingGuardFilter, TenantSubscriptionAccessFilter.class);
         return http.build();
     }
 
@@ -129,6 +134,14 @@ public class SecurityConfig {
     public FilterRegistrationBean<com.animalin.security.PublicRateLimitFilter> rateLimitFilterRegistration(
             com.animalin.security.PublicRateLimitFilter filter) {
         FilterRegistrationBean<com.animalin.security.PublicRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<MobileBillingGuardFilter> mobileBillingFilterRegistration(
+            MobileBillingGuardFilter filter) {
+        FilterRegistrationBean<MobileBillingGuardFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

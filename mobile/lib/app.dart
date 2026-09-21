@@ -63,7 +63,7 @@ class _VetoraAppState extends State<VetoraApp> {
       );
     }
     return AnimatedBuilder(
-      animation: Listenable.merge([auth, I18n.instance]),
+      animation: Listenable.merge([auth, I18n.instance, auth.inbox]),
       builder: (context, _) {
         return MaterialApp(
           title: 'Lunaveta',
