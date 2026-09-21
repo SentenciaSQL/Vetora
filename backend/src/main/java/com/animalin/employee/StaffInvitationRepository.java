@@ -42,4 +42,8 @@ public interface StaffInvitationRepository extends JpaRepository<StaffInvitation
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from StaffInvitation i where i.id = :id")
     Optional<StaffInvitation> findByIdForUpdate(@Param("id") Long id);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("update StaffInvitation i set i.status = 'CANCELLED' where lower(i.email) = lower(:email) and i.status = 'PENDING'")
+    int cancelPendingByEmail(@Param("email") String email);
 }

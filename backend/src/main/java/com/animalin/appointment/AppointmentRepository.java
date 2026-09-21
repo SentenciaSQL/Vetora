@@ -44,4 +44,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     long countByDeletedFalse();
     long countByStartAtGreaterThanEqualAndStartAtLessThanAndDeletedFalse(Instant from, Instant to);
     long countByStatusAndStartAtGreaterThanEqualAndStartAtLessThanAndDeletedFalse(String status, Instant from, Instant to);
+
+    @Query("""
+            select a from Appointment a
+            where a.tenantId = :tenantId
+              and a.startAt >= :from
+              and a.status in :statuses
+              and (a.branchId is null or a.branchId = :branchId)
+            order by a.startAt
+            """)
+    List<Appointment> findFutureOpenByBranch(Long tenantId, Long branchId, Instant from, java.util.Collection<String> statuses);
 }

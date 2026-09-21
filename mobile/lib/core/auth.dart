@@ -209,7 +209,7 @@ class AuthStore extends ChangeNotifier {
     inbox.stop();
     _checkTimer?.cancel();
     final refresh = refreshToken;
-    if (refresh != null && reason != 'REMOTE') {
+    if (refresh != null && reason != 'REMOTE' && reason != 'ACCOUNT_DELETED') {
       try {
         await http.post(
           Uri.parse('${api.baseUrl}/auth/logout'),

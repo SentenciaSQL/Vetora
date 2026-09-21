@@ -19,6 +19,7 @@ class _BookScreenState extends State<BookScreen> {
   List services = [];
   List vets = [];
   List slots = [];
+  String? hoursHint;
   Map? branch;
   Map? service;
   Map? vet;
@@ -56,12 +57,23 @@ class _BookScreenState extends State<BookScreen> {
     if (vet == null) return;
     final day = '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     try {
+      hoursHint = null;
       slots = asList(await widget.auth.api.get('/appointments/availability', {
         'veterinarianId': '${vet!['id']}',
         if (branch != null) 'branchId': '${branch!['id']}',
         if (service != null) 'serviceId': '${service!['id']}',
         'date': day,
       }));
+      if (slots.isEmpty && tenantId != null && branch != null) {
+        try {
+          final status = asMap(await widget.auth.api.get('/clinics/$tenantId/availability-status', {
+            'branchId': '${branch!['id']}',
+          }));
+          hoursHint = status['configured'] == true ? i.t('closedOrNoSlots') : i.t('hoursUnavailable');
+        } catch (_) {
+          hoursHint = i.t('hoursUnavailable');
+        }
+      }
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) setState(() => error = userMessage(e));
@@ -149,7 +161,7 @@ class _BookScreenState extends State<BookScreen> {
                 },
               ),
               Text(i.t('slot'), style: Theme.of(context).textTheme.titleMedium),
-              if (slots.isEmpty) Text(i.t('empty')),
+              if (slots.isEmpty) Text(hoursHint ?? i.t('empty')),
               for (final s in slots)
                 ListTile(title: Text(_slotLabel(s['startAt'])), onTap: () { slot = s as Map; setState(() => step = 5); }),
             ])),
