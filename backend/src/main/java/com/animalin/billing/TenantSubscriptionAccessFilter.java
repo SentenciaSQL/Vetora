@@ -44,9 +44,14 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
         }
         if (path.startsWith("/api/v1/auth/login")
                 || path.startsWith("/api/v1/auth/register")
+                || path.startsWith("/api/v1/auth/register-clinic")
                 || path.startsWith("/api/v1/auth/refresh")
                 || path.startsWith("/api/v1/auth/forgot-password")
                 || path.startsWith("/api/v1/auth/reset-password")
+                || path.startsWith("/api/v1/auth/verify-email")
+                || path.startsWith("/api/v1/auth/resend-verification")
+                || path.startsWith("/api/v1/auth/invite")
+                || path.startsWith("/api/v1/auth/accept-invite")
                 || path.startsWith("/api/v1/public/")
                 || path.startsWith("/actuator/")
                 || path.startsWith("/v3/api-docs")
@@ -103,7 +108,7 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
     }
 
     private boolean isPermittedWhileSuspended(String path) {
-        if (path.startsWith("/api/v1/billing/")) {
+        if (path.startsWith("/api/v1/billing/") || path.startsWith("/api/v1/signup/")) {
             return true;
         }
         return "/api/v1/auth/me".equals(path)
@@ -116,6 +121,9 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
     private boolean blocks(SubscriptionAccessView subscription) {
         Instant now = clock.instant();
         String status = subscription.getStatus();
+        if (SubscriptionStatuses.PENDING.equals(status) || SubscriptionStatuses.PENDING_PAYMENT.equals(status)) {
+            return true;
+        }
         if (SubscriptionStatuses.SUSPENDED.equals(status) || SubscriptionStatuses.PAUSED.equals(status)) {
             return true;
         }

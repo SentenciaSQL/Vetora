@@ -58,7 +58,16 @@ import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
           <input class="input" formControlName="slug" [placeholder]="'admin.slug' | translate" />
           <input class="input" formControlName="commercialName" [placeholder]="'settings.commercial' | translate" />
           <input class="input" formControlName="adminEmail" placeholder="admin@clinic.com" />
-          <input class="input" formControlName="planCode" placeholder="PROFESSIONAL" />
+          <input class="input" formControlName="adminFirstName" [placeholder]="'auth.firstName' | translate" />
+          <input class="input" formControlName="adminLastName" [placeholder]="'auth.lastName' | translate" />
+          <input class="input" formControlName="planCode" placeholder="BASIC" />
+          <select class="input" formControlName="billingCycle">
+            <option value="MONTHLY">MONTHLY</option>
+            <option value="ANNUAL">ANNUAL</option>
+          </select>
+          <label class="flex items-center gap-2 text-sm"><input type="checkbox" formControlName="requireImmediatePayment" /> {{ 'admin.requirePayment' | translate }}</label>
+          <label class="flex items-center gap-2 text-sm"><input type="checkbox" formControlName="complimentary" /> {{ 'admin.complimentary' | translate }}</label>
+          <input class="input" type="datetime-local" formControlName="trialEndsAt" />
           <div class="flex justify-end gap-2">
             <button type="button" class="btn-secondary" (click)="open=false">{{ 'common.cancel' | translate }}</button>
             <button class="btn-primary">{{ 'common.save' | translate }}</button>
@@ -79,7 +88,13 @@ export class AdminTenantsPage implements OnInit {
     slug: ['', Validators.required],
     commercialName: [''],
     adminEmail: [''],
-    planCode: ['BASIC']
+    adminFirstName: [''],
+    adminLastName: [''],
+    planCode: ['BASIC'],
+    billingCycle: ['MONTHLY'],
+    requireImmediatePayment: [false],
+    complimentary: [false],
+    trialEndsAt: ['']
   });
 
   ngOnInit() { this.load(); }
@@ -98,7 +113,12 @@ export class AdminTenantsPage implements OnInit {
   }
 
   save() {
-    this.api.post('/admin/tenants', this.form.value).subscribe({
+    const raw = this.form.getRawValue();
+    const payload = {
+      ...raw,
+      trialEndsAt: raw.trialEndsAt ? new Date(raw.trialEndsAt).toISOString() : null
+    };
+    this.api.post('/admin/tenants', payload).subscribe({
       next: () => { this.toast.show('common.saved'); this.open = false; this.load(); },
       error: () => this.toast.show('common.error', true)
     });

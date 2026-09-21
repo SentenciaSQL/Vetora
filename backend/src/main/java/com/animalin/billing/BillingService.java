@@ -15,6 +15,8 @@ import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantRepository;
 import com.animalin.user.User;
 import com.animalin.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +32,9 @@ import java.util.Map;
 @Service
 public class BillingService {
 
-    private static final String PRORATION_MODE = "prorated_immediately";
+    private static final Logger log = LoggerFactory.getLogger(BillingService.class);
+    private static final String PRORATION_IMMEDIATE = "prorated_immediately";
+    private static final String PRORATION_TRIAL = "do_not_bill";
 
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
@@ -41,6 +45,7 @@ public class BillingService {
     private final AccessGuard accessGuard;
     private final PlanCatalogService planCatalogService;
     private final PlanLimitService planLimitService;
+    private final com.animalin.config.AnimalinProperties properties;
     private final Clock clock;
 
     public BillingService(PlanRepository planRepository,
@@ -52,6 +57,7 @@ public class BillingService {
                           AccessGuard accessGuard,
                           PlanCatalogService planCatalogService,
                           PlanLimitService planLimitService,
+                          com.animalin.config.AnimalinProperties properties,
                           Clock clock) {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
@@ -62,7 +68,16 @@ public class BillingService {
         this.accessGuard = accessGuard;
         this.planCatalogService = planCatalogService;
         this.planLimitService = planLimitService;
+        this.properties = properties;
         this.clock = clock;
+    }
+
+    public int trialDays() {
+        return properties.trialDays();
+    }
+
+    public void requireActiveUsdPrice(Plan plan, String priceId, String interval) {
+        planCatalogService.requireActiveUsdPrice(plan, priceId, interval);
     }
 
     @Transactional(readOnly = true)
@@ -76,7 +91,7 @@ public class BillingService {
                 paddleProperties.sandbox() ? "sandbox" : "production",
                 paddleProperties.clientToken(),
                 paddleProperties.gracePeriodDays(),
-                14,
+                trialDays(),
                 plans
         );
     }
@@ -182,16 +197,15 @@ public class BillingService {
         String priceId = resolvePriceId(newPlan, cycle);
         planCatalogService.requireActiveUsdPrice(newPlan, priceId, cycle.paddleInterval());
         Subscription subscription = requirePaddleSubscription(tenantId);
+        rejectUnchangedPlan(subscription, priceId);
         Plan currentPlan = subscription.getPlan();
         try {
-            PaddleDtos.SubscriptionPreview preview = paddleClient.previewSubscriptionUpdate(
-                    subscription.getPaddleSubscriptionId(),
-                    changeRequest(priceId, tenantId)
-            );
+            PaddleChange change = previewWithFallback(subscription, priceId, tenantId);
+            PaddleDtos.SubscriptionPreview preview = change.preview();
             Instant nextBilling = preview == null ? subscription.getNextBillingAt()
                     : preview.nextBilledAt() != null ? preview.nextBilledAt() : subscription.getNextBillingAt();
             return toPreview(currentPlan, subscription.getBillingCycle(), newPlan, cycle.name(),
-                    estimatedAmount(preview), currencyOf(preview, subscription), nextBilling);
+                    estimatedAmount(preview), currencyOf(preview, subscription), nextBilling, change.prorationMode());
         } catch (PaddleApiException ex) {
             throw translatePaddle(ex);
         }
@@ -206,11 +220,9 @@ public class BillingService {
         String priceId = resolvePriceId(plan, cycle);
         planCatalogService.requireActiveUsdPrice(plan, priceId, cycle.paddleInterval());
         Subscription subscription = requirePaddleSubscription(tenantId);
+        rejectUnchangedPlan(subscription, priceId);
         try {
-            paddleClient.updateSubscription(
-                    subscription.getPaddleSubscriptionId(),
-                    changeRequest(priceId, tenantId)
-            );
+            updateWithFallback(subscription, priceId, tenantId);
         } catch (PaddleApiException ex) {
             throw translatePaddle(ex);
         }
@@ -261,8 +273,8 @@ public class BillingService {
     }
 
     private void requireTenantAdmin() {
-        if (!TenantContext.hasRole("TENANT_ADMIN") && !TenantContext.isSuperAdmin()) {
-            throw ApiException.forbidden("Solo el administrador de la veterinaria puede gestionar la facturación");
+        if (!TenantContext.hasRole("TENANT_OWNER") && !TenantContext.hasRole("TENANT_ADMIN") && !TenantContext.isSuperAdmin()) {
+            throw ApiException.forbidden("Solo el propietario o el administrador de la veterinaria puede gestionar la facturación");
         }
     }
 
@@ -291,21 +303,21 @@ public class BillingService {
         );
     }
 
-    static boolean annualAvailable(Plan plan) {
+    public static boolean annualAvailable(Plan plan) {
         return plan.getAnnualPrice() != null
                 && plan.getAnnualPrice().compareTo(BigDecimal.ZERO) > 0
                 && StringUtils.hasText(plan.getPaddleAnnualPriceId())
                 && plan.getPaddleAnnualPriceId().startsWith("pri_");
     }
 
-    static BigDecimal monthlyEquivalent(Plan plan) {
+    public static BigDecimal monthlyEquivalent(Plan plan) {
         if (plan.getAnnualPrice() == null || plan.getAnnualPrice().compareTo(BigDecimal.ZERO) <= 0) {
             return null;
         }
         return plan.getAnnualPrice().divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
     }
 
-    static BigDecimal savingsPercent(Plan plan) {
+    public static BigDecimal savingsPercent(Plan plan) {
         if (plan.getMonthlyPrice() == null || plan.getMonthlyPrice().compareTo(BigDecimal.ZERO) <= 0
                 || plan.getAnnualPrice() == null || plan.getAnnualPrice().compareTo(BigDecimal.ZERO) <= 0) {
             return null;
@@ -316,7 +328,7 @@ public class BillingService {
                 .divide(billedMonthly, 1, RoundingMode.HALF_UP);
     }
 
-    static BillingDtos.PlanLimits limits(Plan plan) {
+    public static BillingDtos.PlanLimits limits(Plan plan) {
         return new BillingDtos.PlanLimits(
                 plan.getMaxUsers(),
                 plan.getMaxVeterinarians(),
@@ -377,7 +389,8 @@ public class BillingService {
                                                         String newCycle,
                                                         BigDecimal estimatedAmount,
                                                         String currency,
-                                                        Instant nextBillingAt) {
+                                                        Instant nextBillingAt,
+                                                        String prorationMode) {
         String locale = locale();
         boolean english = "en".equalsIgnoreCase(locale);
         return new BillingDtos.ChangePreviewResponse(
@@ -392,16 +405,61 @@ public class BillingService {
                 estimatedAmount,
                 currency,
                 nextBillingAt,
-                PRORATION_MODE
+                prorationMode
         );
     }
 
-    private static PaddleDtos.UpdateSubscriptionRequest changeRequest(String priceId, Long tenantId) {
+    private void rejectUnchangedPlan(Subscription subscription, String priceId) {
+        if (priceId.equals(subscription.getPaddlePriceId())) {
+            throw ApiException.badRequest("Ya está suscrito a este plan y ciclo. Elija otro plan o cambie de mensual a anual.");
+        }
+    }
+
+    private PaddleChange previewWithFallback(Subscription subscription, String priceId, Long tenantId) {
+        PaddleDtos.UpdateSubscriptionRequest request = changeRequest(priceId, tenantId, prorationMode(subscription));
+        try {
+            return new PaddleChange(
+                    paddleClient.previewSubscriptionUpdate(subscription.getPaddleSubscriptionId(), request),
+                    request.prorationBillingMode());
+        } catch (PaddleApiException ex) {
+            if (ex.getStatus() == 400 && PRORATION_IMMEDIATE.equals(request.prorationBillingMode())) {
+                PaddleDtos.UpdateSubscriptionRequest retry = changeRequest(priceId, tenantId, PRORATION_TRIAL);
+                return new PaddleChange(
+                        paddleClient.previewSubscriptionUpdate(subscription.getPaddleSubscriptionId(), retry),
+                        PRORATION_TRIAL);
+            }
+            throw ex;
+        }
+    }
+
+    private void updateWithFallback(Subscription subscription, String priceId, Long tenantId) {
+        PaddleDtos.UpdateSubscriptionRequest request = changeRequest(priceId, tenantId, prorationMode(subscription));
+        try {
+            paddleClient.updateSubscription(subscription.getPaddleSubscriptionId(), request);
+        } catch (PaddleApiException ex) {
+            if (ex.getStatus() == 400 && PRORATION_IMMEDIATE.equals(request.prorationBillingMode())) {
+                paddleClient.updateSubscription(
+                        subscription.getPaddleSubscriptionId(),
+                        changeRequest(priceId, tenantId, PRORATION_TRIAL));
+                return;
+            }
+            throw ex;
+        }
+    }
+
+    private static String prorationMode(Subscription subscription) {
+        return SubscriptionStatuses.isTrial(subscription.getStatus()) ? PRORATION_TRIAL : PRORATION_IMMEDIATE;
+    }
+
+    private static PaddleDtos.UpdateSubscriptionRequest changeRequest(String priceId, Long tenantId, String prorationMode) {
         return new PaddleDtos.UpdateSubscriptionRequest(
                 List.of(new PaddleDtos.UpdateSubscriptionItem(priceId, 1)),
-                PRORATION_MODE,
+                prorationMode,
                 Map.of("tenant_id", String.valueOf(tenantId))
         );
+    }
+
+    private record PaddleChange(PaddleDtos.SubscriptionPreview preview, String prorationMode) {
     }
 
     private static BigDecimal estimatedAmount(PaddleDtos.SubscriptionPreview preview) {
@@ -457,6 +515,14 @@ public class BillingService {
                 : ex.getStatus() >= 400 && ex.getStatus() < 500 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.BAD_GATEWAY;
         String code = ex.getStatus() == 0 ? "PADDLE_NOT_CONFIGURED" : "PADDLE_API_ERROR";
-        return new ApiException(status, code, "No se pudo completar la operación de facturación");
+        String detail = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+        log.warn("Paddle billing operation failed status={} detail={}", ex.getStatus(), ex.getMessage());
+        String message = "No se pudo completar la operación de facturación";
+        if (detail.contains("proration") || detail.contains("trial") || detail.contains("do_not_bill")) {
+            message = "No se pudo cambiar el plan durante la prueba gratis. El cobro del nuevo plan se hará al terminar los días de prueba.";
+        } else if (detail.contains("not changed") || detail.contains("same")) {
+            message = "Ya está suscrito a este plan y ciclo.";
+        }
+        return new ApiException(status, code, message);
     }
 }

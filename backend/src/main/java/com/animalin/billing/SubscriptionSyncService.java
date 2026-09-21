@@ -4,6 +4,8 @@ import com.animalin.audit.AuditService;
 import com.animalin.billing.paddle.PaddleDtos;
 import com.animalin.plan.Plan;
 import com.animalin.plan.PlanRepository;
+import com.animalin.signup.ClinicSignup;
+import com.animalin.signup.ClinicSignupRepository;
 import com.animalin.tenant.Subscription;
 import com.animalin.tenant.SubscriptionRepository;
 import com.animalin.tenant.Tenant;
@@ -30,6 +32,7 @@ public class SubscriptionSyncService {
     private final SubscriptionRepository subscriptionRepository;
     private final TenantRepository tenantRepository;
     private final PlanRepository planRepository;
+    private final ClinicSignupRepository signupRepository;
     private final PaddleProperties paddleProperties;
     private final AuditService auditService;
     private final Clock clock;
@@ -37,12 +40,14 @@ public class SubscriptionSyncService {
     public SubscriptionSyncService(SubscriptionRepository subscriptionRepository,
                                    TenantRepository tenantRepository,
                                    PlanRepository planRepository,
+                                   ClinicSignupRepository signupRepository,
                                    PaddleProperties paddleProperties,
                                    AuditService auditService,
                                    Clock clock) {
         this.subscriptionRepository = subscriptionRepository;
         this.tenantRepository = tenantRepository;
         this.planRepository = planRepository;
+        this.signupRepository = signupRepository;
         this.paddleProperties = paddleProperties;
         this.auditService = auditService;
         this.clock = clock;
@@ -148,6 +153,7 @@ public class SubscriptionSyncService {
         Tenant tenant = subscription.getTenant();
         tenant.setStatus(SubscriptionStatuses.ACTIVE);
         tenant.setPlan(subscription.getPlan());
+        completeSignup(tenant);
         auditService.record(tenant.getId(), null, "paddle", "ACTIVATE", "SUBSCRIPTION",
                 subscription.getId(), "Payment succeeded; access restored", previous, SubscriptionStatuses.ACTIVE);
     }
@@ -165,9 +171,7 @@ public class SubscriptionSyncService {
         }
         subscription.setStatus(SubscriptionStatuses.GRACE_PERIOD);
         Tenant tenant = subscription.getTenant();
-        if (SubscriptionStatuses.SUSPENDED.equals(tenant.getStatus())) {
-            tenant.setStatus(SubscriptionStatuses.ACTIVE);
-        }
+        tenant.setStatus(SubscriptionStatuses.PAST_DUE);
         auditService.record(tenant.getId(), null, "paddle", "GRACE_PERIOD", "SUBSCRIPTION",
                 subscription.getId(), "Payment failed; grace period until " + subscription.getGracePeriodEndsAt(),
                 previous, SubscriptionStatuses.GRACE_PERIOD);
@@ -223,10 +227,27 @@ public class SubscriptionSyncService {
     private void applyTrialing(Subscription subscription, PaddleDtos.Subscription paddleSub) {
         subscription.setStatus(SubscriptionStatuses.TRIALING);
         subscription.setTrial(true);
-        subscription.getTenant().setStatus(SubscriptionStatuses.TRIALING);
+        Tenant tenant = subscription.getTenant();
+        tenant.setStatus(SubscriptionStatuses.TRIAL);
+        if (paddleSub.currentBillingPeriod() != null && paddleSub.currentBillingPeriod().endsAt() != null) {
+            tenant.setTrialEndsAt(paddleSub.currentBillingPeriod().endsAt());
+        }
         if (paddleSub.startedAt() != null) {
             subscription.setStartedAt(paddleSub.startedAt());
         }
+        completeSignup(tenant);
+    }
+
+    private void completeSignup(Tenant tenant) {
+        if (tenant == null || tenant.getId() == null) {
+            return;
+        }
+        signupRepository.findFirstByTenantIdOrderByCreatedAtDesc(tenant.getId()).ifPresent(signup -> {
+            signup.setStatus(ClinicSignup.COMPLETED);
+            if (signup.getCompletedAt() == null) {
+                signup.setCompletedAt(clock.instant());
+            }
+        });
     }
 
     private void applyCanceled(Subscription subscription, PaddleDtos.Subscription paddleSub) {

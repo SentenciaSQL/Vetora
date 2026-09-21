@@ -65,9 +65,11 @@ public final class AuthDtos {
             Long tenantId,
             String tenantName,
             String tenantSlug,
+            String tenantStatus,
             String role,
             java.util.Set<String> roles,
             java.util.Set<String> permissions,
+            boolean emailVerified,
             java.util.List<TenantSummary> memberships
     ) {
     }

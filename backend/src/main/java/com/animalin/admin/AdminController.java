@@ -38,6 +38,11 @@ public class AdminController {
         return adminService.tenants();
     }
 
+    @GetMapping("/tenants/{id}/setup")
+    public Map<String, Object> tenantSetup(@PathVariable Long id) {
+        return adminService.tenantSetup(id);
+    }
+
     @PostMapping("/tenants")
     @ResponseStatus(HttpStatus.CREATED)
     public Tenant create(@RequestBody AdminService.CreateTenantRequest request) {

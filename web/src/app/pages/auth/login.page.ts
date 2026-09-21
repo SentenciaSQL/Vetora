@@ -48,6 +48,7 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
             <a routerLink="/forgot" class="text-brand-700 hover:underline">{{ 'auth.forgot' | translate }}</a>
             <a routerLink="/register" class="text-brand-700 hover:underline">{{ 'auth.register' | translate }}</a>
           </div>
+          <a routerLink="/register-clinic" class="mt-3 block text-sm font-medium text-brand-700 hover:underline">{{ 'signup.clinicCta' | translate }}</a>
         </div>
       </section>
     </div>
@@ -72,7 +73,7 @@ export class LoginPage implements OnInit {
     if (slug) {
       this.branding.loadPublic(slug).subscribe(b => this.branding.branding.set(b));
     } else {
-      this.branding.branding.set({ name: 'Animexa', commercialName: 'Animexa', logoUrl: '/assets/branding/logo.png' });
+      this.branding.branding.set({ name: 'Lunaveta', commercialName: 'Lunaveta', logoUrl: '/assets/branding/logo.png' });
     }
   }
 

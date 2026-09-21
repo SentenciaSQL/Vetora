@@ -12,7 +12,7 @@ import { Component, input } from '@angular/core';
       </div>
       <p class="font-medium text-slate-700 dark:text-slate-200">{{ title() }}</p>
       @if (subtitle()) {
-        <p class="mt-1 text-sm text-slate-500">{{ subtitle() }}</p>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-300">{{ subtitle() }}</p>
       }
     </div>
   `

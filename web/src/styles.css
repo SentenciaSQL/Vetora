@@ -18,7 +18,7 @@ body {
 }
 
 .card {
-  @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900;
+  @apply rounded-2xl border border-slate-200/80 bg-white p-5 text-slate-800 shadow-card dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100;
 }
 
 .btn-primary {
@@ -35,4 +35,53 @@ body {
 
 .badge {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+}
+
+/*
+ * Many templates use light-surface utilities (text-slate-500, bg-slate-100)
+ * without dark: variants. Inactive tab pills then inherit light text on a
+ * near-white chip. Override those utilities in dark mode unless a page
+ * already set an explicit dark:text-* / dark:bg-* class.
+ */
+html.dark .text-slate-400:not([class*="dark:text-"]) {
+  color: rgb(148 163 184);
+}
+
+html.dark .text-slate-500:not([class*="dark:text-"]),
+html.dark .text-slate-600:not([class*="dark:text-"]) {
+  color: rgb(203 213 225);
+}
+
+html.dark .text-slate-700:not([class*="dark:text-"]) {
+  color: rgb(226 232 240);
+}
+
+html.dark .text-slate-800:not([class*="dark:text-"]),
+html.dark .text-slate-900:not([class*="dark:text-"]) {
+  color: rgb(241 245 249);
+}
+
+html.dark .bg-slate-50:not([class*="dark:bg-"]) {
+  background-color: rgb(15 23 42);
+}
+
+html.dark .bg-slate-100:not([class*="dark:bg-"]) {
+  background-color: rgb(30 41 59);
+  color: rgb(226 232 240);
+}
+
+html.dark .text-brand-700:not([class*="dark:text-"]) {
+  color: rgb(94 234 212);
+}
+
+html.dark .text-emerald-700:not([class*="dark:text-"]) {
+  color: rgb(110 231 183);
+}
+
+html.dark .text-rose-600:not([class*="dark:text-"]) {
+  color: rgb(251 113 133);
+}
+
+html.dark select {
+  color-scheme: dark;
 }

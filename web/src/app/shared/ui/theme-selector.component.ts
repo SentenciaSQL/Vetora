@@ -9,7 +9,7 @@ import { ThemeMode, ThemeService } from '../../core/services/theme.service';
   imports: [TranslatePipe],
   template: `
     <label class="sr-only" for="theme-select">{{ 'theme.label' | translate }}</label>
-    <select id="theme-select" class="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+    <select id="theme-select" class="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
             [value]="theme.mode()" (change)="change($any($event.target).value)">
       <option value="light">{{ 'theme.light' | translate }}</option>
       <option value="dark">{{ 'theme.dark' | translate }}</option>

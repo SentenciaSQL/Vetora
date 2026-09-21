@@ -41,6 +41,10 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
     }
 
+    public static ApiException tooManyRequests(String message) {
+        return new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", message);
+    }
+
     public static ApiException subscriptionSuspended(String message, Map<String, Object> details) {
         return new ApiException(HttpStatus.FORBIDDEN, "TENANT_SUBSCRIPTION_SUSPENDED", message, details);
     }

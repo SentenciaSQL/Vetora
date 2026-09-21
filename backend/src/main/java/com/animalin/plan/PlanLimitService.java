@@ -6,6 +6,7 @@ import com.animalin.common.exception.ApiException;
 import com.animalin.messaging.MessageRepository;
 import com.animalin.security.TenantContext;
 import com.animalin.storage.StoredFileRepository;
+import com.animalin.employee.StaffInvitationRepository;
 import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
@@ -29,6 +30,7 @@ public class PlanLimitService {
     private final VeterinarianRepository veterinarianRepository;
     private final BranchRepository branchRepository;
     private final TenantMembershipRepository membershipRepository;
+    private final StaffInvitationRepository invitationRepository;
     private final StoredFileRepository storedFileRepository;
     private final MessageRepository messageRepository;
     private final MessageSource messageSource;
@@ -38,6 +40,7 @@ public class PlanLimitService {
                             VeterinarianRepository veterinarianRepository,
                             BranchRepository branchRepository,
                             TenantMembershipRepository membershipRepository,
+                            StaffInvitationRepository invitationRepository,
                             StoredFileRepository storedFileRepository,
                             MessageRepository messageRepository,
                             MessageSource messageSource,
@@ -46,6 +49,7 @@ public class PlanLimitService {
         this.veterinarianRepository = veterinarianRepository;
         this.branchRepository = branchRepository;
         this.membershipRepository = membershipRepository;
+        this.invitationRepository = invitationRepository;
         this.storedFileRepository = storedFileRepository;
         this.messageRepository = messageRepository;
         this.messageSource = messageSource;
@@ -54,8 +58,11 @@ public class PlanLimitService {
 
     @Transactional(readOnly = true)
     public Plan requirePlan(Long tenantId) {
-        Long resolved = requireAuthenticatedTenant(tenantId);
-        Tenant tenant = tenantRepository.findById(resolved)
+        return requirePlanUnchecked(requireAuthenticatedTenant(tenantId));
+    }
+
+    private Plan requirePlanUnchecked(Long tenantId) {
+        Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         if (tenant.getPlan() == null) {
             throw ApiException.badRequest("La veterinaria no tiene un plan asignado");
@@ -83,11 +90,27 @@ public class PlanLimitService {
 
     public void assertCanAddStaffUser(Long tenantId) {
         Long resolved = requireAuthenticatedTenant(tenantId);
-        Plan plan = requirePlan(resolved);
-        long count = membershipRepository.countByTenantIdAndStatus(resolved, "ACTIVE");
+        assertUserCapacity(resolved);
+    }
+
+    public void assertCanAddStaffUserForTenant(Long tenantId) {
+        if (tenantId == null) {
+            throw ApiException.badRequest("La veterinaria es obligatoria");
+        }
+        assertUserCapacity(tenantId);
+    }
+
+    private void assertUserCapacity(Long tenantId) {
+        Plan plan = requirePlanUnchecked(tenantId);
+        long count = usedUsers(tenantId);
         if (count >= plan.getMaxUsers()) {
             throw limit("users", count, plan.getMaxUsers(), plan, "plan.limit.users");
         }
+    }
+
+    private long usedUsers(Long tenantId) {
+        return membershipRepository.countByTenantIdAndStatus(tenantId, "ACTIVE")
+                + invitationRepository.countPendingByTenantId(tenantId, clock.instant());
     }
 
     public void assertStorageAvailable(Long tenantId, long additionalBytes) {
@@ -142,7 +165,7 @@ public class PlanLimitService {
         Instant from = YearMonth.from(clock.instant().atZone(ZoneOffset.UTC)).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         long storageBytes = storedFileRepository.sumSizeBytesByTenantId(resolved);
         return new BillingDtos.PlanUsage(
-                new BillingDtos.UsageMetric(membershipRepository.countByTenantIdAndStatus(resolved, "ACTIVE"), plan.getMaxUsers()),
+                new BillingDtos.UsageMetric(usedUsers(resolved), plan.getMaxUsers()),
                 new BillingDtos.UsageMetric(veterinarianRepository.countByTenantIdAndStatus(resolved, "ACTIVE"), plan.getMaxVeterinarians()),
                 new BillingDtos.UsageMetric(branchRepository.countByTenantIdAndActiveTrue(resolved), plan.getMaxBranches()),
                 new BillingDtos.UsageMetric(Math.round(storageBytes / (1024.0 * 1024.0)), plan.getMaxStorageMb()),

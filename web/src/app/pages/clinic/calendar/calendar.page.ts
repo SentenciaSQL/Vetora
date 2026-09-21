@@ -1,7 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -26,8 +26,8 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
         <button class="btn-secondary" [class.bg-brand-50]="view()==='day'" (click)="view.set('day')">{{ 'common.day' | translate }}</button>
         <button class="btn-secondary" [class.bg-brand-50]="view()==='week'" (click)="view.set('week')">{{ 'common.week' | translate }}</button>
         <button class="btn-secondary" [class.bg-brand-50]="view()==='month'" (click)="view.set('month')">{{ 'common.month' | translate }}</button>
-        @if (auth.isStaff()) {
-          <button class="btn-primary" (click)="open=true">{{ 'calendar.new' | translate }}</button>
+        @if (canBook()) {
+          <button class="btn-primary" (click)="openForm()">{{ bookLabel() | translate }}</button>
         }
       </div>
     </div>
@@ -58,7 +58,16 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
       </div>
     }
     <div class="mt-4 space-y-2">
-      @if (visible().length === 0) { <empty-state [title]="'calendar.empty' | translate" /> }
+      @if (visible().length === 0) {
+        <div class="card">
+          <empty-state [title]="'calendar.empty' | translate" [subtitle]="canBook() ? ('calendar.emptyHint' | translate) : ''" />
+          @if (canBook()) {
+            <div class="pb-6 text-center">
+              <button class="btn-primary" (click)="openForm()">{{ bookLabel() | translate }}</button>
+            </div>
+          }
+        </div>
+      }
       @for (a of visible(); track a.id) {
         <div class="card flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -95,22 +104,39 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
     @if (open) {
       <div class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" (click)="open=false">
         <form class="card w-full max-w-lg space-y-3" (click)="$event.stopPropagation()" [formGroup]="form" (ngSubmit)="save()">
-          <h2 class="font-display text-lg">{{ 'calendar.new' | translate }}</h2>
-          <select class="input" formControlName="petId">
-            @for (p of pets(); track p.id) { <option [value]="p.id">{{ p.name }}</option> }
-          </select>
-          <select class="input" formControlName="veterinarianId">
-            @for (v of vets(); track v.id) { <option [value]="v.id">{{ v.fullName }}</option> }
-          </select>
-          <select class="input" formControlName="serviceId">
-            @for (s of services(); track s.id) { <option [value]="s.id">{{ s.nameEs }}</option> }
-          </select>
-          <input class="input" type="datetime-local" formControlName="startAt" />
-          <input class="input" formControlName="reason" [placeholder]="'calendar.reason' | translate" />
-          <div class="flex justify-end gap-2">
-            <button type="button" class="btn-secondary" (click)="open=false">{{ 'common.cancel' | translate }}</button>
-            <button class="btn-primary">{{ 'common.save' | translate }}</button>
-          </div>
+          <h2 class="font-display text-lg">{{ bookLabel() | translate }}</h2>
+          @if (!auth.isStaff() && pets().length === 0) {
+            <p class="text-sm text-slate-500">{{ 'calendar.needPet' | translate }}</p>
+            <a routerLink="/pets" [queryParams]="{ register: 1 }" class="btn-primary inline-flex">{{ 'pets.register' | translate }}</a>
+          } @else {
+            <label class="block text-sm font-medium">{{ 'nav.pets' | translate }}</label>
+            <select class="input" formControlName="petId" (change)="onPetChange()">
+              <option value="">{{ 'calendar.choosePet' | translate }}</option>
+              @for (p of pets(); track p.id) {
+                <option [value]="p.id">{{ p.name }}{{ p.tenantName ? ' · ' + p.tenantName : '' }}</option>
+              }
+            </select>
+            <label class="block text-sm font-medium">{{ 'nav.team' | translate }}</label>
+            <select class="input" formControlName="veterinarianId">
+              <option value="">{{ 'calendar.chooseVet' | translate }}</option>
+              @for (v of visibleVets(); track v.id) { <option [value]="v.id">{{ v.fullName }}</option> }
+            </select>
+            <label class="block text-sm font-medium">{{ 'nav.services' | translate }}</label>
+            <select class="input" formControlName="serviceId">
+              <option value="">{{ 'calendar.chooseService' | translate }}</option>
+              @for (s of visibleServices(); track s.id) { <option [value]="s.id">{{ s.nameEs || s.name }}</option> }
+            </select>
+            <label class="block text-sm font-medium">{{ 'calendar.when' | translate }}</label>
+            <input class="input" type="datetime-local" formControlName="startAt" />
+            <input class="input" formControlName="reason" [placeholder]="'calendar.reason' | translate" />
+            @if (formError()) {
+              <p class="text-sm text-rose-600">{{ formError() }}</p>
+            }
+            <div class="flex justify-end gap-2">
+              <button type="button" class="btn-secondary" (click)="open=false">{{ 'common.cancel' | translate }}</button>
+              <button class="btn-primary" [disabled]="form.invalid || saving()">{{ auth.isStaff() ? ('common.save' | translate) : ('calendar.request' | translate) }}</button>
+            </div>
+          }
         </form>
       </div>
     }
@@ -119,6 +145,7 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 export class CalendarPage implements OnInit {
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private route = inject(ActivatedRoute);
   auth = inject(AuthService);
   private fb = inject(FormBuilder);
   items = signal<Appointment[]>([]);
@@ -126,16 +153,35 @@ export class CalendarPage implements OnInit {
   vets = signal<any[]>([]);
   services = signal<any[]>([]);
   open = false;
+  saving = signal(false);
+  formError = signal('');
+  selectedTenantId = signal<number | null>(null);
   view = signal<'day' | 'week' | 'month'>('week');
   anchor = signal(new Date());
   selected = signal<Appointment | null>(null);
   hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
   form = this.fb.group({
     petId: ['', Validators.required],
-    veterinarianId: ['', Validators.required],
-    serviceId: ['', Validators.required],
+    veterinarianId: [''],
+    serviceId: [''],
     startAt: ['', Validators.required],
     reason: ['']
+  });
+
+  visibleVets = computed(() => {
+    const tenantId = this.selectedTenantId();
+    if (!tenantId) {
+      return this.vets();
+    }
+    return this.vets().filter((vet: any) => !vet.tenantId || vet.tenantId === tenantId);
+  });
+
+  visibleServices = computed(() => {
+    const tenantId = this.selectedTenantId();
+    if (!tenantId) {
+      return this.services();
+    }
+    return this.services().filter((service: any) => !service.tenantId || service.tenantId === tenantId);
   });
 
   visible = computed(() => {
@@ -170,13 +216,55 @@ export class CalendarPage implements OnInit {
     });
   }
 
+  canBook(): boolean {
+    return this.auth.isStaff() || this.auth.hasRole('PET_OWNER');
+  }
+
+  bookLabel(): string {
+    return this.auth.isStaff() ? 'calendar.new' : 'calendar.request';
+  }
+
+  selectedPet(): Pet | undefined {
+    const id = Number(this.form.controls.petId.value);
+    return this.pets().find(pet => pet.id === id);
+  }
+
+  onPetChange(): void {
+    const pet = this.selectedPet();
+    this.selectedTenantId.set(pet?.tenantId || null);
+    this.form.patchValue({ veterinarianId: '', serviceId: '' }, { emitEvent: false });
+  }
+
   ngOnInit() {
     this.reload();
+    this.loadBookingCatalog();
+    this.route.queryParamMap.subscribe(params => {
+      if (params.get('book') === '1' && this.canBook()) {
+        this.openForm();
+      }
+    });
+  }
+
+  openForm(): void {
+    this.formError.set('');
+    this.open = true;
+    this.loadBookingCatalog();
+  }
+
+  loadBookingCatalog(): void {
     if (this.auth.isStaff()) {
       this.api.get<PageResponse<Pet>>('/pets', { size: 100 }).subscribe(r => this.pets.set(r.content || []));
-      this.api.get<any[]>('/veterinarians').subscribe(r => this.vets.set(r));
-      this.api.get<any[]>('/services').subscribe(r => this.services.set(r));
+    } else {
+      this.api.get<Pet[]>('/pets/mine').subscribe(r => this.pets.set(r || []));
     }
+    this.api.get<any[]>('/veterinarians').subscribe({
+      next: r => this.vets.set(r || []),
+      error: () => this.vets.set([])
+    });
+    this.api.get<any[]>('/services').subscribe({
+      next: r => this.services.set(r || []),
+      error: () => this.services.set([])
+    });
   }
 
   rangeStart() {
@@ -234,16 +322,31 @@ export class CalendarPage implements OnInit {
   }
 
   save() {
+    if (this.form.invalid || this.saving()) {
+      this.form.markAllAsTouched();
+      return;
+    }
     const v = this.form.getRawValue();
+    this.saving.set(true);
+    this.formError.set('');
     this.api.post('/appointments', {
       petId: Number(v.petId),
-      veterinarianId: Number(v.veterinarianId),
-      serviceId: Number(v.serviceId),
+      veterinarianId: v.veterinarianId ? Number(v.veterinarianId) : null,
+      serviceId: v.serviceId ? Number(v.serviceId) : null,
       startAt: new Date(v.startAt!).toISOString(),
       reason: v.reason
     }).subscribe({
-      next: () => { this.toast.show('common.saved'); this.open = false; this.reload(); },
-      error: (e) => this.toast.show(e.error?.message || 'common.error', true)
+      next: () => {
+        this.saving.set(false);
+        this.toast.show(this.auth.isStaff() ? 'common.saved' : 'calendar.requested');
+        this.open = false;
+        this.reload();
+      },
+      error: (e) => {
+        this.saving.set(false);
+        this.formError.set(e.error?.message || 'common.error');
+        this.toast.show(e.error?.message || 'common.error', true);
+      }
     });
   }
 }

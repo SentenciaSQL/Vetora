@@ -13,9 +13,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = auth.accessToken();
   const isAuthCall = req.url.includes('/auth/login')
     || req.url.includes('/auth/register')
+    || req.url.includes('/auth/register-clinic')
     || req.url.includes('/auth/refresh')
     || req.url.includes('/auth/forgot-password')
     || req.url.includes('/auth/reset-password')
+    || req.url.includes('/auth/verify-email')
+    || req.url.includes('/auth/resend-verification')
+    || req.url.includes('/auth/invite')
+    || req.url.includes('/auth/accept-invite')
     || req.url.includes('/public/')
     || req.url.includes('/assets/');
 
