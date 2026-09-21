@@ -17,6 +17,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.http.HttpMethod.PATCH;
 import static org.springframework.http.HttpMethod.POST;
 
 class PaddleApiClientTest {
@@ -64,7 +65,7 @@ class PaddleApiClientTest {
     @Test
     void previewsSubscriptionUpdateWithoutExposingSecrets() {
         server.expect(requestTo("https://sandbox-api.paddle.com/subscriptions/sub_1/preview"))
-                .andExpect(method(POST))
+                .andExpect(method(PATCH))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer pdl_sdbx_apikey_test"))
                 .andRespond(withSuccess("""
                         {"data":{"id":"sub_1","status":"active","currency_code":"USD","next_billed_at":"2027-01-15T12:00:00Z","immediate_transaction":{"details":{"totals":{"grand_total":"15830","subtotal":"15830","currency_code":"USD"}}}}}

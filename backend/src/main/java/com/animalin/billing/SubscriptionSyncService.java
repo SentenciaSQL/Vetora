@@ -35,6 +35,7 @@ public class SubscriptionSyncService {
     private final ClinicSignupRepository signupRepository;
     private final PaddleProperties paddleProperties;
     private final AuditService auditService;
+    private final PendingPlanChangeService pendingPlanChangeService;
     private final Clock clock;
 
     public SubscriptionSyncService(SubscriptionRepository subscriptionRepository,
@@ -43,6 +44,7 @@ public class SubscriptionSyncService {
                                    ClinicSignupRepository signupRepository,
                                    PaddleProperties paddleProperties,
                                    AuditService auditService,
+                                   PendingPlanChangeService pendingPlanChangeService,
                                    Clock clock) {
         this.subscriptionRepository = subscriptionRepository;
         this.tenantRepository = tenantRepository;
@@ -50,6 +52,7 @@ public class SubscriptionSyncService {
         this.signupRepository = signupRepository;
         this.paddleProperties = paddleProperties;
         this.auditService = auditService;
+        this.pendingPlanChangeService = pendingPlanChangeService;
         this.clock = clock;
     }
 
@@ -102,6 +105,7 @@ public class SubscriptionSyncService {
             }
             default -> log.info("Unhandled Paddle subscription status {}", paddleStatus);
         }
+        pendingPlanChangeService.reconcileAfterPaddleSync(subscription);
     }
 
     public void applyTransaction(PaddleDtos.Transaction transaction) {
@@ -133,6 +137,7 @@ public class SubscriptionSyncService {
         } else if ("past_due".equals(status) || "payment_failed".equals(status)) {
             enterGracePeriod(subscription);
         }
+        pendingPlanChangeService.reconcileAfterPaddleSync(subscription);
     }
 
     public void activate(Subscription subscription, String transactionId) {
@@ -285,6 +290,7 @@ public class SubscriptionSyncService {
         subscription.setCancelledAt(effective);
         subscription.setScheduledChangeAction(null);
         subscription.setScheduledChangeEffectiveAt(null);
+        subscription.clearPendingPlanChange();
         Tenant tenant = subscription.getTenant();
         tenant.setStatus(SubscriptionStatuses.SUSPENDED);
         auditService.record(tenant.getId(), null, "paddle", "CANCEL", "SUBSCRIPTION",
@@ -324,6 +330,9 @@ public class SubscriptionSyncService {
     }
 
     private void applyPlanFromPrice(Subscription subscription, String priceId, String productId) {
+        if (shouldDeferPendingPlan(subscription, priceId)) {
+            return;
+        }
         if (StringUtils.hasText(priceId)) {
             subscription.setPaddlePriceId(priceId);
         }
@@ -344,6 +353,38 @@ public class SubscriptionSyncService {
                     subscription.setBillingCycle(SubscriptionStatuses.CYCLE_MONTHLY);
                 }
             }
+        }
+        completePendingIfMatched(subscription, priceId);
+    }
+
+    private boolean shouldDeferPendingPlan(Subscription subscription, String priceId) {
+        if (!subscription.hasPendingPlanChange() || !StringUtils.hasText(priceId)) {
+            return false;
+        }
+        Instant effective = subscription.getPendingChangeEffectiveAt();
+        Instant now = clock.instant();
+        boolean beforeEffective = effective != null && now.isBefore(effective);
+        if (beforeEffective && priceId.equals(subscription.getPendingPriceId())) {
+            subscription.setPendingChangeStatus(PlanChangeType.PENDING_APPLYING);
+            if (subscription.getPendingChangePaddleUpdatedAt() == null) {
+                subscription.setPendingChangePaddleUpdatedAt(now);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private void completePendingIfMatched(Subscription subscription, String priceId) {
+        if (!subscription.hasPendingPlanChange() || !StringUtils.hasText(priceId)) {
+            return;
+        }
+        Instant effective = subscription.getPendingChangeEffectiveAt();
+        Instant now = clock.instant();
+        if (effective != null && now.isBefore(effective)) {
+            return;
+        }
+        if (priceId.equals(subscription.getPendingPriceId())) {
+            subscription.clearPendingPlanChange();
         }
     }
 

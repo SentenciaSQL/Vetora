@@ -26,7 +26,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -35,6 +38,11 @@ public class BillingService {
     private static final Logger log = LoggerFactory.getLogger(BillingService.class);
     private static final String PRORATION_IMMEDIATE = "prorated_immediately";
     private static final String PRORATION_TRIAL = "do_not_bill";
+    private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    private static final DateTimeFormatter ES_DATE = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es"))
+            .withZone(ZoneOffset.UTC);
+    private static final DateTimeFormatter EN_DATE = DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH)
+            .withZone(ZoneOffset.UTC);
 
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
@@ -45,6 +53,7 @@ public class BillingService {
     private final AccessGuard accessGuard;
     private final PlanCatalogService planCatalogService;
     private final PlanLimitService planLimitService;
+    private final PendingPlanChangeService pendingPlanChangeService;
     private final com.animalin.config.AnimalinProperties properties;
     private final Clock clock;
 
@@ -57,6 +66,7 @@ public class BillingService {
                           AccessGuard accessGuard,
                           PlanCatalogService planCatalogService,
                           PlanLimitService planLimitService,
+                          PendingPlanChangeService pendingPlanChangeService,
                           com.animalin.config.AnimalinProperties properties,
                           Clock clock) {
         this.planRepository = planRepository;
@@ -68,6 +78,7 @@ public class BillingService {
         this.accessGuard = accessGuard;
         this.planCatalogService = planCatalogService;
         this.planLimitService = planLimitService;
+        this.pendingPlanChangeService = pendingPlanChangeService;
         this.properties = properties;
         this.clock = clock;
     }
@@ -197,7 +208,7 @@ public class BillingService {
         return currentSubscription();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public BillingDtos.ChangePreviewResponse previewChange(BillingDtos.ChangePlanRequest request) {
         Long tenantId = requireBillingTenant();
         requireTenantAdmin();
@@ -205,17 +216,35 @@ public class BillingService {
         Plan newPlan = requireActivePlan(request == null ? null : request.planId());
         String priceId = resolveAlignedPriceId(newPlan, cycle);
         Subscription subscription = requirePaddleSubscription(tenantId);
-        rejectUnchangedPlan(subscription, priceId);
+        assertCanChangePlan(subscription);
+        rejectUnchangedPlan(subscription, newPlan, cycle, priceId);
         Plan currentPlan = subscription.getPlan();
+        String changeType = PlanChangeType.of(currentPlan, newPlan);
+        if (PlanChangeType.DOWNGRADE.equals(changeType)) {
+            assertUsageFitsPlan(tenantId, newPlan);
+            Instant effectiveAt = downgradeEffectiveAt(subscription);
+            return toPreview(currentPlan, subscription.getBillingCycle(), newPlan, cycle.name(),
+                    ZERO, subscription.getCurrency() == null ? "USD" : subscription.getCurrency(),
+                    effectiveAt, null, changeType, effectiveAt, ZERO, ZERO, cycle.name(),
+                    downgradePreviewMessage(newPlan, effectiveAt));
+        }
         try {
-            PaddleChange change = previewWithFallback(subscription, priceId, tenantId);
+            PaddleChange change = previewUpgrade(subscription, priceId, tenantId);
             PaddleDtos.SubscriptionPreview preview = change.preview();
             Instant nextBilling = preview == null ? subscription.getNextBillingAt()
                     : preview.nextBilledAt() != null ? preview.nextBilledAt() : subscription.getNextBillingAt();
+            BigDecimal charge = immediateCharge(preview);
+            BigDecimal estimated = estimatedAmount(preview);
+            if (estimated == null) {
+                estimated = charge;
+            }
+            Instant effectiveAt = clock.instant();
             return toPreview(currentPlan, subscription.getBillingCycle(), newPlan, cycle.name(),
-                    estimatedAmount(preview), currencyOf(preview, subscription), nextBilling, change.prorationMode());
+                    estimated, currencyOf(preview, subscription), nextBilling, change.prorationMode(),
+                    changeType, effectiveAt, charge == null ? ZERO : charge, ZERO, cycle.name(),
+                    upgradePreviewMessage(newPlan, estimated, currencyOf(preview, subscription)));
         } catch (PaddleApiException ex) {
-            throw translatePaddle(ex, tenantId, subscription, "preview-change");
+            throw translatePaddle(ex, tenantId, subscription, "preview-change", priceId, prorationMode(subscription));
         }
     }
 
@@ -227,17 +256,53 @@ public class BillingService {
         Plan plan = requireActivePlan(request == null ? null : request.planId());
         String priceId = resolveAlignedPriceId(plan, cycle);
         Subscription subscription = requirePaddleSubscription(tenantId);
-        rejectUnchangedPlan(subscription, priceId);
-        try {
-            updateWithFallback(subscription, priceId, tenantId);
-        } catch (PaddleApiException ex) {
-            throw translatePaddle(ex, tenantId, subscription, "change-plan");
+        assertCanChangePlan(subscription);
+        rejectUnchangedPlan(subscription, plan, cycle, priceId);
+        String changeType = PlanChangeType.of(subscription.getPlan(), plan);
+        if (PlanChangeType.DOWNGRADE.equals(changeType)) {
+            scheduleDowngrade(subscription, plan, cycle, priceId, tenantId);
+            log.info("Downgrade scheduled userId={} tenantId={} paddleSub={} currentPlan={} pendingPlan={} cycle={} effectiveAt={}",
+                    TenantContext.userId(), tenantId,
+                    TrialPolicy.maskPaddleId(subscription.getPaddleSubscriptionId()),
+                    subscription.getPlan() == null ? null : subscription.getPlan().getCode(),
+                    plan.getCode(), cycle.name(), subscription.getPendingChangeEffectiveAt());
+            return currentSubscription();
         }
-        log.info("Plan change submitted userId={} tenantId={} tenantStatus={} paddleSub={} newPlan={} cycle={} onboardingUnchanged=true",
+        if (subscription.hasPendingPlanChange()) {
+            subscription.clearPendingPlanChange();
+        }
+        try {
+            updateUpgrade(subscription, priceId, tenantId);
+        } catch (PaddleApiException ex) {
+            throw translatePaddle(ex, tenantId, subscription, "change-plan", priceId, prorationMode(subscription));
+        }
+        log.info("Plan upgrade submitted userId={} tenantId={} tenantStatus={} paddleSub={} newPlan={} cycle={} onboardingUnchanged=true",
                 TenantContext.userId(), tenantId,
                 subscription.getTenant() == null ? null : subscription.getTenant().getStatus(),
                 TrialPolicy.maskPaddleId(subscription.getPaddleSubscriptionId()),
                 plan.getCode(), cycle.name());
+        return currentSubscription();
+    }
+
+    @Transactional
+    public BillingDtos.SubscriptionResponse cancelPendingChange() {
+        Long tenantId = requireBillingTenant();
+        requireTenantAdmin();
+        Subscription subscription = requirePaddleSubscription(tenantId);
+        if (!subscription.hasPendingPlanChange()) {
+            throw ApiException.badRequest("No hay un cambio de plan programado para cancelar");
+        }
+        if (PlanChangeType.PENDING_APPLYING.equals(subscription.getPendingChangeStatus())
+                && subscription.getPendingChangePaddleUpdatedAt() != null) {
+            throw ApiException.badRequest(
+                    "El cambio de plan ya se está aplicando en Paddle y no se puede cancelar");
+        }
+        String previous = subscription.getPendingPlan() == null ? null : subscription.getPendingPlan().getCode();
+        subscription.clearPendingPlanChange();
+        log.info("Pending plan change canceled userId={} tenantId={} paddleSub={} previousPending={}",
+                TenantContext.userId(), tenantId,
+                TrialPolicy.maskPaddleId(subscription.getPaddleSubscriptionId()),
+                previous);
         return currentSubscription();
     }
 
@@ -362,6 +427,7 @@ public class BillingService {
         boolean blocked = subscription != null && SubscriptionStatuses.blocksTenant(subscription, clock.instant());
         boolean access = !blocked && (SubscriptionStatuses.grantsAccess(status) || SubscriptionStatuses.CANCELED.equals(status));
         BillingDtos.PlanUsage usage = planLimitService.usage(tenant.getId());
+        Plan pending = subscription == null ? null : subscription.getPendingPlan();
         return new BillingDtos.SubscriptionResponse(
                 subscription == null ? null : subscription.getId(),
                 tenant.getId(),
@@ -392,7 +458,16 @@ public class BillingService {
                 subscription != null && StringUtils.hasText(subscription.getPaddleSubscriptionId()),
                 SubscriptionStatuses.isTrial(status),
                 plan == null ? null : limits(plan),
-                usage
+                usage,
+                pending == null ? null : pending.getId(),
+                pending == null ? null : pending.getCode(),
+                pending == null ? null : (english ? pending.getNameEn() : pending.getNameEs()),
+                subscription == null ? null : subscription.getPendingPriceId(),
+                subscription == null ? null : subscription.getPendingBillingInterval(),
+                subscription == null ? null : subscription.getPendingChangeEffectiveAt(),
+                subscription == null ? null : subscription.getPendingChangeCreatedAt(),
+                subscription == null ? null : subscription.getPendingChangeStatus(),
+                pendingChangeMessage(subscription, english)
         );
     }
 
@@ -403,7 +478,13 @@ public class BillingService {
                                                         BigDecimal estimatedAmount,
                                                         String currency,
                                                         Instant nextBillingAt,
-                                                        String prorationMode) {
+                                                        String prorationMode,
+                                                        String changeType,
+                                                        Instant effectiveAt,
+                                                        BigDecimal immediateCharge,
+                                                        BigDecimal credit,
+                                                        String billingInterval,
+                                                        String message) {
         String locale = locale();
         boolean english = "en".equalsIgnoreCase(locale);
         return new BillingDtos.ChangePreviewResponse(
@@ -418,25 +499,128 @@ public class BillingService {
                 estimatedAmount,
                 currency,
                 nextBillingAt,
-                prorationMode
+                prorationMode,
+                currentPlan == null ? null : currentPlan.getCode(),
+                newPlan.getCode(),
+                changeType,
+                effectiveAt,
+                immediateCharge,
+                credit,
+                billingInterval,
+                message
         );
     }
 
-    private void rejectUnchangedPlan(Subscription subscription, String priceId) {
-        if (priceId.equals(subscription.getPaddlePriceId())) {
+    private void rejectUnchangedPlan(Subscription subscription, Plan newPlan, SubscriptionCycle cycle, String priceId) {
+        boolean samePrice = priceId.equals(subscription.getPaddlePriceId());
+        boolean samePending = subscription.hasPendingPlanChange()
+                && priceId.equals(subscription.getPendingPriceId());
+        if (samePending) {
+            throw ApiException.badRequest(alreadyScheduledMessage(subscription));
+        }
+        if (samePrice && !subscription.hasPendingPlanChange()) {
             throw ApiException.badRequest("Ya está suscrito a este plan y ciclo. Elija otro plan o cambie de mensual a anual.");
+        }
+        if (samePrice && newPlan != null && subscription.getPlan() != null
+                && newPlan.getId() != null && newPlan.getId().equals(subscription.getPlan().getId())
+                && cycle.name().equalsIgnoreCase(subscription.getBillingCycle())) {
+            throw ApiException.badRequest("Ya está suscrito a este plan y ciclo. Si desea cancelar el cambio pendiente, use Cancelar cambio programado.");
         }
     }
 
-    private PaddleChange previewWithFallback(Subscription subscription, String priceId, Long tenantId) {
-        PaddleDtos.UpdateSubscriptionRequest request = changeRequest(priceId, tenantId, prorationMode(subscription));
+    private void assertCanChangePlan(Subscription subscription) {
+        String status = subscription.getStatus();
+        if (SubscriptionStatuses.PAUSED.equals(status)) {
+            throw ApiException.badRequest("No se puede cambiar el plan mientras la suscripción está pausada.");
+        }
+        if (SubscriptionStatuses.CANCELED.equals(status)) {
+            throw ApiException.badRequest("No se puede cambiar el plan porque la suscripción está cancelada.");
+        }
+        if (SubscriptionStatuses.SUSPENDED.equals(status)) {
+            throw ApiException.badRequest("No se puede cambiar el plan porque la suscripción está suspendida.");
+        }
+        if (SubscriptionStatuses.PAST_DUE.equals(status) || SubscriptionStatuses.GRACE_PERIOD.equals(status)) {
+            throw ApiException.badRequest(
+                    "No se puede cambiar el plan mientras el pago está atrasado. Actualice el método de pago e inténtelo de nuevo.");
+        }
+        if (!SubscriptionStatuses.ACTIVE.equals(status)
+                && !SubscriptionStatuses.TRIALING.equals(status)
+                && !SubscriptionStatuses.TRIAL.equals(status)) {
+            throw ApiException.badRequest("No se puede cambiar el plan en el estado " + status + ".");
+        }
+        if ("cancel".equalsIgnoreCase(subscription.getScheduledChangeAction())) {
+            throw ApiException.badRequest(
+                    "Hay una cancelación programada. Anúlela en el portal de Paddle antes de cambiar de plan.");
+        }
+    }
+
+    private void assertUsageFitsPlan(Long tenantId, Plan target) {
+        BillingDtos.PlanUsage usage = planLimitService.usage(tenantId);
+        String planName = localeName(target);
+        rejectIfOver(planName, "usuarios activos", "active users", usage.users().current(), target.getMaxUsers());
+        rejectIfOver(planName, "veterinarios", "veterinarians", usage.veterinarians().current(), target.getMaxVeterinarians());
+        rejectIfOver(planName, "sucursales", "branches", usage.branches().current(), target.getMaxBranches());
+        rejectIfOver(planName, "MB de almacenamiento", "MB of storage", usage.storageMb().current(), target.getMaxStorageMb());
+    }
+
+    private void rejectIfOver(String planName, String resourceEs, String resourceEn, long current, int limit) {
+        if (current <= limit) {
+            return;
+        }
+        boolean english = "en".equalsIgnoreCase(locale());
+        if (english) {
+            throw ApiException.badRequest(
+                    "You cannot switch to the " + planName + " plan because you currently have "
+                            + current + " " + resourceEn + " and the plan allows a maximum of " + limit
+                            + ". Reduce usage before continuing.");
+        }
+        throw ApiException.badRequest(
+                "No puedes cambiar al plan " + planName + " porque actualmente tienes "
+                        + current + " " + resourceEs + " y el plan permite un máximo de " + limit
+                        + ". Reduce el número de " + resourceEs + " antes de continuar.");
+    }
+
+    private void scheduleDowngrade(Subscription subscription, Plan plan, SubscriptionCycle cycle, String priceId, Long tenantId) {
+        assertUsageFitsPlan(tenantId, plan);
+        Instant effectiveAt = downgradeEffectiveAt(subscription);
+        Instant now = clock.instant();
+        if (subscription.hasPendingPlanChange()
+                && PlanChangeType.PENDING_APPLYING.equals(subscription.getPendingChangeStatus())
+                && subscription.getPendingChangePaddleUpdatedAt() != null) {
+            throw ApiException.badRequest(
+                    "El cambio de plan ya se está aplicando en Paddle. Espere a que termine el ciclo actual.");
+        }
+        subscription.setPendingPlan(plan);
+        subscription.setPendingPriceId(priceId);
+        subscription.setPendingBillingInterval(cycle.name());
+        subscription.setPendingChangeEffectiveAt(effectiveAt);
+        subscription.setPendingChangeCreatedAt(now);
+        subscription.setPendingChangeStatus(PlanChangeType.PENDING_SCHEDULED);
+        subscription.setPendingChangePaddleUpdatedAt(null);
+    }
+
+    private Instant downgradeEffectiveAt(Subscription subscription) {
+        Instant effective = subscription.getCurrentPeriodEndsAt();
+        if (effective == null) {
+            effective = subscription.getNextBillingAt();
+        }
+        if (effective == null || !effective.isAfter(clock.instant())) {
+            throw ApiException.badRequest(
+                    "No se puede programar el downgrade porque no hay una fecha de fin de ciclo de facturación.");
+        }
+        return effective;
+    }
+
+    private PaddleChange previewUpgrade(Subscription subscription, String priceId, Long tenantId) {
+        String mode = prorationMode(subscription);
+        PaddleDtos.UpdateSubscriptionRequest request = changeRequest(subscription, priceId, tenantId, mode);
         try {
             return new PaddleChange(
                     paddleClient.previewSubscriptionUpdate(subscription.getPaddleSubscriptionId(), request),
                     request.prorationBillingMode());
         } catch (PaddleApiException ex) {
-            if (ex.getStatus() == 400 && PRORATION_IMMEDIATE.equals(request.prorationBillingMode())) {
-                PaddleDtos.UpdateSubscriptionRequest retry = changeRequest(priceId, tenantId, PRORATION_TRIAL);
+            if (ex.getStatus() == 400 && PRORATION_IMMEDIATE.equals(request.prorationBillingMode()) && isProrationError(ex)) {
+                PaddleDtos.UpdateSubscriptionRequest retry = changeRequest(subscription, priceId, tenantId, PRORATION_TRIAL);
                 return new PaddleChange(
                         paddleClient.previewSubscriptionUpdate(subscription.getPaddleSubscriptionId(), retry),
                         PRORATION_TRIAL);
@@ -445,34 +629,52 @@ public class BillingService {
         }
     }
 
-    private void updateWithFallback(Subscription subscription, String priceId, Long tenantId) {
-        PaddleDtos.UpdateSubscriptionRequest request = changeRequest(priceId, tenantId, prorationMode(subscription));
+    private void updateUpgrade(Subscription subscription, String priceId, Long tenantId) {
+        String mode = prorationMode(subscription);
+        PaddleDtos.UpdateSubscriptionRequest request = changeRequest(subscription, priceId, tenantId, mode);
         try {
             paddleClient.updateSubscription(subscription.getPaddleSubscriptionId(), request);
         } catch (PaddleApiException ex) {
-            if (ex.getStatus() == 400 && PRORATION_IMMEDIATE.equals(request.prorationBillingMode())) {
+            if (ex.getStatus() == 400 && PRORATION_IMMEDIATE.equals(request.prorationBillingMode()) && isProrationError(ex)) {
                 paddleClient.updateSubscription(
                         subscription.getPaddleSubscriptionId(),
-                        changeRequest(priceId, tenantId, PRORATION_TRIAL));
+                        changeRequest(subscription, priceId, tenantId, PRORATION_TRIAL));
                 return;
             }
             throw ex;
         }
     }
 
+    private static boolean isProrationError(PaddleApiException ex) {
+        String detail = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase(Locale.ROOT);
+        String code = ex.getPaddleErrorCode() == null ? "" : ex.getPaddleErrorCode().toLowerCase(Locale.ROOT);
+        return detail.contains("proration_billing_mode")
+                || detail.contains("proration billing mode")
+                || code.contains("proration")
+                || (detail.contains("trial") && detail.contains("proration"));
+    }
+
     private static String prorationMode(Subscription subscription) {
         return SubscriptionStatuses.isTrial(subscription.getStatus()) ? PRORATION_TRIAL : PRORATION_IMMEDIATE;
     }
 
-    private static PaddleDtos.UpdateSubscriptionRequest changeRequest(String priceId, Long tenantId, String prorationMode) {
+    private PaddleDtos.UpdateSubscriptionRequest changeRequest(Subscription subscription, String priceId, Long tenantId, String prorationMode) {
         return new PaddleDtos.UpdateSubscriptionRequest(
-                List.of(new PaddleDtos.UpdateSubscriptionItem(priceId, 1)),
+                pendingPlanChangeService.itemsForPlanChange(subscription, priceId),
                 prorationMode,
                 Map.of("tenant_id", String.valueOf(tenantId))
         );
     }
 
     private record PaddleChange(PaddleDtos.SubscriptionPreview preview, String prorationMode) {
+    }
+
+    private static BigDecimal immediateCharge(PaddleDtos.SubscriptionPreview preview) {
+        if (preview == null) {
+            return ZERO;
+        }
+        BigDecimal immediate = totalsAmount(preview.immediateTransaction());
+        return immediate == null ? ZERO : immediate;
     }
 
     private static BigDecimal estimatedAmount(PaddleDtos.SubscriptionPreview preview) {
@@ -522,36 +724,106 @@ public class BillingService {
         return principal != null && StringUtils.hasText(principal.locale()) ? principal.locale() : "es";
     }
 
+    private String localeName(Plan plan) {
+        if (plan == null) {
+            return "";
+        }
+        return "en".equalsIgnoreCase(locale()) ? plan.getNameEn() : plan.getNameEs();
+    }
+
+    private String formatDate(Instant instant) {
+        if (instant == null) {
+            return "";
+        }
+        return "en".equalsIgnoreCase(locale()) ? EN_DATE.format(instant) : ES_DATE.format(instant);
+    }
+
+    private String downgradePreviewMessage(Plan newPlan, Instant effectiveAt) {
+        if ("en".equalsIgnoreCase(locale())) {
+            return "The " + localeName(newPlan) + " plan will take effect at the next billing cycle.";
+        }
+        return "El plan " + localeName(newPlan) + " entrará en vigor el próximo ciclo de facturación.";
+    }
+
+    private String upgradePreviewMessage(Plan newPlan, BigDecimal amount, String currency) {
+        if ("en".equalsIgnoreCase(locale())) {
+            return "The " + localeName(newPlan) + " plan will apply after Paddle confirms the change.";
+        }
+        return "El plan " + localeName(newPlan) + " se aplicará cuando Paddle confirme el cambio.";
+    }
+
+    private String pendingChangeMessage(Subscription subscription, boolean english) {
+        if (subscription == null || !subscription.hasPendingPlanChange() || subscription.getPendingPlan() == null) {
+            return null;
+        }
+        String pendingName = english ? subscription.getPendingPlan().getNameEn() : subscription.getPendingPlan().getNameEs();
+        String currentName = subscription.getPlan() == null ? ""
+                : (english ? subscription.getPlan().getNameEn() : subscription.getPlan().getNameEs());
+        String date = formatDate(subscription.getPendingChangeEffectiveAt());
+        if (english) {
+            return "Your change to the " + pendingName + " plan has been scheduled. You will keep the "
+                    + currentName + " plan until " + date + " and the new plan will take effect on that date.";
+        }
+        return "Tu cambio al plan " + pendingName + " ha sido programado. Mantendrás el plan "
+                + currentName + " hasta el " + date + " y el nuevo plan entrará en vigor en esa fecha.";
+    }
+
+    private String alreadyScheduledMessage(Subscription subscription) {
+        String date = formatDate(subscription.getPendingChangeEffectiveAt());
+        String name = localeName(subscription.getPendingPlan());
+        if ("en".equalsIgnoreCase(locale())) {
+            return "This change to " + name + " is already scheduled for " + date + ".";
+        }
+        return "Este cambio al plan " + name + " ya está programado para el " + date + ".";
+    }
+
     private ApiException translatePaddle(PaddleApiException ex) {
-        return translatePaddle(ex, TenantContext.tenantIdOrNull(), null, "billing");
+        return translatePaddle(ex, TenantContext.tenantIdOrNull(), null, "billing", null, null);
     }
 
     private ApiException translatePaddle(PaddleApiException ex, Long tenantId, Subscription subscription, String step) {
+        return translatePaddle(ex, tenantId, subscription, step, null, null);
+    }
+
+    private ApiException translatePaddle(PaddleApiException ex, Long tenantId, Subscription subscription, String step,
+                                         String targetPriceId, String prorationMode) {
         HttpStatus status = ex.getStatus() == 404 ? HttpStatus.NOT_FOUND
                 : ex.getStatus() == 409 ? HttpStatus.CONFLICT
                 : ex.getStatus() >= 400 && ex.getStatus() < 500 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.BAD_GATEWAY;
         String code = ex.getStatus() == 0 ? "PADDLE_NOT_CONFIGURED" : "PADDLE_API_ERROR";
-        String detail = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
-        log.warn("Paddle billing failed userId={} tenantId={} step={} subscriptionStatus={} paddleSub={} paddleHttp={} paddleType={} paddleCode={}",
+        String detail = ex.getMessage() == null ? "" : ex.getMessage();
+        String detailLower = detail.toLowerCase(Locale.ROOT);
+        log.warn("Paddle billing failed method={} path={} paddleHttp={} paddleType={} paddleCode={} paddleDetail={} userId={} tenantId={} step={} subscriptionStatus={} paddleSub={} targetPrice={} proration={}",
+                ex.getHttpMethod(),
+                ex.getPath(),
+                ex.getStatus(),
+                ex.getPaddleErrorType(),
+                ex.getPaddleErrorCode(),
+                detail,
                 TenantContext.userId(),
                 tenantId,
                 step,
                 subscription == null ? null : subscription.getStatus(),
                 subscription == null ? null : TrialPolicy.maskPaddleId(subscription.getPaddleSubscriptionId()),
-                ex.getStatus(),
-                ex.getPaddleErrorType(),
-                ex.getPaddleErrorCode());
+                TrialPolicy.maskPaddleId(targetPriceId),
+                prorationMode);
         String message = "No se pudo completar la operación de facturación";
-        if (StringUtils.hasText(ex.getMessage()) && ex.getStatus() >= 400 && ex.getStatus() < 500
-                && !detail.contains("api key") && !detail.contains("secret") && !detail.contains("token")
-                && !detail.contains("signature") && !detail.contains("bearer")) {
-            message = ex.getMessage();
+        if (StringUtils.hasText(detail) && ex.getStatus() >= 400 && ex.getStatus() < 500
+                && !detailLower.contains("api key") && !detailLower.contains("secret") && !detailLower.contains("token")
+                && !detailLower.contains("signature") && !detailLower.contains("bearer")) {
+            message = detail;
         }
-        if (detail.contains("proration") || detail.contains("trial") || detail.contains("do_not_bill")) {
+        if (isProrationError(ex) && subscription != null && SubscriptionStatuses.isTrial(subscription.getStatus())) {
             message = "No se pudo cambiar el plan durante la prueba gratis. El cobro del nuevo plan se hará al terminar los días de prueba.";
-        } else if (detail.contains("not changed") || detail.contains("same")) {
+        } else if (detailLower.contains("not changed") || detailLower.contains("already on this price")) {
             message = "Ya está suscrito a este plan y ciclo.";
+        } else if (detailLower.contains("method") && detailLower.contains("not") && detailLower.contains("allowed")) {
+            message = "Paddle rechazó el método HTTP de la operación. Inténtelo de nuevo o contacte a soporte.";
+        } else if (detailLower.contains("past_due") || detailLower.contains("past due")) {
+            message = "Paddle no permite cambiar el plan mientras el pago está atrasado.";
+        } else if (detailLower.contains("30 minutes") || detailLower.contains("next billing period is within")) {
+            message = "Paddle no permite cambiar el plan si faltan menos de 30 minutos para el próximo ciclo.";
         }
         return new ApiException(status, code, message);
     }
