@@ -47,6 +47,16 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             """, nativeQuery = true)
     List<Subscription> lockExpiredGracePeriods(@Param("now") Instant now);
 
+    @Query("""
+            select s.id from Subscription s
+            where s.pendingPlan is not null
+              and s.pendingPriceId is not null
+              and s.pendingChangeEffectiveAt is not null
+              and s.pendingChangeEffectiveAt <= :horizon
+              and s.status in ('ACTIVE', 'TRIALING', 'TRIAL')
+            """)
+    List<Long> findDuePendingChangeIds(@Param("horizon") Instant horizon);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Subscription s where s.id = :id")
     Optional<Subscription> findByIdForUpdate(@Param("id") Long id);

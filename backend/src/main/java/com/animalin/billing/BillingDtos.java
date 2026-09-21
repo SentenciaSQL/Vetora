@@ -85,7 +85,16 @@ public final class BillingDtos {
             boolean hasPaddleSubscription,
             boolean trialAccess,
             PlanLimits limits,
-            PlanUsage usage
+            PlanUsage usage,
+            Long pendingPlanId,
+            String pendingPlanCode,
+            String pendingPlanName,
+            String pendingPriceId,
+            String pendingBillingInterval,
+            Instant pendingChangeEffectiveAt,
+            Instant pendingChangeCreatedAt,
+            String pendingChangeStatus,
+            String pendingChangeMessage
     ) {
     }
 
@@ -124,7 +133,15 @@ public final class BillingDtos {
             BigDecimal estimatedAmount,
             String currency,
             Instant nextBillingAt,
-            String prorationMode
+            String prorationMode,
+            String currentPlan,
+            String newPlan,
+            String changeType,
+            Instant effectiveAt,
+            BigDecimal immediateCharge,
+            BigDecimal credit,
+            String billingInterval,
+            String message
     ) {
     }
 

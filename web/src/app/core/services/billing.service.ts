@@ -48,6 +48,12 @@ export class BillingService {
     );
   }
 
+  cancelPendingChange(): Observable<TenantSubscription> {
+    return this.api.post<TenantSubscription>('/billing/subscription/pending-change/cancel', {}).pipe(
+      tap(sub => this.subscription.set(sub))
+    );
+  }
+
   isSuspended(): boolean {
     return !!this.subscription()?.suspended;
   }

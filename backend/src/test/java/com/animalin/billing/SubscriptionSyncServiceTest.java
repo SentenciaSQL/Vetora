@@ -34,6 +34,7 @@ class SubscriptionSyncServiceTest {
     @Mock PlanRepository planRepository;
     @Mock ClinicSignupRepository signupRepository;
     @Mock AuditService auditService;
+    @Mock PendingPlanChangeService pendingPlanChangeService;
 
     private Clock clock;
     private SubscriptionSyncService service;
@@ -49,7 +50,8 @@ class SubscriptionSyncServiceTest {
                 new PaddleProperties.Jobs(true, "0 5 0 * * *")
         );
         service = new SubscriptionSyncService(
-                subscriptionRepository, tenantRepository, planRepository, signupRepository, properties, auditService, clock);
+                subscriptionRepository, tenantRepository, planRepository, signupRepository, properties, auditService,
+                pendingPlanChangeService, clock);
         plan = new Plan();
         plan.setId(3L);
         plan.setCode("PROFESSIONAL");
