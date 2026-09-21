@@ -7,6 +7,7 @@ import { BillingService } from '../../../core/services/billing.service';
 import { PaddleService } from '../../../core/services/paddle.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 import { BillingPlan, ChangePreview, PublicPlan, UsageMetric } from '../../../core/models';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
 
@@ -268,6 +269,7 @@ export class BillingPage implements OnInit {
   private paddle = inject(PaddleService);
   private toast = inject(ToastService);
   private auth = inject(AuthService);
+  private session = inject(SessionInactivityService);
   private route = inject(ActivatedRoute);
   private i18n = inject(TranslateService);
 
@@ -312,6 +314,9 @@ export class BillingPage implements OnInit {
   }
 
   subscribe(plan: BillingPlan): void {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     if (!cycleAvailable(plan, this.cycle())) {
       this.toast.show('billing.planUnavailable', true);
       return;
@@ -354,6 +359,9 @@ export class BillingPage implements OnInit {
   }
 
   confirmChange(): void {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     const change = this.preview();
     if (!change || this.busy()) {
       return;
@@ -378,6 +386,9 @@ export class BillingPage implements OnInit {
   }
 
   openPortal(): void {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     if (this.busy()) {
       return;
     }
@@ -395,6 +406,9 @@ export class BillingPage implements OnInit {
   }
 
   cancel(): void {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     if (!confirm(this.i18n.instant('billing.cancelConfirm'))) {
       return;
     }
@@ -405,6 +419,9 @@ export class BillingPage implements OnInit {
   }
 
   cancelPending(): void {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     if (this.busy()) {
       return;
     }

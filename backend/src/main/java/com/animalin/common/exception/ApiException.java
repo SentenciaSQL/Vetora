@@ -41,6 +41,11 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
     }
 
+    public static ApiException sessionInactive() {
+        return new ApiException(HttpStatus.UNAUTHORIZED, "SESSION_INACTIVE",
+                "Su sesión expiró por inactividad. Inicie sesión nuevamente.");
+    }
+
     public static ApiException emailNotVerified() {
         return new ApiException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED",
                 "Debe verificar su correo electrónico antes de continuar");

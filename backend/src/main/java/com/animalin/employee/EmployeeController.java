@@ -1,6 +1,7 @@
 package com.animalin.employee;
 
 import com.animalin.audit.AuditService;
+import com.animalin.auth.AuthService;
 import com.animalin.common.exception.ApiException;
 import com.animalin.plan.PlanLimitService;
 import com.animalin.security.AccessGuard;
@@ -44,12 +45,13 @@ public class EmployeeController {
     private final AuditService auditService;
     private final PlanLimitService planLimitService;
     private final StaffInviteService staffInviteService;
+    private final AuthService authService;
 
     public EmployeeController(EmployeeRepository employeeRepository, UserRepository userRepository,
                               RoleRepository roleRepository, TenantRepository tenantRepository,
                               TenantMembershipRepository membershipRepository, PasswordEncoder passwordEncoder,
                               AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService,
-                              StaffInviteService staffInviteService) {
+                              StaffInviteService staffInviteService, AuthService authService) {
         this.employeeRepository = employeeRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -60,6 +62,7 @@ public class EmployeeController {
         this.auditService = auditService;
         this.planLimitService = planLimitService;
         this.staffInviteService = staffInviteService;
+        this.authService = authService;
     }
 
     @GetMapping("/invites")
@@ -70,12 +73,14 @@ public class EmployeeController {
     @PostMapping("/invites")
     @ResponseStatus(HttpStatus.CREATED)
     public SignupDtos.InviteResponse invite(@RequestBody SignupDtos.InviteRequest request) {
+        authService.requireActiveSession();
         return staffInviteService.invite(request);
     }
 
     @PostMapping("/invites/{id}/cancel")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelInvite(@PathVariable Long id) {
+        authService.requireActiveSession();
         staffInviteService.cancel(id);
     }
 
@@ -91,6 +96,7 @@ public class EmployeeController {
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
     public Map<String, Object> create(@RequestBody EmployeeRequest request) {
+        authService.requireActiveSession();
         accessGuard.requirePermission("STAFF_MANAGE");
         Long tenantId = accessGuard.requireStaffTenant();
         tenantRepository.findByIdForUpdate(tenantId)
@@ -135,6 +141,7 @@ public class EmployeeController {
     @PutMapping("/{id}")
     @Transactional
     public Map<String, Object> update(@PathVariable Long id, @RequestBody EmployeeRequest request) {
+        authService.requireActiveSession();
         accessGuard.requirePermission("STAFF_MANAGE");
         Employee employee = employeeRepository.findByIdAndTenantId(id, accessGuard.requireStaffTenant())
                 .orElseThrow(() -> ApiException.notFound("Empleado no encontrado"));

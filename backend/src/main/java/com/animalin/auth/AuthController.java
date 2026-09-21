@@ -75,10 +75,16 @@ public class AuthController {
         return authService.refresh(request);
     }
 
+    @PostMapping("/activity")
+    public AuthDtos.ActivityResponse activity() {
+        return authService.recordActivity();
+    }
+
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(@RequestBody(required = false) AuthDtos.RefreshRequest request) {
-        authService.logout(request == null ? null : request.refreshToken());
+    public void logout(@RequestBody(required = false) AuthDtos.LogoutRequest request) {
+        authService.logout(request == null ? null : request.refreshToken(),
+                request == null ? null : request.reason());
     }
 
     @PostMapping("/forgot-password")

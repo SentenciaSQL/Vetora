@@ -6,6 +6,7 @@ import { ApiService } from '../../../core/services/api.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { BrandingService } from '../../../core/services/branding.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 import { Branding } from '../../../core/models';
 
 @Component({
@@ -64,6 +65,7 @@ export class SettingsPage implements OnInit {
   private toast = inject(ToastService);
   private branding = inject(BrandingService);
   auth = inject(AuthService);
+  private session = inject(SessionInactivityService);
   private fb = inject(FormBuilder);
   form = this.fb.group({
     name: [''], commercialName: [''], email: [''], phone: [''], website: [''], address: [''], instagram: [''], facebook: ['']
@@ -82,6 +84,9 @@ export class SettingsPage implements OnInit {
   }
 
   save() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.api.put<Branding>('/settings/branding', this.form.value).subscribe({
       next: (b) => { this.branding.branding.set(b); this.toast.show('common.saved'); },
       error: () => this.toast.show('common.error', true)
@@ -89,6 +94,9 @@ export class SettingsPage implements OnInit {
   }
 
   upload(event: Event, variant: string) {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     this.api.upload<Branding>('/settings/branding/logo', file, { variant }).subscribe({
@@ -98,6 +106,9 @@ export class SettingsPage implements OnInit {
   }
 
   saveOps() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.api.put('/settings', this.ops.value).subscribe({
       next: () => this.toast.show('common.saved'),
       error: () => this.toast.show('common.error', true)

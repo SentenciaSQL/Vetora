@@ -30,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
@@ -136,29 +138,127 @@ public class AuthService {
         String hash = tokens.sha256(request.refreshToken());
         RefreshToken stored = refreshTokenRepository.findByTokenHash(hash)
                 .orElseThrow(() -> ApiException.unauthorized("Refresh token inválido"));
-        if (stored.isRevoked() || stored.getExpiresAt().isBefore(clock.instant())) {
+        if (stored.isRevoked()) {
+            refreshTokenRepository.revokeAllByUserId(stored.getUser().getId());
+            auditService.record(stored.getTenant() == null ? null : stored.getTenant().getId(),
+                    stored.getUser().getId(), stored.getUser().getEmail(),
+                    "REFRESH_REUSE", "SESSION", stored.getUser().getId(), "Refresh token revocado por reutilización", null, null);
             throw ApiException.unauthorized("Refresh token inválido o expirado");
+        }
+        if (stored.getExpiresAt().isBefore(clock.instant())) {
+            stored.setRevoked(true);
+            throw ApiException.unauthorized("Refresh token inválido o expirado");
+        }
+        Instant lastActivity = stored.getLastActivityAt() != null ? stored.getLastActivityAt() : stored.getCreatedAt();
+        if (inactive(lastActivity)) {
+            stored.setRevoked(true);
+            refreshTokenRepository.revokeAllByUserId(stored.getUser().getId());
+            auditService.record(stored.getTenant() == null ? null : stored.getTenant().getId(),
+                    stored.getUser().getId(), stored.getUser().getEmail(),
+                    "SESSION_INACTIVE", "SESSION", stored.getUser().getId(),
+                    "Intento de renovar una sesión inactiva", null, null);
+            throw ApiException.sessionInactive();
         }
         stored.setRevoked(true);
         User user = userRepository.findByIdWithRoles(stored.getUser().getId())
                 .orElseThrow(() -> ApiException.unauthorized("Usuario no encontrado"));
+        if (!user.isEnabled()) {
+            refreshTokenRepository.revokeAllByUserId(user.getId());
+            throw ApiException.unauthorized("Refresh token inválido o expirado");
+        }
         List<TenantMembership> memberships = membershipRepository.findActiveByUserId(user.getId());
         Tenant tenant = stored.getTenant();
-        AuthDtos.TokenResponse response = issueTokens(user, tenant, memberships);
+        AuthDtos.TokenResponse response = issueTokens(user, tenant, memberships, lastActivity, stored.getExpiresAt());
         stored.setReplacedBy(tokens.sha256(response.refreshToken()));
         return response;
     }
 
     @Transactional
-    public void logout(String refreshToken) {
-        if (refreshToken == null || refreshToken.isBlank()) {
-            return;
+    public void logout(String refreshToken, String reason) {
+        Long tenantId = TenantContext.tenantIdOrNull();
+        Long userId = TenantContext.getOrNull() == null ? null : TenantContext.getOrNull().userId();
+        String email = TenantContext.getOrNull() == null ? null : TenantContext.getOrNull().email();
+        boolean inactivity = reason != null && "INACTIVITY".equalsIgnoreCase(reason);
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            RefreshToken stored = refreshTokenRepository.findByTokenHash(tokens.sha256(refreshToken)).orElse(null);
+            if (stored != null) {
+                userId = stored.getUser().getId();
+                email = stored.getUser().getEmail();
+                tenantId = stored.getTenant() == null ? null : stored.getTenant().getId();
+                if (inactivity) {
+                    refreshTokenRepository.revokeAllByUserId(userId);
+                } else {
+                    stored.setRevoked(true);
+                }
+            }
+        } else if (inactivity && userId != null) {
+            refreshTokenRepository.revokeAllByUserId(userId);
         }
-        refreshTokenRepository.findByTokenHash(tokens.sha256(refreshToken)).ifPresent(token -> token.setRevoked(true));
+        auditService.record(tenantId, userId, email,
+                inactivity ? "LOGOUT_INACTIVITY" : "LOGOUT",
+                "SESSION", userId, inactivity ? "Cierre por inactividad" : "Cierre de sesión", null, null);
+    }
+
+    @Transactional
+    public void requireActiveSession() {
+        Long userId = TenantContext.userId();
+        List<RefreshToken> active = refreshTokenRepository.findByUserIdAndRevokedFalse(userId);
+        Instant newest = active.stream()
+                .map(token -> token.getLastActivityAt() != null ? token.getLastActivityAt() : token.getCreatedAt())
+                .max(Instant::compareTo)
+                .orElse(null);
+        if (active.isEmpty() || inactive(newest)) {
+            if (userId != null) {
+                refreshTokenRepository.revokeAllByUserId(userId);
+            }
+            auditService.record(TenantContext.tenantIdOrNull(), userId,
+                    TenantContext.getOrNull() == null ? null : TenantContext.getOrNull().email(),
+                    "SESSION_INACTIVE", "SESSION", userId, "Intento de utilizar una sesión expirada", null, null);
+            throw ApiException.sessionInactive();
+        }
+    }
+
+    public Instant lastActivityForUser(Long userId) {
+        return refreshTokenRepository.findByUserIdAndRevokedFalse(userId).stream()
+                .map(token -> token.getLastActivityAt() != null ? token.getLastActivityAt() : token.getCreatedAt())
+                .max(Instant::compareTo)
+                .orElse(clock.instant());
+    }
+
+    public Instant refreshExpiryForUser(Long userId) {
+        return refreshTokenRepository.findByUserIdAndRevokedFalse(userId).stream()
+                .map(RefreshToken::getExpiresAt)
+                .max(Instant::compareTo)
+                .orElse(clock.instant().plus(properties.jwt().refreshHours(), ChronoUnit.HOURS));
+    }
+
+    @Transactional
+    public AuthDtos.ActivityResponse recordActivity() {
+        Long userId = TenantContext.userId();
+        Instant now = clock.instant();
+        List<RefreshToken> active = refreshTokenRepository.findByUserIdAndRevokedFalse(userId);
+        if (active.isEmpty()) {
+            throw ApiException.unauthorized("Sesión inválida");
+        }
+        Instant newest = active.stream()
+                .map(token -> token.getLastActivityAt() != null ? token.getLastActivityAt() : token.getCreatedAt())
+                .max(Instant::compareTo)
+                .orElse(now);
+        if (inactive(newest)) {
+            refreshTokenRepository.revokeAllByUserId(userId);
+            auditService.record(TenantContext.tenantIdOrNull(), userId,
+                    TenantContext.getOrNull() == null ? null : TenantContext.getOrNull().email(),
+                    "SESSION_INACTIVE", "SESSION", userId, "Sesión inactiva al reportar actividad", null, null);
+            throw ApiException.sessionInactive();
+        }
+        Instant minGap = now.minus(properties.sessionOrDefault().activityHeartbeatMinutes(), ChronoUnit.MINUTES);
+        refreshTokenRepository.touchActivity(userId, now, minGap);
+        return new AuthDtos.ActivityResponse(true, properties.inactivityTimeoutMinutes());
     }
 
     @Transactional
     public AuthDtos.TokenResponse switchTenant(AuthDtos.SwitchTenantRequest request) {
+        requireActiveSession();
         Long userId = TenantContext.userId();
         User user = userRepository.findByIdWithRoles(userId).orElseThrow(() -> ApiException.unauthorized("Sesión inválida"));
         List<TenantMembership> memberships = membershipRepository.findActiveByUserId(userId);
@@ -203,6 +303,7 @@ public class AuthService {
         token.setUsed(true);
         User user = token.getUser();
         user.setPasswordHash(passwordEncoder.encode(request.password()));
+        refreshTokenRepository.revokeAllByUserId(user.getId());
         Tenant tenant = firstTenant(user);
         transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_PASSWORD_CHANGED, user.getEmail(), () ->
                 emailService.sendPasswordChangedConfirmation(
@@ -214,12 +315,14 @@ public class AuthService {
 
     @Transactional
     public void changePassword(AuthDtos.ChangePasswordRequest request) {
+        requireActiveSession();
         User user = userRepository.findById(TenantContext.userId())
                 .orElseThrow(() -> ApiException.notFound("Usuario no encontrado"));
         if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
             throw ApiException.badRequest("La contraseña actual no es correcta");
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        refreshTokenRepository.revokeAllByUserId(user.getId());
         Tenant tenant = firstTenant(user);
         transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_PASSWORD_CHANGED, user.getEmail(), () ->
                 emailService.sendPasswordChangedConfirmation(
@@ -252,6 +355,13 @@ public class AuthService {
         Tenant tenant = TenantContext.tenantIdOrNull() == null ? null :
                 tenantRepository.findById(TenantContext.tenantIdOrNull()).orElse(null);
         return toProfile(user, tenant, memberships);
+    }
+
+    private boolean inactive(Instant lastActivity) {
+        if (lastActivity == null) {
+            return true;
+        }
+        return Duration.between(lastActivity, clock.instant()).toMinutes() >= properties.inactivityTimeoutMinutes();
     }
 
     private Tenant resolveTenant(String slug, List<TenantMembership> memberships, boolean superAdmin, User user) {
@@ -290,6 +400,17 @@ public class AuthService {
     }
 
     public AuthDtos.TokenResponse issueTokens(User user, Tenant tenant, List<TenantMembership> memberships) {
+        return issueTokens(user, tenant, memberships, clock.instant(),
+                clock.instant().plus(properties.jwt().refreshHours(), ChronoUnit.HOURS));
+    }
+
+    public AuthDtos.TokenResponse issueTokens(User user, Tenant tenant, List<TenantMembership> memberships, Instant lastActivity) {
+        return issueTokens(user, tenant, memberships, lastActivity,
+                clock.instant().plus(properties.jwt().refreshHours(), ChronoUnit.HOURS));
+    }
+
+    public AuthDtos.TokenResponse issueTokens(User user, Tenant tenant, List<TenantMembership> memberships,
+                                             Instant lastActivity, Instant refreshExpiresAt) {
         Set<String> roles = user.getRoles().stream().map(Role::getCode).collect(Collectors.toSet());
         Set<String> permissions = user.getRoles().stream()
                 .flatMap(r -> r.getPermissions().stream())
@@ -313,7 +434,10 @@ public class AuthService {
         refresh.setUser(user);
         refresh.setTenant(tenant);
         refresh.setTokenHash(tokens.sha256(refreshRaw));
-        refresh.setExpiresAt(clock.instant().plus(properties.jwt().refreshTokenDays(), ChronoUnit.DAYS));
+        refresh.setExpiresAt(refreshExpiresAt);
+        Instant activity = lastActivity == null ? clock.instant() : lastActivity;
+        refresh.setCreatedAt(clock.instant());
+        refresh.setLastActivityAt(activity);
         refreshTokenRepository.save(refresh);
         return AuthDtos.TokenResponse.of(access, refreshRaw, jwtService.accessExpiresInSeconds(),
                 toProfile(user, tenant, memberships));

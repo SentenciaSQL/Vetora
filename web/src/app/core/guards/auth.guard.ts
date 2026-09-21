@@ -1,20 +1,29 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { SessionInactivityService } from '../services/session-inactivity.service';
 
 export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
-  if (auth.isAuthenticated) {
-    return true;
+  if (!auth.isAuthenticated) {
+    return router.createUrlTree(['/login']);
   }
-  return router.createUrlTree(['/login']);
+  if (!session.ensureActive()) {
+    return false;
+  }
+  return true;
 };
 
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
   if (!auth.isAuthenticated) {
+    return true;
+  }
+  if (!session.ensureActive()) {
     return true;
   }
   return router.createUrlTree([auth.homePath()]);
@@ -22,9 +31,13 @@ export const guestGuard: CanActivateFn = () => {
 
 export const clinicSignupGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
   if (!auth.isAuthenticated) {
     return true;
+  }
+  if (!session.ensureActive()) {
+    return false;
   }
   if (auth.onboardingComplete() || auth.accessGranted()) {
     return router.createUrlTree([auth.isSuspended() ? '/billing' : '/dashboard']);
@@ -40,9 +53,10 @@ export const clinicSignupGuard: CanActivateFn = () => {
 
 export const onboardingGuard: CanActivateFn = (_route, state) => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
-  if (!auth.isAuthenticated) {
-    return router.createUrlTree(['/login']);
+  if (!auth.isAuthenticated || !session.ensureActive()) {
+    return false;
   }
   if (auth.isSuperAdmin()) {
     return true;
@@ -60,25 +74,41 @@ export const onboardingGuard: CanActivateFn = (_route, state) => {
 
 export const superAdminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
+  if (!session.ensureActive()) {
+    return false;
+  }
   return auth.isSuperAdmin() || router.createUrlTree([auth.homePath()]);
 };
 
 export const staffGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
+  if (!session.ensureActive()) {
+    return false;
+  }
   return auth.isStaff() || auth.isSuperAdmin() || router.createUrlTree([auth.homePath()]);
 };
 
 export const medicalWriteGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
+  if (!session.ensureActive()) {
+    return false;
+  }
   return auth.hasPermission('MEDICAL_RECORD_WRITE') || auth.isSuperAdmin() || router.createUrlTree([auth.homePath()]);
 };
 
 export const billingAccessGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
   const router = inject(Router);
+  if (!session.ensureActive()) {
+    return false;
+  }
   if (auth.isSuperAdmin()) {
     return router.createUrlTree(['/dashboard']);
   }

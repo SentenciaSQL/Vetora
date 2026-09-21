@@ -9,6 +9,7 @@ import { ThemeService, ThemeMode } from './theme.service';
 const ACCESS = 'animalin.access';
 const REFRESH = 'animalin.refresh';
 const USER = 'animalin.user';
+const LAST_ACTIVITY = 'animalin.lastActivity';
 const LIVE_TENANT = ['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'GRACE_PERIOD', 'SUSPENDED', 'PAUSED', 'CANCELED', 'CANCELLED'];
 
 @Injectable({ providedIn: 'root' })
@@ -22,41 +23,50 @@ export class AuthService {
   accessToken = signal<string | null>(localStorage.getItem(ACCESS));
   refreshToken = signal<string | null>(localStorage.getItem(REFRESH));
 
+  constructor() {
+    window.addEventListener('storage', event => this.onStorage(event));
+  }
+
   get isAuthenticated(): boolean {
     return !!this.accessToken();
   }
 
   login(email: string, password: string, tenantSlug?: string): Observable<TokenResponse> {
     return this.api.post<TokenResponse>('/auth/login', { email, password, tenantSlug }).pipe(
-      tap(response => this.store(response))
+      tap(response => this.store(response, true))
     );
   }
 
   register(payload: Record<string, string>): Observable<TokenResponse> {
     return this.api.post<TokenResponse>('/auth/register', payload).pipe(
-      tap(response => this.store(response))
+      tap(response => this.store(response, true))
     );
   }
 
   refresh(): Observable<TokenResponse> {
     return this.api.post<TokenResponse>('/auth/refresh', { refreshToken: this.refreshToken() }).pipe(
-      tap(response => this.store(response))
+      tap(response => this.store(response, false))
     );
   }
 
   logout(): void {
+    this.endSession('MANUAL');
+    void this.router.navigate(['/login'], { replaceUrl: true });
+  }
+
+  endSession(reason = 'MANUAL'): void {
     const refresh = this.refreshToken();
-    if (refresh) {
-      this.api.post('/auth/logout', { refreshToken: refresh }).subscribe();
+    if (refresh && reason !== 'REMOTE') {
+      this.api.post('/auth/logout', { refreshToken: refresh, reason }).subscribe({ error: () => undefined });
     }
     this.clearSession();
-    void this.router.navigate(['/login']);
   }
 
   clearSession(): void {
     localStorage.removeItem(ACCESS);
     localStorage.removeItem(REFRESH);
     localStorage.removeItem(USER);
+    localStorage.removeItem(LAST_ACTIVITY);
     this.accessToken.set(null);
     this.refreshToken.set(null);
     this.user.set(null);
@@ -76,7 +86,7 @@ export class AuthService {
 
   switchTenant(tenantSlug: string) {
     return this.api.post<TokenResponse>('/auth/switch-tenant', { tenantSlug }).pipe(
-      tap(response => this.store(response))
+      tap(response => this.store(response, false))
     );
   }
 
@@ -218,12 +228,35 @@ export class AuthService {
     return '/dashboard';
   }
 
-  store(response: TokenResponse): void {
+  store(response: TokenResponse, resetActivity = false): void {
     localStorage.setItem(ACCESS, response.accessToken);
     localStorage.setItem(REFRESH, response.refreshToken);
     this.accessToken.set(response.accessToken);
     this.refreshToken.set(response.refreshToken);
     this.applyUser(response.user);
+    if (resetActivity) {
+      localStorage.setItem(LAST_ACTIVITY, String(Date.now()));
+    }
+  }
+
+  private onStorage(event: StorageEvent): void {
+    if (event.key === ACCESS) {
+      this.accessToken.set(event.newValue);
+    }
+    if (event.key === REFRESH) {
+      this.refreshToken.set(event.newValue);
+    }
+    if (event.key === USER) {
+      if (!event.newValue) {
+        this.user.set(null);
+        return;
+      }
+      try {
+        this.user.set(JSON.parse(event.newValue) as UserProfile);
+      } catch {
+        this.user.set(null);
+      }
+    }
   }
 
   private readUser(): UserProfile | null {

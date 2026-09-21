@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -18,15 +19,17 @@ public class JwtService {
 
     private final AnimalinProperties properties;
     private final SecretKey key;
+    private final Clock clock;
 
-    public JwtService(AnimalinProperties properties) {
+    public JwtService(AnimalinProperties properties, Clock clock) {
         this.properties = properties;
+        this.clock = clock;
         this.key = Keys.hmacShaKeyFor(properties.jwt().secret().getBytes(StandardCharsets.UTF_8));
     }
 
     public String createAccessToken(Long userId, String email, Long tenantId, List<String> roles, List<String> permissions) {
-        Instant now = Instant.now();
-        Instant exp = now.plusSeconds(properties.jwt().accessTokenMinutes() * 60);
+        Instant now = clock.instant();
+        Instant exp = now.plusSeconds(accessExpiresInSeconds());
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .issuedAt(Date.from(now))
@@ -50,6 +53,6 @@ public class JwtService {
     }
 
     public long accessExpiresInSeconds() {
-        return properties.jwt().accessTokenMinutes() * 60;
+        return properties.jwt().accessMinutes() * 60;
     }
 }

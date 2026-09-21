@@ -7,13 +7,44 @@ import java.util.List;
 @ConfigurationProperties(prefix = "animalin")
 public record AnimalinProperties(
         Jwt jwt,
+        Session session,
         Storage storage,
         Cors cors,
         Fcm fcm,
         Clinic clinic,
         Signup signup
 ) {
-    public record Jwt(String secret, long accessTokenMinutes, long refreshTokenDays) {
+    public record Jwt(String secret, long accessTokenMinutes, Long refreshTokenHours, Long refreshTokenDays) {
+        public long accessMinutes() {
+            return accessTokenMinutes > 0 ? accessTokenMinutes : 15;
+        }
+
+        public long refreshHours() {
+            if (refreshTokenHours != null && refreshTokenHours > 0) {
+                return refreshTokenHours;
+            }
+            if (refreshTokenDays != null && refreshTokenDays > 0) {
+                return refreshTokenDays * 24;
+            }
+            return 8;
+        }
+    }
+
+    public record Session(long inactivityTimeoutMinutes, long warningBeforeMinutes, long activityHeartbeatMinutes) {
+        public Session {
+            if (inactivityTimeoutMinutes <= 0) {
+                inactivityTimeoutMinutes = 30;
+            }
+            if (warningBeforeMinutes <= 0) {
+                warningBeforeMinutes = 2;
+            }
+            if (warningBeforeMinutes >= inactivityTimeoutMinutes) {
+                warningBeforeMinutes = Math.max(1, inactivityTimeoutMinutes / 15);
+            }
+            if (activityHeartbeatMinutes <= 0) {
+                activityHeartbeatMinutes = 5;
+            }
+        }
     }
 
     public record Storage(String provider, String localPath, String publicBaseUrl) {
@@ -66,5 +97,13 @@ public record AnimalinProperties(
 
     public int trialDays() {
         return signupOrDefault().trialDays();
+    }
+
+    public Session sessionOrDefault() {
+        return session == null ? new Session(30, 2, 5) : session;
+    }
+
+    public long inactivityTimeoutMinutes() {
+        return sessionOrDefault().inactivityTimeoutMinutes();
     }
 }

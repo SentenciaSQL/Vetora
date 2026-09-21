@@ -1,5 +1,7 @@
 package com.animalin.tenant;
 
+import com.animalin.auth.AuthDtos;
+import com.animalin.config.AnimalinProperties;
 import com.animalin.dto.AppDtos;
 import com.animalin.signup.ClinicSignupService;
 import com.animalin.signup.SignupDtos;
@@ -17,10 +19,19 @@ public class PublicController {
 
     private final BrandingService brandingService;
     private final ClinicSignupService signupService;
+    private final AnimalinProperties properties;
 
-    public PublicController(BrandingService brandingService, ClinicSignupService signupService) {
+    public PublicController(BrandingService brandingService, ClinicSignupService signupService,
+                            AnimalinProperties properties) {
         this.brandingService = brandingService;
         this.signupService = signupService;
+        this.properties = properties;
+    }
+
+    @GetMapping("/session-config")
+    public AuthDtos.SessionConfigResponse sessionConfig() {
+        AnimalinProperties.Session session = properties.sessionOrDefault();
+        return new AuthDtos.SessionConfigResponse(session.inactivityTimeoutMinutes(), session.warningBeforeMinutes());
     }
 
     @GetMapping("/plans")

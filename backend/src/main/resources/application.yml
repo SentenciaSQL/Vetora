@@ -44,8 +44,12 @@ server:
 animalin:
   jwt:
     secret: "animalin-dev-change-me-please-use-a-256-bit-secret-key!!"
-    access-token-minutes: 30
-    refresh-token-days: 14
+    access-token-minutes: ${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:15}
+    refresh-token-hours: ${JWT_REFRESH_TOKEN_EXPIRATION_HOURS:8}
+  session:
+    inactivity-timeout-minutes: ${SESSION_INACTIVITY_TIMEOUT_MINUTES:30}
+    warning-before-minutes: ${SESSION_WARNING_BEFORE_MINUTES:2}
+    activity-heartbeat-minutes: ${SESSION_ACTIVITY_HEARTBEAT_MINUTES:5}
   storage:
     provider: local
     local-path: ${user.home}/.animalin/uploads

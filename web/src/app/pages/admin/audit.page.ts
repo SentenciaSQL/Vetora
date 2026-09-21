@@ -2,6 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../core/services/api.service';
+import { SessionInactivityService } from '../../core/services/session-inactivity.service';
 import { PageResponse } from '../../core/models';
 
 @Component({
@@ -36,8 +37,12 @@ import { PageResponse } from '../../core/models';
 })
 export class AdminAuditPage implements OnInit {
   private api = inject(ApiService);
+  private session = inject(SessionInactivityService);
   rows = signal<any[]>([]);
   ngOnInit() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.api.get<PageResponse<any>>('/admin/audit', { size: 50 }).subscribe(p => this.rows.set(p.content || []));
   }
 }

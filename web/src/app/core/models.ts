@@ -39,6 +39,11 @@ export interface TokenResponse {
   user: UserProfile;
 }
 
+export interface SessionConfig {
+  inactivityTimeoutMinutes: number;
+  warningBeforeMinutes: number;
+}
+
 export interface PublicClinic {
   slug: string;
   name: string;
