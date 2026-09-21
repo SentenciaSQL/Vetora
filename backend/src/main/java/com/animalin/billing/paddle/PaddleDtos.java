@@ -200,8 +200,18 @@ public final class PaddleDtos {
             @JsonProperty("unit_price") UnitPrice unitPrice,
             @JsonProperty("billing_cycle") BillingCycle billingCycle,
             @JsonProperty("created_at") Instant createdAt,
-            @JsonProperty("updated_at") Instant updatedAt
+            @JsonProperty("updated_at") Instant updatedAt,
+            @JsonProperty("trial_period") TrialPeriod trialPeriod
     ) {
+        public Price(String id, String description, String status, String productId,
+                     UnitPrice unitPrice, BillingCycle billingCycle, Instant createdAt, Instant updatedAt) {
+            this(id, description, status, productId, unitPrice, billingCycle, createdAt, updatedAt, null);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record TrialPeriod(String interval, Integer frequency) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -240,12 +250,23 @@ public final class PaddleDtos {
             String description,
             @JsonProperty("product_id") String productId,
             @JsonProperty("unit_price") UnitPrice unitPrice,
-            @JsonProperty("billing_cycle") BillingCycle billingCycle
+            @JsonProperty("billing_cycle") BillingCycle billingCycle,
+            @JsonProperty("trial_period") TrialPeriod trialPeriod
     ) {
+        public CreatePriceRequest(String description, String productId, UnitPrice unitPrice, BillingCycle billingCycle) {
+            this(description, productId, unitPrice, billingCycle, null);
+        }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record UpdatePriceRequest(String status, String description) {
+    public record UpdatePriceRequest(
+            String status,
+            String description,
+            @JsonProperty("trial_period") TrialPeriod trialPeriod
+    ) {
+        public UpdatePriceRequest(String status, String description) {
+            this(status, description, null);
+        }
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
