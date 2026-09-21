@@ -1,4 +1,4 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpContextToken, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject, Injector } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, finalize, Observable, shareReplay, switchMap, throwError } from 'rxjs';
@@ -6,6 +6,8 @@ import { environment } from '../../../environments/environment';
 import { ApiErrorBody, TokenResponse } from '../models';
 import { AuthService } from '../services/auth.service';
 import { SessionInactivityService } from '../services/session-inactivity.service';
+
+export const AUTH_RETRIED = new HttpContextToken(() => false);
 
 let refresh$: Observable<TokenResponse> | null = null;
 
@@ -56,15 +58,24 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         void router.navigate(['/billing']);
         return throwError(() => error);
       }
-      if (error.status === 403) {
+      if (error.status === 403 || error.status === 400 || error.status === 404 || error.status === 409
+          || error.status === 422 || error.status === 500) {
         return throwError(() => error);
       }
       if (error.status !== 401 || skipAuth) {
         return throwError(() => error);
       }
       const session = injector.get(SessionInactivityService);
-      if (body?.code === 'SESSION_INACTIVE' || session.isExpired()) {
-        session.expire(body?.code === 'SESSION_INACTIVE' ? 'INACTIVITY' : 'INACTIVITY');
+      if (body?.code === 'SESSION_INACTIVE') {
+        session.expire('INACTIVITY');
+        return throwError(() => error);
+      }
+      if (req.context.get(AUTH_RETRIED)) {
+        session.expire('UNAUTHORIZED');
+        return throwError(() => error);
+      }
+      if (session.isExpired()) {
+        session.expire('INACTIVITY');
         return throwError(() => error);
       }
       if (!auth.refreshToken()) {
@@ -73,6 +84,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       }
       if (!refresh$) {
         refresh$ = auth.refresh().pipe(
+          catchError(refreshError => {
+            const refreshBody = (refreshError as HttpErrorResponse).error as ApiErrorBody | undefined;
+            session.expire(refreshBody?.code === 'SESSION_INACTIVE' ? 'INACTIVITY' : 'UNAUTHORIZED');
+            return throwError(() => refreshError);
+          }),
           shareReplay(1),
           finalize(() => {
             refresh$ = null;
@@ -80,15 +96,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         );
       }
       return refresh$.pipe(
-        switchMap(() => {
-          const retry = req.clone({ setHeaders: { Authorization: `Bearer ${auth.accessToken()}` } });
-          return next(retry);
-        }),
-        catchError(refreshError => {
-          const refreshBody = (refreshError as HttpErrorResponse).error as ApiErrorBody | undefined;
-          session.expire(refreshBody?.code === 'SESSION_INACTIVE' ? 'INACTIVITY' : 'UNAUTHORIZED');
-          return throwError(() => refreshError);
-        })
+        switchMap(() => next(authorized.clone({
+          setHeaders: { Authorization: `Bearer ${auth.accessToken()}` },
+          context: req.context.set(AUTH_RETRIED, true)
+        })))
       );
     })
   );

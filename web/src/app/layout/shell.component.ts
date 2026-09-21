@@ -7,6 +7,7 @@ import { debounceTime, distinctUntilChanged, filter, Subject } from 'rxjs';
 import { AuthService } from '../core/services/auth.service';
 import { BrandingService } from '../core/services/branding.service';
 import { BillingService } from '../core/services/billing.service';
+import { MessageInboxService } from '../core/services/message-inbox.service';
 import { ApiService } from '../core/services/api.service';
 import { SearchResult } from '../core/models';
 import { BrandMarkComponent } from '../shared/ui/brand-mark.component';
@@ -47,7 +48,13 @@ interface NavItem {
                 <app-nav-icon [name]="item.icon" />
               </span>
               @if (!collapsed()) {
-                <span>{{ item.label | translate }}</span>
+                <span class="min-w-0 flex-1 truncate">{{ item.label | translate }}</span>
+              }
+              @if (item.path === '/messages' && inbox.unreadMessages() > 0) {
+                <span class="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white"
+                      [attr.aria-label]="inbox.unreadMessages() + ' ' + ('messages.unreadShort' | translate)">
+                  {{ inbox.badge(inbox.unreadMessages()) }}
+                </span>
               }
             </a>
           }
@@ -84,8 +91,9 @@ interface NavItem {
           </div>
           <button type="button" class="relative rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:text-slate-100" (click)="loadNotes()">
             {{ 'nav.notifications' | translate }}
-            @if (unread() > 0) {
-              <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] text-white">{{ unread() }}</span>
+            @if (inbox.unreadNotifications() > 0) {
+              <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] text-white"
+                    [attr.aria-label]="inbox.unreadNotifications() + ' ' + ('nav.notifications' | translate)">{{ inbox.badge(inbox.unreadNotifications()) }}</span>
             }
           </button>
           <app-language-selector />
@@ -122,7 +130,11 @@ interface NavItem {
             @for (item of visibleNav(); track item.path) {
               <a [routerLink]="item.path" (click)="mobileOpen.set(false)" class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm">
                 <app-nav-icon [name]="item.icon" />
-                <span>{{ item.label | translate }}</span>
+                <span class="flex-1">{{ item.label | translate }}</span>
+                @if (item.path === '/messages' && inbox.unreadMessages() > 0) {
+                  <span class="grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] text-white"
+                        [attr.aria-label]="inbox.unreadMessages() + ' ' + ('messages.unreadShort' | translate)">{{ inbox.badge(inbox.unreadMessages()) }}</span>
+                }
               </a>
             }
           </div>
@@ -149,13 +161,13 @@ export class ShellComponent implements OnInit {
   auth = inject(AuthService);
   branding = inject(BrandingService);
   billing = inject(BillingService);
+  inbox = inject(MessageInboxService);
   private api = inject(ApiService);
   private router = inject(Router);
   collapsed = signal(false);
   mobileOpen = signal(false);
   query = '';
   results = signal<SearchResult | null>(null);
-  unread = signal(0);
   notesOpen = signal(false);
   notes = signal<any[]>([]);
   private search$ = new Subject<string>();
@@ -198,13 +210,16 @@ export class ShellComponent implements OnInit {
     if (item.permission && !this.auth.hasPermission(item.permission) && !this.auth.isSuperAdmin()) {
       return false;
     }
-    if (this.auth.isSuperAdmin() && ['/owners', '/pets', '/calendar'].includes(item.path)) {
+    if (this.auth.isSuperAdmin() && ['/owners', '/pets', '/calendar', '/messages'].includes(item.path)) {
       return false;
     }
     return true;
   }));
 
   ngOnInit(): void {
+    if (!this.auth.isSuperAdmin()) {
+      this.inbox.start();
+    }
     this.branding.loadForSession();
     if (this.auth.isStaff() && !this.auth.isSuperAdmin()) {
       this.billing.loadSubscription().subscribe(sub => {
@@ -212,9 +227,6 @@ export class ShellComponent implements OnInit {
           void this.router.navigate(['/billing']);
         }
       });
-    }
-    if (this.auth.isStaff()) {
-      this.api.get<{ count: number }>('/notifications/unread-count').subscribe(r => this.unread.set(r.count || 0));
     }
     this.search$.pipe(debounceTime(280), distinctUntilChanged()).subscribe(q => {
       if (!q || q.length < 2 || !this.auth.isStaff()) {
@@ -248,10 +260,14 @@ export class ShellComponent implements OnInit {
   }
 
   readNote(n: any): void {
-    this.api.post(`/notifications/${n.id}/read`, {}).subscribe(() => {
-      this.unread.update(v => Math.max(0, v - 1));
-      this.loadNotes();
+    this.api.post(`/notifications/${n.id}/read`, {}).subscribe({
+      next: () => this.inbox.refresh(),
+      error: () => undefined
     });
+    this.notesOpen.set(false);
+    if ((n.type === 'NEW_MESSAGE' || n.entityType === 'CONVERSATION') && n.entityId) {
+      void this.router.navigate(['/messages'], { queryParams: { conversation: n.entityId } });
+    }
   }
 
   switchClinic(slug: string): void {

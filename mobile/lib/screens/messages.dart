@@ -38,8 +38,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final m = await widget.auth.api.get('/messages/${convo['id']}');
     setState(() {
       current = convo;
-      messages = m as List? ?? [];
+      messages = _messageList(m);
     });
+    try {
+      await widget.auth.api.post('/messages/${convo['id']}/read', {});
+    } catch (_) {}
+  }
+
+  List _messageList(dynamic payload) {
+    if (payload is List) {
+      return payload;
+    }
+    if (payload is Map && payload['content'] is List) {
+      return payload['content'] as List;
+    }
+    return [];
   }
 
   Future<void> _send() async {

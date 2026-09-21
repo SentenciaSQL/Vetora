@@ -127,8 +127,8 @@ public class PlanLimitService {
     }
 
     public void assertCanSendMessage(Long tenantId) {
-        Long resolved = requireAuthenticatedTenant(tenantId);
-        Plan plan = requirePlan(resolved);
+        Long resolved = requirePlanTenant(tenantId);
+        Plan plan = requirePlanUnchecked(resolved);
         assertMessagingEnabled(resolved);
         Instant from = YearMonth.from(clock.instant().atZone(ZoneOffset.UTC)).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         long count = messageRepository.countByTenantIdAndCreatedAtGreaterThanEqual(resolved, from);
@@ -145,7 +145,7 @@ public class PlanLimitService {
     }
 
     public void assertMessagingEnabled(Long tenantId) {
-        Plan plan = requirePlan(tenantId);
+        Plan plan = requirePlanUnchecked(requirePlanTenant(tenantId));
         if (!plan.isMessagingEnabled()) {
             throw feature("messaging", plan, "plan.feature.messaging");
         }
@@ -173,13 +173,26 @@ public class PlanLimitService {
         );
     }
 
+    private Long requirePlanTenant(Long tenantId) {
+        if (TenantContext.isSuperAdmin()) {
+            return tenantId;
+        }
+        if (TenantContext.isPetOwner()) {
+            if (tenantId == null) {
+                throw ApiException.forbidden("Esta operación requiere un contexto de veterinaria");
+            }
+            return tenantId;
+        }
+        return requireAuthenticatedTenant(tenantId);
+    }
+
     private Long requireAuthenticatedTenant(Long tenantId) {
         if (TenantContext.isSuperAdmin()) {
             return tenantId;
         }
         Long current = TenantContext.tenantIdOrNull();
         if (current == null) {
-            throw ApiException.unauthorized("No hay un tenant autenticado");
+            throw ApiException.forbidden("Esta operación requiere un contexto de veterinaria");
         }
         if (tenantId != null && !current.equals(tenantId)) {
             throw ApiException.forbidden("No puede consultar los límites de otra veterinaria");
