@@ -66,5 +66,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Lunaveta usa la galería para actualizar la foto de la mascota.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Lunaveta usa la cámara para actualizar la foto de la mascota.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+	</array>
 </dict>
 </plist>

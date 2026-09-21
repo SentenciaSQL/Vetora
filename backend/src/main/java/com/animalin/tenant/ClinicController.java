@@ -21,4 +21,9 @@ public class ClinicController {
     public List<AppDtos.PublicClinicResponse> list() {
         return brandingService.listPublicClinics();
     }
+
+    @GetMapping("/related")
+    public List<AppDtos.PublicClinicResponse> related() {
+        return brandingService.relatedClinics();
+    }
 }

@@ -18,7 +18,11 @@ public final class AppDtos {
             String commercialName,
             String city,
             String country,
-            String logoUrl
+            String logoUrl,
+            String phone,
+            String email,
+            String address,
+            String timezone
     ) {
     }
 
