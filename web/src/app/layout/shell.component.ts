@@ -82,7 +82,7 @@ interface NavItem {
               </div>
             }
           </div>
-          <button type="button" class="relative rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" (click)="loadNotes()">
+          <button type="button" class="relative rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:text-slate-100" (click)="loadNotes()">
             {{ 'nav.notifications' | translate }}
             @if (unread() > 0) {
               <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] text-white">{{ unread() }}</span>

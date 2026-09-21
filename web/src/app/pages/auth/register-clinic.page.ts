@@ -38,8 +38,10 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
 
       <ol class="mb-8 grid grid-cols-4 gap-2 text-center text-xs font-medium sm:text-sm">
         @for (label of steps; track label; let i = $index) {
-          <li class="rounded-full px-2 py-2" [class.bg-brand-600]="step() === i + 1" [class.text-white]="step() === i + 1"
-              [class.bg-slate-100]="step() !== i + 1">
+          <li class="rounded-full px-2 py-2"
+              [ngClass]="step() === i + 1
+                ? 'bg-brand-600 text-white'
+                : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200'">
             {{ i + 1 }}. {{ label | translate }}
           </li>
         }

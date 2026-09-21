@@ -13,16 +13,16 @@ export class StatusBadgePipe implements PipeTransform {
       COMPLETED: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200',
       CANCELLED: 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200',
       NO_SHOW: 'bg-orange-50 text-orange-800 dark:bg-orange-500/10 dark:text-orange-200',
-      ACTIVE: 'bg-emerald-50 text-emerald-800',
-      TRIAL: 'bg-sky-50 text-sky-800',
-      SUSPENDED: 'bg-rose-50 text-rose-700',
-      UP_TO_DATE: 'bg-emerald-50 text-emerald-800',
-      DUE_SOON: 'bg-amber-50 text-amber-800',
-      OVERDUE: 'bg-rose-50 text-rose-700',
+      ACTIVE: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200',
+      TRIAL: 'bg-sky-50 text-sky-800 dark:bg-sky-500/10 dark:text-sky-200',
+      SUSPENDED: 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200',
+      UP_TO_DATE: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200',
+      DUE_SOON: 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200',
+      OVERDUE: 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200',
       GRACE_PERIOD: 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200',
-      PAST_DUE: 'bg-orange-50 text-orange-800',
-      CANCELED: 'bg-rose-50 text-rose-700'
+      PAST_DUE: 'bg-orange-50 text-orange-800 dark:bg-orange-500/10 dark:text-orange-200',
+      CANCELED: 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200'
     };
-    return `badge ${map[status || ''] || 'bg-slate-100 text-slate-600'}`;
+    return `badge ${map[status || ''] || 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-200'}`;
   }
 }
