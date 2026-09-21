@@ -15,7 +15,7 @@ public class OpenApiConfig {
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Animexa API")
+                        .title("Lunaveta API")
                         .version("v1")
                         .description("Plataforma SaaS veterinaria multi-tenant"))
                 .components(new Components().addSecuritySchemes("bearer-jwt",

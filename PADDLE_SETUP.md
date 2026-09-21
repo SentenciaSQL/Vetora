@@ -1,4 +1,4 @@
-# Paddle Billing setup — Animexa / Vetora
+# Paddle Billing setup — Lunaveta / Vetora
 
 Spring Boot is the source of truth for Paddle Billing. Angular only uses the public client-side token. There is no Next.js, Node, or Route Handler in this integration.
 
