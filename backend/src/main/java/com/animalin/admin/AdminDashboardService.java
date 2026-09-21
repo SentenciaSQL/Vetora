@@ -727,7 +727,10 @@ public class AdminDashboardService {
 
     private String tenantsCsv(String plan, String status, String country) {
         StringBuilder out = new StringBuilder("id,nombre,slug,estado,plan,pais,creada\n");
-        for (Tenant tenant : tenantRepository.findFiltered(status, plan, country)) {
+        List<Tenant> tenants = plan == null && status == null && country == null
+                ? tenantRepository.findAll()
+                : tenantRepository.findFiltered(status, plan, country);
+        for (Tenant tenant : tenants) {
             out.append(csv(tenant.getId(), tenant.getName(), tenant.getSlug(), tenant.getStatus(),
                     tenant.getPlan() == null ? "" : tenant.getPlan().getCode(),
                     tenant.getCountry(), tenant.getCreatedAt()));

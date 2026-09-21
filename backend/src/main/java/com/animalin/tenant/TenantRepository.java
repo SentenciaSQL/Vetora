@@ -23,19 +23,21 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
     @Query("""
             select count(t) from Tenant t
+            left join t.plan p
             where t.deleted = false
               and (:country is null or t.country = :country)
-              and (:planCode is null or t.plan.code = :planCode)
+              and (:planCode is null or p.code = :planCode)
               and (:status is null or t.status = :status)
             """)
     long countFiltered(@Param("country") String country, @Param("planCode") String planCode, @Param("status") String status);
 
     @Query("""
             select count(t) from Tenant t
+            left join t.plan p
             where t.deleted = false
               and t.createdAt >= :from and t.createdAt < :to
               and (:country is null or t.country = :country)
-              and (:planCode is null or t.plan.code = :planCode)
+              and (:planCode is null or p.code = :planCode)
               and (:status is null or t.status = :status)
             """)
     long countCreatedBetween(@Param("from") Instant from, @Param("to") Instant to,
@@ -64,9 +66,10 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
     @Query("""
             select t from Tenant t
+            left join t.plan p
             where t.deleted = false
               and (:status is null or t.status = :status)
-              and (:planCode is null or t.plan.code = :planCode)
+              and (:planCode is null or p.code = :planCode)
               and (:country is null or t.country = :country)
             order by t.name
             """)
