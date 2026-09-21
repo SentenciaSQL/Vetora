@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/widgets.dart';
 
 class BookScreen extends StatefulWidget {
   const BookScreen({super.key, required this.auth, required this.pets});
@@ -117,9 +118,10 @@ class _BookScreenState extends State<BookScreen> {
                 ListTile(
                   title: Text('${p['name']}'),
                   subtitle: Text('${p['tenantName'] ?? ''}'),
-                  leading: (p['tenantLogoUrl'] as String?)?.isNotEmpty == true
-                      ? CircleAvatar(backgroundImage: NetworkImage(p['tenantLogoUrl']))
-                      : const CircleAvatar(child: Icon(Icons.pets)),
+                  leading: RemoteCircleAvatar(
+                    url: asString(p['tenantLogoUrl']),
+                    fallbackIcon: Icons.pets,
+                  ),
                   onTap: () async {
                     pet = p as Map;
                     await loadCatalog();

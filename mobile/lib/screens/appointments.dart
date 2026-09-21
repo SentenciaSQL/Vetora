@@ -195,9 +195,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                         for (final a in items)
                           Card(
                             child: ListTile(
-                              leading: asString(a['tenantLogoUrl']).isNotEmpty
-                                  ? CircleAvatar(backgroundImage: NetworkImage(a['tenantLogoUrl']))
-                                  : const CircleAvatar(child: Icon(Icons.local_hospital_outlined)),
+                              leading: RemoteCircleAvatar(url: asString(a['tenantLogoUrl'])),
                               title: Text('${a['petName'] ?? a['pet'] ?? ''} · ${a['serviceName'] ?? ''}'),
                               subtitle: Text('${formatDate(a['startAt'])}\n${a['tenantName'] ?? a['owner'] ?? ''} · ${a['veterinarianName'] ?? a['veterinarian'] ?? ''} · ${a['status']}'),
                               isThreeLine: true,

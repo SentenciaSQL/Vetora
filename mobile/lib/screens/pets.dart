@@ -103,9 +103,9 @@ class _PetsScreenState extends State<PetsScreen> {
                         for (final pet in pets)
                           Card(
                             child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundImage: asString(pet['photoUrl']).isNotEmpty ? NetworkImage(pet['photoUrl']) : null,
-                                child: asString(pet['photoUrl']).isNotEmpty ? null : Text(asString(pet['name'], '?').substring(0, 1)),
+                              leading: RemoteCircleAvatar(
+                                url: asString(pet['photoUrl']),
+                                fallbackText: asString(pet['name'], '?'),
                               ),
                               title: Text(asString(pet['name'])),
                               subtitle: Text('${pet['breed'] ?? pet['species'] ?? ''} · ${pet['tenantName'] ?? pet['ownerName'] ?? ''}'),

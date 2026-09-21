@@ -101,9 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: InkWell(
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetDetailScreen(auth: widget.auth, pet: asMap(pet)))),
                         child: Chip(
-                          avatar: CircleAvatar(
-                            backgroundImage: asString(pet['photoUrl']).isNotEmpty ? NetworkImage(pet['photoUrl']) : null,
-                            child: asString(pet['photoUrl']).isNotEmpty ? null : Text(asString(pet['name'], '?').substring(0, 1)),
+                          avatar: RemoteCircleAvatar(
+                            url: asString(pet['photoUrl']),
+                            radius: 12,
+                            fallbackText: asString(pet['name'], '?'),
                           ),
                           label: Text(asString(pet['name'])),
                         ),

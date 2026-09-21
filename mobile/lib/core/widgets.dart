@@ -43,6 +43,66 @@ class StatusView extends StatelessWidget {
   }
 }
 
+class RemoteImage extends StatelessWidget {
+  const RemoteImage(this.url, {super.key, this.height, this.width, this.fit = BoxFit.cover, this.fallback});
+
+  final String url;
+  final double? height;
+  final double? width;
+  final BoxFit fit;
+  final Widget? fallback;
+
+  @override
+  Widget build(BuildContext context) {
+    if (url.trim().isEmpty) {
+      return fallback ?? const SizedBox.shrink();
+    }
+    return Image.network(
+      url,
+      height: height,
+      width: width,
+      fit: fit,
+      errorBuilder: (_, __, ___) => fallback ?? const SizedBox.shrink(),
+    );
+  }
+}
+
+class RemoteCircleAvatar extends StatelessWidget {
+  const RemoteCircleAvatar({super.key, this.url, this.radius = 20, this.fallbackIcon, this.fallbackText});
+
+  final String? url;
+  final double radius;
+  final IconData? fallbackIcon;
+  final String? fallbackText;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = (url ?? '').trim();
+    final fallback = fallbackText != null && fallbackText!.isNotEmpty
+        ? Text(fallbackText!.substring(0, 1).toUpperCase())
+        : Icon(fallbackIcon ?? Icons.local_hospital_outlined);
+    if (imageUrl.isEmpty) {
+      return CircleAvatar(radius: radius, child: fallback);
+    }
+    return CircleAvatar(
+      radius: radius,
+      child: ClipOval(
+        child: Image.network(
+          imageUrl,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => SizedBox(
+            width: radius * 2,
+            height: radius * 2,
+            child: Center(child: fallback),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class CountBadge extends StatelessWidget {
   const CountBadge({super.key, required this.count, this.label});
   final int count;
