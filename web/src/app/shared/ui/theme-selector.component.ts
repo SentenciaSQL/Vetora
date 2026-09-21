@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeMode, ThemeService } from '../../core/services/theme.service';
@@ -6,12 +7,13 @@ import { ThemeMode, ThemeService } from '../../core/services/theme.service';
 @Component({
   selector: 'app-theme-selector',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [FormsModule, TranslatePipe],
   template: `
     <label class="sr-only" for="theme-select">{{ 'theme.label' | translate }}</label>
     <select id="theme-select"
             class="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-            [value]="theme.mode()" (change)="change($any($event.target).value)">
+            [ngModel]="theme.mode()"
+            (ngModelChange)="change($event)">
       <option value="light">{{ 'theme.light' | translate }}</option>
       <option value="dark">{{ 'theme.dark' | translate }}</option>
       <option value="system">{{ 'theme.system' | translate }}</option>
@@ -24,8 +26,9 @@ export class ThemeSelectorComponent {
 
   change(mode: ThemeMode): void {
     this.theme.set(mode);
-    if (this.auth.isAuthenticated) {
-      this.auth.patchMe({ theme: mode }).subscribe();
+    if (!this.auth.isAuthenticated) {
+      return;
     }
+    this.auth.patchMe({ theme: mode }).subscribe({ error: () => undefined });
   }
 }

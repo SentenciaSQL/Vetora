@@ -16,9 +16,10 @@ export class ThemeService {
   }
 
   set(mode: ThemeMode): void {
-    this.mode.set(mode);
-    localStorage.setItem('animalin.theme', mode);
-    this.apply(mode);
+    const resolved: ThemeMode = mode === 'light' || mode === 'dark' || mode === 'system' ? mode : 'system';
+    this.mode.set(resolved);
+    localStorage.setItem('animalin.theme', resolved);
+    this.apply(resolved);
   }
 
   private apply(mode: ThemeMode): void {
