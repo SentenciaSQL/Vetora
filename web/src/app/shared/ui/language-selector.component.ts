@@ -7,7 +7,8 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   template: `
     <label class="sr-only" for="lang-select">Language</label>
-    <select id="lang-select" class="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+    <select id="lang-select"
+            class="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             [value]="i18n.getCurrentLang() || 'es'" (change)="change($any($event.target).value)">
       <option value="es">ES</option>
       <option value="en">EN</option>
