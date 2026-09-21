@@ -55,9 +55,14 @@ public class NotificationService {
                 .map(n -> NotificationDto.from(n, locale));
     }
 
+    @Transactional
+    public void markConversationRead(Long userId, Long conversationId) {
+        notificationRepository.markReadByEntity(userId, "CONVERSATION", conversationId, Instant.now());
+    }
+
     @Transactional(readOnly = true)
     public long unreadCount() {
-        return notificationRepository.countByUserIdAndReadAtIsNull(TenantContext.userId());
+        return notificationRepository.countByUserIdAndReadAtIsNullAndTypeNot(TenantContext.userId(), "NEW_MESSAGE");
     }
 
     @Transactional

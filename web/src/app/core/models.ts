@@ -422,6 +422,32 @@ export interface ChangePreview {
   message?: string | null;
 }
 
+export interface ConversationSummary {
+  id: number;
+  subject?: string;
+  tenantId?: number;
+  tenantName?: string;
+  petName?: string;
+  ownerName?: string;
+  title?: string;
+  lastMessage?: string;
+  updatedAt?: string;
+  unread: number;
+}
+
+export interface ChatMessage {
+  id: number;
+  senderId: number;
+  senderName: string;
+  body: string;
+  createdAt: string;
+  readAt?: string | null;
+}
+
+export interface UnreadCount {
+  count: number;
+}
+
 export interface ApiErrorBody {
   timestamp?: string;
   status: number;
