@@ -4,6 +4,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../../core/services/api.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 import { BillingService } from '../../../core/services/billing.service';
 import { SignupService } from '../../../core/services/signup.service';
 import { StaffInvite } from '../../../core/models';
@@ -119,6 +120,7 @@ export class TeamPage implements OnInit {
   private signup = inject(SignupService);
   private billing = inject(BillingService);
   auth = inject(AuthService);
+  private session = inject(SessionInactivityService);
   rows = signal<any[]>([]);
   staff = signal<any[]>([]);
   invites = signal<StaffInvite[]>([]);
@@ -157,24 +159,36 @@ export class TeamPage implements OnInit {
     });
   }
   save() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.api.post('/veterinarians', this.form.value).subscribe({
       next: () => { this.toast.show('common.saved'); this.open = false; this.ngOnInit(); },
       error: (e) => this.toast.show(e.error?.message || 'common.error', true)
     });
   }
   saveStaff() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.api.post('/employees', this.staffForm.value).subscribe({
       next: () => { this.toast.show('common.saved'); this.openStaff = false; this.ngOnInit(); },
       error: (e) => this.toast.show(e.error?.message || 'common.error', true)
     });
   }
   sendInvite() {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.signup.invite(this.inviteForm.getRawValue() as { email: string; role: string; firstName?: string; lastName?: string }).subscribe({
       next: () => { this.toast.show('team.inviteSent'); this.openInvite = false; this.ngOnInit(); },
       error: (e) => this.toast.show(e.error?.message || 'common.error', true)
     });
   }
   cancelInvite(id: number) {
+    if (!this.session.ensureActive()) {
+      return;
+    }
     this.signup.cancelInvite(id).subscribe({
       next: () => this.ngOnInit(),
       error: (e) => this.toast.show(e.error?.message || 'common.error', true)

@@ -421,11 +421,14 @@ public class ClinicSignupService {
 
     @Transactional
     public AuthDtos.TokenResponse tokensForCurrentOwner() {
+        authService.requireActiveSession();
         User user = requireOwner();
         List<TenantMembership> memberships = membershipRepository.findActiveByUserId(user.getId());
         ClinicSignup signup = currentSignup(user.getId());
         Tenant tenant = tenantOf(signup);
-        return authService.issueTokens(user, tenant, memberships);
+        return authService.issueTokens(user, tenant, memberships,
+                authService.lastActivityForUser(user.getId()),
+                authService.refreshExpiryForUser(user.getId()));
     }
 
     private AuthDtos.TokenResponse resumeExisting(User existing, String password) {

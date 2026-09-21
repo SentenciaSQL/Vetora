@@ -39,31 +39,52 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
             if (header != null && header.startsWith("Bearer ")) {
                 String token = header.substring(7);
-                Claims claims = jwtService.parse(token);
-                Long userId = Long.valueOf(claims.getSubject());
-                Long tenantId = toNullableTenant(claims.get("tenantId"));
-                principalLoader.load(userId, tenantId).ifPresent(principal -> {
-                    TenantContext.set(principal);
-                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-                    principal.roles().forEach(r -> authorities.add(new SimpleGrantedAuthority("ROLE_" + r)));
-                    principal.permissions().forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
-                    SecurityContextHolder.getContext().setAuthentication(
-                            new UsernamePasswordAuthenticationToken(principal, token, authorities)
-                    );
-                    if (tenantId != null) {
-                        Session session = entityManager.unwrap(Session.class);
-                        session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
+                try {
+                    Claims claims = jwtService.parse(token);
+                    Long userId = Long.valueOf(claims.getSubject());
+                    Long tenantId = toNullableTenant(claims.get("tenantId"));
+                    principalLoader.load(userId, tenantId).ifPresent(principal -> {
+                        TenantContext.set(principal);
+                        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                        principal.roles().forEach(r -> authorities.add(new SimpleGrantedAuthority("ROLE_" + r)));
+                        principal.permissions().forEach(p -> authorities.add(new SimpleGrantedAuthority(p)));
+                        SecurityContextHolder.getContext().setAuthentication(
+                                new UsernamePasswordAuthenticationToken(principal, token, authorities)
+                        );
+                        if (tenantId != null) {
+                            Session session = entityManager.unwrap(Session.class);
+                            session.enableFilter("tenantFilter").setParameter("tenantId", tenantId);
+                        }
+                    });
+                } catch (JwtException ex) {
+                    if (!isAnonymousAuthPath(request)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"status\":401,\"code\":\"INVALID_TOKEN\",\"message\":\"Token inválido o expirado\"}");
+                        return;
                     }
-                });
+                }
             }
             filterChain.doFilter(request, response);
-        } catch (JwtException ex) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"status\":401,\"code\":\"INVALID_TOKEN\",\"message\":\"Token inválido o expirado\"}");
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private boolean isAnonymousAuthPath(HttpServletRequest request) {
+        String uri = request.getRequestURI() == null ? "" : request.getRequestURI();
+        return uri.contains("/auth/logout")
+                || uri.contains("/auth/login")
+                || uri.contains("/auth/register")
+                || uri.contains("/auth/refresh")
+                || uri.contains("/auth/forgot-password")
+                || uri.contains("/auth/reset-password")
+                || uri.contains("/auth/verify-email")
+                || uri.contains("/auth/resend-verification")
+                || uri.contains("/auth/invite")
+                || uri.contains("/auth/accept-invite")
+                || uri.contains("/public/")
+                || uri.contains("/billing/webhooks/paddle");
     }
 
     private Long toNullableTenant(Object raw) {
