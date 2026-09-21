@@ -115,7 +115,7 @@ flutter pub get
 flutter run --dart-define=API_URL=http://10.0.2.2:8080/api/v1
 ```
 
-En iOS simulador use `http://localhost:8080/api/v1`. FCM queda preparado en `lib/core/push.dart` (registrar token en `POST /api/v1/notifications/push-token`).
+En iOS simulador use `http://localhost:8080/api/v1`. Los mensajes nuevos envían una notificación push al resto de participantes. La app registra el dispositivo con `POST /api/v1/devices` y lo desactiva con `DELETE /api/v1/devices/current`. El endpoint anterior `POST /api/v1/notifications/push-token` sigue activo y escribe en la misma tabla.
 
 La app de propietarios consume `GET /api/v1/dashboard` (próxima cita, vacuna y tratamientos), el catálogo por veterinaria (`/branches|services|veterinarians/tenant/{id}`) y el branding embebido en mascotas y citas (`tenantName`, `tenantLogoUrl`).
 
@@ -159,4 +159,41 @@ Cubierto en esta base:
 
 Aún preparado, no obligatorio para el MVP:
 
-- Pasarela de pago, S3/Cloudinary en producción, FCM real, drag & drop del calendario, reportes PDF, inventario/POS/facturación.
+- Pasarela de pago, S3/Cloudinary en producción, drag & drop del calendario, reportes PDF, inventario/POS/facturación.
+
+## Notificaciones push (FCM)
+
+El envío real usa Firebase Admin en el API. Si `FCM_ENABLED=false`, el backend arranca y guarda los mensajes sin contactar a Firebase. Si está en `true` y faltan credenciales, arranca igual y deja el envío desactivado, con un error en el log que no incluye el secreto.
+
+Variables del servicio API en Railway:
+
+| Variable | Valor |
+| --- | --- |
+| `FCM_ENABLED` | `true` en producción |
+| `FIREBASE_PROJECT_ID` | `lunaveta-68cc1` |
+| `FIREBASE_SERVICE_ACCOUNT_BASE64` | contenido Base64 del JSON de la cuenta de servicio |
+
+Generar el Base64 sin publicar el archivo:
+
+```bash
+# Linux
+base64 -w 0 firebase-service-account.json
+
+# macOS
+base64 -i firebase-service-account.json | tr -d '\n'
+```
+
+En Firebase Console: Project settings → Service accounts → Generate new private key. Pegue el resultado solo en Railway. No lo suba al repositorio ni lo imprima en logs.
+
+Android ya usa el paquete `com.sentenciasql.lunaveta` y el plugin de Google Services. Coloque `google-services.json` del proyecto `lunaveta-68cc1` en `mobile/android/app/google-services.json`. Ese archivo de cliente está en `.gitignore`.
+
+iOS queda preparado, pero falta configuración manual porque no hay cuenta de Apple ni clave APNs en este repositorio:
+
+1. Registrar la app iOS en Firebase con el bundle actual `com.example.animalin`.
+2. Descargar `GoogleService-Info.plist` y colocarlo en `mobile/ios/Runner/GoogleService-Info.plist` (también está en `.gitignore`).
+3. En Apple Developer crear una clave APNs (`.p8`). No la suba al repositorio.
+4. En Firebase → Cloud Messaging → Apple app, cargar la clave, el Key ID y el Team ID.
+5. En Xcode confirmar Push Notifications y Background Modes → Remote notifications. El proyecto ya incluye `Runner.entitlements` con `aps-environment=development` y `UIBackgroundModes=remote-notification`.
+6. Para App Store cambie `aps-environment` a `production`.
+
+Sin ese plist y sin la clave APNs, Android puede recibir pushes y iOS queda compilable, pero el token de iOS no se emitirá.

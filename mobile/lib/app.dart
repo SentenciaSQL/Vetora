@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'core/auth.dart';
 import 'core/l10n.dart';
+import 'core/notification_router.dart';
+import 'core/push.dart';
 import 'core/theme.dart';
 import 'screens/login.dart';
 import 'screens/shell.dart';
@@ -19,8 +21,12 @@ class _VetoraAppState extends State<VetoraApp> {
   @override
   void initState() {
     super.initState();
-    auth.restore().then((_) {
+    auth.restore().then((_) async {
+      await NotificationRouter.instance.restore();
       if (mounted) setState(() => ready = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        PushService.start(auth);
+      });
     });
   }
 
@@ -66,6 +72,7 @@ class _VetoraAppState extends State<VetoraApp> {
       animation: Listenable.merge([auth, I18n.instance, auth.inbox]),
       builder: (context, _) {
         return MaterialApp(
+          navigatorKey: NotificationRouter.navigatorKey,
           title: 'Lunaveta',
           debugShowCheckedModeBanner: false,
           locale: Locale(I18n.instance.locale),

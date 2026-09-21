@@ -7,6 +7,7 @@ import 'api.dart';
 import 'format.dart';
 import 'inbox.dart';
 import 'l10n.dart';
+import 'notification_router.dart';
 import 'push.dart';
 
 class AuthStore extends ChangeNotifier {
@@ -209,6 +210,11 @@ class AuthStore extends ChangeNotifier {
     inbox.stop();
     _checkTimer?.cancel();
     final refresh = refreshToken;
+    final keepDestination = reason == 'UNAUTHORIZED' || reason == 'INACTIVITY';
+    final installationId = await _storage.read(key: 'installationId');
+    final permissionAsked = await _storage.read(key: 'notificationsPermissionRequested');
+    final pendingConversation = keepDestination ? await _storage.read(key: NotificationRouter.pendingConversationKey) : null;
+    final pendingMessage = keepDestination ? await _storage.read(key: NotificationRouter.pendingMessageKey) : null;
     if (refresh != null && reason != 'REMOTE' && reason != 'ACCOUNT_DELETED') {
       try {
         await http.post(
@@ -219,13 +225,29 @@ class AuthStore extends ChangeNotifier {
       } catch (_) {}
     }
     await PushService.unregister(api);
+    if (!keepDestination) {
+      await NotificationRouter.instance.clearDestination();
+    }
     accessToken = null;
     refreshToken = null;
     user = null;
     subscription = null;
     warningOpen = false;
     refreshRejected = false;
+    NotificationRouter.instance.loggedIn = false;
     await _storage.deleteAll();
+    if (installationId != null && installationId.isNotEmpty) {
+      await _storage.write(key: 'installationId', value: installationId);
+    }
+    if (permissionAsked != null && permissionAsked.isNotEmpty) {
+      await _storage.write(key: 'notificationsPermissionRequested', value: permissionAsked);
+    }
+    if (keepDestination && pendingConversation != null && pendingConversation.isNotEmpty) {
+      await _storage.write(key: NotificationRouter.pendingConversationKey, value: pendingConversation);
+      if (pendingMessage != null && pendingMessage.isNotEmpty) {
+        await _storage.write(key: NotificationRouter.pendingMessageKey, value: pendingMessage);
+      }
+    }
     _closing = false;
     notifyListeners();
   }
@@ -236,6 +258,7 @@ class AuthStore extends ChangeNotifier {
     await _loadSubscription();
     inbox.start();
     await PushService.register(api);
+    NotificationRouter.instance.setLoggedIn(true);
     _startWatchdog();
   }
 

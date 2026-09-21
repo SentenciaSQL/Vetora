@@ -47,6 +47,15 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 16)
     private String theme = "system";
 
+    @Column(name = "message_push_enabled", nullable = false)
+    private boolean messagePushEnabled = true;
+
+    @Column(name = "message_preview_enabled", nullable = false)
+    private boolean messagePreviewEnabled = true;
+
+    @Column(name = "message_sound_enabled", nullable = false)
+    private boolean messageSoundEnabled = true;
+
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
@@ -128,6 +137,24 @@ public class User extends BaseEntity {
     }
     public void setTheme(String theme) {
         this.theme = theme;
+    }
+    public boolean isMessagePushEnabled() {
+        return messagePushEnabled;
+    }
+    public void setMessagePushEnabled(boolean messagePushEnabled) {
+        this.messagePushEnabled = messagePushEnabled;
+    }
+    public boolean isMessagePreviewEnabled() {
+        return messagePreviewEnabled;
+    }
+    public void setMessagePreviewEnabled(boolean messagePreviewEnabled) {
+        this.messagePreviewEnabled = messagePreviewEnabled;
+    }
+    public boolean isMessageSoundEnabled() {
+        return messageSoundEnabled;
+    }
+    public void setMessageSoundEnabled(boolean messageSoundEnabled) {
+        this.messageSoundEnabled = messageSoundEnabled;
     }
     public boolean isEmailVerified() {
         return emailVerified;

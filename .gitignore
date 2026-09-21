@@ -20,3 +20,6 @@ uploads/
 backend/application-secrets.properties
 *.properties
 mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+*firebase-adminsdk*.json
+**/serviceAccountKey.json

@@ -216,14 +216,21 @@ public class MessagingService {
         own.setLastReadAt(clock.instant());
         own.setLastReadMessageId(message.getId());
         readStateRepository.save(own);
-        String preview = body.length() > 120 ? body.substring(0, 120) : body;
-        conversation.getParticipants().stream()
-                .filter(user -> !user.getId().equals(sender.getId()))
-                .forEach(user -> notificationService.notifyUser(conversation.getTenantId(), user.getId(),
-                        "NEW_MESSAGE",
-                        "Nuevo mensaje de " + sender.fullName(),
-                        "New message from " + sender.fullName(),
-                        preview, preview, "CONVERSATION", conversation.getId()));
+        List<Long> recipientIds = conversation.getParticipants().stream()
+                .map(User::getId)
+                .filter(userId -> userId != null && !userId.equals(sender.getId()))
+                .distinct()
+                .toList();
+        for (Long userId : recipientIds) {
+            notificationService.notifyChatMessage(
+                    conversation.getTenantId(),
+                    userId,
+                    sender.getId(),
+                    sender.fullName(),
+                    conversation.getId(),
+                    message.getId(),
+                    body);
+        }
         return toMessage(message);
     }
 

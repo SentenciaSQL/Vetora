@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +32,17 @@ public class NotificationController {
         return Map.of("count", notificationService.unreadCount());
     }
 
+    @GetMapping("/preferences")
+    public NotificationService.NotificationPreferences preferences() {
+        return notificationService.preferences();
+    }
+
+    @PutMapping("/preferences")
+    public NotificationService.NotificationPreferences updatePreferences(@RequestBody(required = false) PreferenceUpdate request) {
+        PreferenceUpdate body = request == null ? new PreferenceUpdate(null, null, null) : request;
+        return notificationService.updatePreferences(body.messagePushEnabled(), body.messagePreviewEnabled(), body.messageSoundEnabled());
+    }
+
     @PostMapping("/{id}/read")
     public void read(@PathVariable Long id) {
         notificationService.markRead(id);
@@ -45,5 +57,8 @@ public class NotificationController {
     @DeleteMapping("/push-token")
     public void deletePushToken(@RequestBody(required = false) Map<String, String> body) {
         notificationService.unregisterPushToken(body == null ? null : body.get("token"));
+    }
+
+    public record PreferenceUpdate(Boolean messagePushEnabled, Boolean messagePreviewEnabled, Boolean messageSoundEnabled) {
     }
 }

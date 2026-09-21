@@ -53,7 +53,15 @@ public record AnimalinProperties(
     public record Cors(List<String> allowedOrigins) {
     }
 
-    public record Fcm(boolean enabled) {
+    public record Fcm(boolean enabled, String projectId, String serviceAccountBase64) {
+        public Fcm {
+            if (projectId == null) {
+                projectId = "";
+            }
+            if (serviceAccountBase64 == null) {
+                serviceAccountBase64 = "";
+            }
+        }
     }
 
     public record Clinic(String defaultLocale, String defaultTimezone) {
