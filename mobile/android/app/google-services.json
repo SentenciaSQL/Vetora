@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "256953411032",
+    "project_id": "lunaveta-68cc1",
+    "storage_bucket": "lunaveta-68cc1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:256953411032:android:2d9f0a85bf214cf05a7ead",
+        "android_client_info": {
+          "package_name": "com.sentenciasql.lunaveta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD_N2vg1aZBG7zPV_MPibDLKKJisX0ytM0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
