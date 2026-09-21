@@ -39,6 +39,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/auth/accept-invite.page').then(m => m.AcceptInvitePage)
   },
   {
+    path: 'eliminar-cuenta',
+    loadComponent: () => import('./pages/public/delete-account.page').then(m => m.DeleteAccountPage)
+  },
+  {
     path: 'forgot',
     canActivate: [guestGuard],
     loadComponent: () => import('./pages/auth/forgot.page').then(m => m.ForgotPage)

@@ -36,8 +36,12 @@ Angular + Flutter  →  Spring Boot /api/v1  →  PostgreSQL
 | `RESEND_API_KEY` | API key de Resend (solo backend / Railway) | vacío en local |
 | `RESEND_FROM` | Remitente verificado | `LunaVeta <no-reply@lunaveta.com>` |
 | `RESEND_API_URL` | API REST de Resend | `https://api.resend.com` |
+| `ACCOUNT_DELETION_TOKEN_HOURS` | Caducidad operativa del enlace de eliminación | `24` |
+| `ACCOUNT_DELETION_UNVERIFIED_RETENTION_DAYS` | Borrado operativo de solicitudes no verificadas | `30` |
 
-Los correos transaccionales (verificación, reenvío, recuperación de contraseña, confirmación de cambio e invitaciones de equipo) se envían con `POST https://api.resend.com/emails` mediante `RestClient`. No se usa SMTP ni el SDK de Resend. En Railway agregue las variables `RESEND_*` y `FRONTEND_URL` en el servicio del API; no las exponga al frontend Angular.
+Los correos transaccionales (verificación, reenvío, recuperación de contraseña, confirmación de cambio, invitaciones de equipo y eliminación de cuenta) se envían con `POST https://api.resend.com/emails` mediante `RestClient`. No se usa SMTP ni el SDK de Resend. En Railway agregue las variables `RESEND_*`, `FRONTEND_URL` y, si quiere cambiar los plazos operativos, `ACCOUNT_DELETION_TOKEN_HOURS` y `ACCOUNT_DELETION_UNVERIFIED_RETENTION_DAYS` en el servicio del API; no las exponga al frontend Angular.
+
+La página pública de eliminación de cuenta es `https://lunaveta.com/eliminar-cuenta`. No requiere sesión. El enlace de confirmación se construye con `FRONTEND_URL` o `PUBLIC_APP_URL`.
 
 Vea `.env.example` para una plantilla. No coloque la API key en el repositorio.
 

@@ -13,6 +13,9 @@ public class ResendEmailService implements EmailService {
     public static final String TYPE_PASSWORD_RESET = "password_reset";
     public static final String TYPE_PASSWORD_CHANGED = "password_changed";
     public static final String TYPE_STAFF_INVITE = "staff_invite";
+    public static final String TYPE_ACCOUNT_DELETION_VERIFY = "account_deletion_verify";
+    public static final String TYPE_ACCOUNT_DELETION_BLOCKED = "account_deletion_blocked";
+    public static final String TYPE_ACCOUNT_DELETION_COMPLETED = "account_deletion_completed";
 
     private final ResendApiClient client;
     private final ResendProperties properties;
@@ -146,6 +149,28 @@ public class ResendEmailService implements EmailService {
         );
         String subject = "Invitación a " + (StringUtils.hasText(clinicName) ? clinicName : "LunaVeta");
         send(recipient, subject, html, TYPE_STAFF_INVITE);
+    }
+
+    @Override
+    public void sendAccountDeletionVerification(String recipient, String userName, String token, int expirationHours) {
+        String html = templates.accountDeletionVerification(
+                userName,
+                frontend.accountDeletionConfirmUrl(token),
+                expirationHours
+        );
+        send(recipient, "Confirma la eliminación de tu cuenta de LunaVeta", html, TYPE_ACCOUNT_DELETION_VERIFY);
+    }
+
+    @Override
+    public void sendAccountDeletionBlocked(String recipient, String userName, String explanation, String pageUrl) {
+        String html = templates.accountDeletionBlocked(userName, explanation, pageUrl);
+        send(recipient, "No pudimos eliminar tu cuenta de LunaVeta", html, TYPE_ACCOUNT_DELETION_BLOCKED);
+    }
+
+    @Override
+    public void sendAccountDeletionCompleted(String recipient, String userName) {
+        String html = templates.accountDeletionCompleted(userName);
+        send(recipient, "Tu cuenta de LunaVeta fue eliminada", html, TYPE_ACCOUNT_DELETION_COMPLETED);
     }
 
     private void send(String recipient, String subject, String html, String type) {

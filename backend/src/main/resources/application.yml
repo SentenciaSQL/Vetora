@@ -61,6 +61,8 @@ animalin:
       - http://127.0.0.1:4200
       - http://localhost:8081
       - http://10.0.2.2:8080
+      - https://lunaveta.com
+      - https://www.lunaveta.com
   fcm:
     enabled: ${FCM_ENABLED:false}
     project-id: ${FIREBASE_PROJECT_ID:}
@@ -75,6 +77,9 @@ animalin:
     resend-cooldown-seconds: ${SIGNUP_RESEND_COOLDOWN_SECONDS:60}
     invite-days: ${SIGNUP_INVITE_DAYS:7}
     public-app-url: ${PUBLIC_APP_URL:${FRONTEND_URL:http://localhost:4200}}
+  account-deletion:
+    token-hours: ${ACCOUNT_DELETION_TOKEN_HOURS:24}
+    unverified-retention-days: ${ACCOUNT_DELETION_UNVERIFIED_RETENTION_DAYS:30}
 
 resend:
   api-key: ${RESEND_API_KEY:}
