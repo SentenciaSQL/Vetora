@@ -87,7 +87,18 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public List<Tenant> tenants() {
-        return tenantRepository.findAll();
+        return tenants(null, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Tenant> tenants(String status, String planCode, String country) {
+        if (!StringUtils.hasText(status) && !StringUtils.hasText(planCode) && !StringUtils.hasText(country)) {
+            return tenantRepository.findAll();
+        }
+        return tenantRepository.findFiltered(
+                StringUtils.hasText(status) ? status : null,
+                StringUtils.hasText(planCode) ? planCode : null,
+                StringUtils.hasText(country) ? country : null);
     }
 
     @Transactional
@@ -270,7 +281,17 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> subscriptions() {
-        return subscriptionRepository.findAll().stream().map(s -> {
+        return subscriptions(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> subscriptions(String status) {
+        return subscriptionRepository.findAll().stream()
+                .filter(s -> !StringUtils.hasText(status) || status.equalsIgnoreCase(s.getStatus())
+                        || ("PAST_DUE".equalsIgnoreCase(status)
+                        && (SubscriptionStatuses.PAST_DUE.equals(s.getStatus())
+                        || SubscriptionStatuses.GRACE_PERIOD.equals(s.getStatus()))))
+                .map(s -> {
             Map<String, Object> row = new java.util.LinkedHashMap<>();
             row.put("id", s.getId());
             row.put("status", s.getStatus());

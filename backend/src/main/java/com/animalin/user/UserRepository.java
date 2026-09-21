@@ -3,6 +3,7 @@ package com.animalin.user;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -13,4 +14,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select u from User u left join fetch u.roles where u.id = :id and u.deleted = false")
     Optional<User> findByIdWithRoles(Long id);
     long countByDeletedFalse();
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThanAndDeletedFalse(Instant from, Instant to);
+    long countByLastLoginAtGreaterThanEqualAndLastLoginAtLessThanAndDeletedFalse(Instant from, Instant to);
 }

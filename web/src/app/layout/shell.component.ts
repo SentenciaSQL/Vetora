@@ -162,7 +162,6 @@ export class ShellComponent implements OnInit {
 
   nav: NavItem[] = [
     { path: '/dashboard', label: 'nav.dashboard', icon: 'home' },
-    { path: '/admin', label: 'nav.admin', icon: 'admin', roles: ['SUPER_ADMIN'] },
     { path: '/admin/tenants', label: 'nav.tenants', icon: 'tenants', roles: ['SUPER_ADMIN'] },
     { path: '/admin/plans', label: 'nav.plans', icon: 'plans', roles: ['SUPER_ADMIN'] },
     { path: '/admin/subscriptions', label: 'nav.subscriptions', icon: 'subscriptions', roles: ['SUPER_ADMIN'] },

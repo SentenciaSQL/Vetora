@@ -708,7 +708,7 @@ public class BillingService {
         return subscription.getCurrency() == null ? "USD" : subscription.getCurrency();
     }
 
-    static BigDecimal moneyFromPaddle(String raw) {
+    public static BigDecimal moneyFromPaddle(String raw) {
         if (!StringUtils.hasText(raw)) {
             return null;
         }

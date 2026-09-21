@@ -192,7 +192,7 @@ export class AuthService {
 
   homePath(): string {
     if (this.isSuperAdmin()) {
-      return '/admin';
+      return '/dashboard';
     }
     const user = this.user();
     if (user && user.emailVerified === false) {

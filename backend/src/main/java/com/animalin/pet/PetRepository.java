@@ -28,6 +28,7 @@ public interface PetRepository extends JpaRepository<Pet, Long> {
     long countByTenantId(Long tenantId);
     long countByTenantIdAndCreatedAtAfter(Long tenantId, Instant after);
     long countByDeletedFalse();
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThanAndDeletedFalse(Instant from, Instant to);
     @Query("select p.species, count(p) from Pet p where p.tenantId = :tenantId group by p.species")
     List<Object[]> countBySpecies(Long tenantId);
 }

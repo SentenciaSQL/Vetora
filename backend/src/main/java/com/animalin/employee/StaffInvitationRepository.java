@@ -25,6 +25,12 @@ public interface StaffInvitationRepository extends JpaRepository<StaffInvitation
             """)
     long countPendingByTenantId(@Param("tenantId") Long tenantId, @Param("now") Instant now);
 
+    @Query("select count(i) from StaffInvitation i where i.status = 'PENDING' and i.expiresAt > :now")
+    long countPending(@Param("now") Instant now);
+
+    @Query("select count(i) from StaffInvitation i where i.status = 'PENDING' and i.expiresAt <= :now")
+    long countExpiredPending(@Param("now") Instant now);
+
     @Query("""
             select i from StaffInvitation i
             where i.tenant.id = :tenantId
