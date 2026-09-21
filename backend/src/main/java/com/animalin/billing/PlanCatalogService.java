@@ -5,10 +5,13 @@ import com.animalin.billing.paddle.PaddleApiException;
 import com.animalin.billing.paddle.PaddleClient;
 import com.animalin.billing.paddle.PaddleDtos;
 import com.animalin.common.exception.ApiException;
+import com.animalin.config.AnimalinProperties;
 import com.animalin.plan.Plan;
 import com.animalin.plan.PlanRepository;
 import com.animalin.security.TenantContext;
 import com.animalin.tenant.SubscriptionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -24,6 +27,7 @@ import java.util.Objects;
 @Service
 public class PlanCatalogService {
 
+    private static final Logger log = LoggerFactory.getLogger(PlanCatalogService.class);
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     private final PlanRepository planRepository;
@@ -32,19 +36,22 @@ public class PlanCatalogService {
     private final PaddleProperties paddleProperties;
     private final AuditService auditService;
     private final Clock clock;
+    private final AnimalinProperties animalinProperties;
 
     public PlanCatalogService(PlanRepository planRepository,
                               SubscriptionRepository subscriptionRepository,
                               PaddleClient paddleClient,
                               PaddleProperties paddleProperties,
                               AuditService auditService,
-                              Clock clock) {
+                              Clock clock,
+                              AnimalinProperties animalinProperties) {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.paddleClient = paddleClient;
         this.paddleProperties = paddleProperties;
         this.auditService = auditService;
         this.clock = clock;
+        this.animalinProperties = animalinProperties;
     }
 
     @Transactional(readOnly = true)
@@ -252,7 +259,8 @@ public class PlanCatalogService {
                     plan.getCode() + " " + interval + " USD",
                     plan.getPaddleProductId(),
                     new PaddleDtos.UnitPrice(toCents(amount), "USD"),
-                    new PaddleDtos.BillingCycle(interval, 1)
+                    new PaddleDtos.BillingCycle(interval, 1),
+                    trialPeriod()
             ));
         } catch (PaddleApiException ex) {
             throw paddleError("No se pudo crear el nuevo precio en Paddle");
@@ -317,6 +325,7 @@ public class PlanCatalogService {
             throw ApiException.badRequest("El precio " + cycleLabel + " no pertenece al producto del plan ("
                     + plan.getPaddleProductId() + ")");
         }
+        ensureTrialPeriod(price);
         return price;
     }
 
@@ -351,6 +360,7 @@ public class PlanCatalogService {
             throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no está activo (estado: "
                     + price.status() + ")");
         }
+        ensureTrialPeriod(price);
         BigDecimal paddleAmount = fromCents(price.unitPrice().amount());
         BigDecimal local = monthly ? plan.getMonthlyPrice() : plan.getAnnualPrice();
         boolean amountsMatch = local != null && local.compareTo(paddleAmount) == 0;
@@ -391,7 +401,8 @@ public class PlanCatalogService {
                     plan.getCode() + " monthly USD",
                     product.id(),
                     new PaddleDtos.UnitPrice(toCents(plan.getMonthlyPrice()), plan.getCurrency()),
-                    new PaddleDtos.BillingCycle("month", 1)
+                    new PaddleDtos.BillingCycle("month", 1),
+                    trialPeriod()
             ));
             plan.setPaddleMonthlyPriceId(monthly.id());
             plan.setPaddleMonthlyPriceStatus(monthly.status());
@@ -400,7 +411,8 @@ public class PlanCatalogService {
                         plan.getCode() + " annual USD",
                         product.id(),
                         new PaddleDtos.UnitPrice(toCents(plan.getAnnualPrice()), plan.getCurrency()),
-                        new PaddleDtos.BillingCycle("year", 1)
+                        new PaddleDtos.BillingCycle("year", 1),
+                        trialPeriod()
                 ));
                 plan.setPaddleAnnualPriceId(annual.id());
                 plan.setPaddleAnnualPriceStatus(annual.status());
@@ -546,6 +558,40 @@ public class PlanCatalogService {
 
     private String actor() {
         return TenantContext.getOrNull() == null ? "platform" : Objects.toString(TenantContext.getOrNull().email(), "platform");
+    }
+
+    public void ensureTrialPeriod(String priceId) {
+        if (!paddleProperties.configured() || !StringUtils.hasText(priceId)) {
+            return;
+        }
+        try {
+            PaddleDtos.Price price = paddleClient.getPrice(priceId);
+            ensureTrialPeriod(price);
+        } catch (PaddleApiException ex) {
+            log.warn("Could not load Paddle price {} to attach the trial period", priceId);
+        }
+    }
+
+    private void ensureTrialPeriod(PaddleDtos.Price price) {
+        if (price == null || !StringUtils.hasText(price.id()) || hasConfiguredTrial(price.trialPeriod())) {
+            return;
+        }
+        try {
+            paddleClient.updatePrice(price.id(), new PaddleDtos.UpdatePriceRequest(null, null, trialPeriod()));
+        } catch (PaddleApiException ex) {
+            log.warn("Could not attach the {}-day trial to Paddle price {}", animalinProperties.trialDays(), price.id());
+        }
+    }
+
+    private boolean hasConfiguredTrial(PaddleDtos.TrialPeriod period) {
+        return period != null
+                && "day".equalsIgnoreCase(period.interval())
+                && period.frequency() != null
+                && period.frequency() == animalinProperties.trialDays();
+    }
+
+    private PaddleDtos.TrialPeriod trialPeriod() {
+        return new PaddleDtos.TrialPeriod("day", animalinProperties.trialDays());
     }
 
     private static ApiException paddleError(String message) {

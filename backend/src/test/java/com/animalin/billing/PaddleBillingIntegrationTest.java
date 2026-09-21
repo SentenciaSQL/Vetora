@@ -510,6 +510,69 @@ class PaddleBillingIntegrationTest {
     }
 
     @Test
+    void changePlanDuringTrialDoesNotBillImmediately() throws Exception {
+        Subscription subscription = currentSubscription();
+        subscription.setPaddleSubscriptionId(paddleSubId);
+        subscription.setPaddleCustomerId(paddleCustomerId);
+        subscription.setBillingCycle(SubscriptionStatuses.CYCLE_MONTHLY);
+        subscription.setPaddlePriceId("pri_basic_month");
+        subscription.setStatus(SubscriptionStatuses.TRIALING);
+        subscription.setTrial(true);
+        subscriptionRepository.save(subscription);
+        Instant next = Instant.parse("2026-10-04T12:00:00Z");
+        when(paddleClient.previewSubscriptionUpdate(eq(paddleSubId), any()))
+                .thenReturn(new PaddleDtos.SubscriptionPreview(
+                        paddleSubId, "trialing", "USD", next,
+                        new PaddleDtos.BillingCycle("year", 1),
+                        new PaddleDtos.BillingPeriod(Instant.parse("2026-09-20T12:00:00Z"), next),
+                        null,
+                        new PaddleDtos.PreviewTransaction(null, new PaddleDtos.PreviewDetails(
+                                new PaddleDtos.PreviewTotals("0", "0", "USD")))));
+
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/subscription/change-plan/preview")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkoutJson("ANNUAL")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prorationMode").value("do_not_bill"))
+                .andExpect(jsonPath("$.newCycle").value("ANNUAL"));
+
+        verify(paddleClient).previewSubscriptionUpdate(eq(paddleSubId), argThat(request ->
+                request.items() != null
+                        && "pri_basic_year".equals(request.items().getFirst().priceId())
+                        && "do_not_bill".equals(request.prorationBillingMode())));
+    }
+
+    @Test
+    void changePlanPreviewRetriesWithoutProrationWhenPaddleRejectsImmediateBill() throws Exception {
+        Subscription subscription = currentSubscription();
+        subscription.setPaddleSubscriptionId(paddleSubId);
+        subscription.setPaddleCustomerId(paddleCustomerId);
+        subscription.setBillingCycle(SubscriptionStatuses.CYCLE_MONTHLY);
+        subscription.setPaddlePriceId("pri_basic_month");
+        subscription.setStatus(SubscriptionStatuses.ACTIVE);
+        subscription.setTrial(false);
+        subscriptionRepository.save(subscription);
+        Instant next = Instant.parse("2026-10-04T12:00:00Z");
+        when(paddleClient.previewSubscriptionUpdate(eq(paddleSubId), any()))
+                .thenThrow(new PaddleApiException(400, "proration_billing_mode is invalid for trialing subscriptions"))
+                .thenReturn(new PaddleDtos.SubscriptionPreview(
+                        paddleSubId, "trialing", "USD", next,
+                        new PaddleDtos.BillingCycle("year", 1),
+                        new PaddleDtos.BillingPeriod(Instant.parse("2026-09-20T12:00:00Z"), next),
+                        null, null));
+
+        String token = login(adminEmail);
+        mockMvc.perform(post("/api/v1/billing/subscription/change-plan/preview")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(checkoutJson("ANNUAL")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.prorationMode").value("do_not_bill"));
+    }
+
+    @Test
     void samePlanLimitsApplyRegardlessOfBillingCycle() throws Exception {
         Subscription subscription = currentSubscription();
         subscription.setBillingCycle(SubscriptionStatuses.CYCLE_ANNUAL);
