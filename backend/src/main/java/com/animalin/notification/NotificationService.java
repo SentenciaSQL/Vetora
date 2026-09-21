@@ -9,13 +9,10 @@ import com.animalin.user.User;
 import com.animalin.user.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Optional;
 
 @Service
 public class NotificationService {
@@ -26,14 +23,12 @@ public class NotificationService {
     private final PushTokenRepository pushTokenRepository;
     private final UserRepository userRepository;
     private final AnimalinProperties properties;
-    private final Optional<JavaMailSender> mailSender;
 
-    public NotificationService(AppNotificationRepository notificationRepository, PushTokenRepository pushTokenRepository, UserRepository userRepository, AnimalinProperties properties, Optional<JavaMailSender> mailSender) {
+    public NotificationService(AppNotificationRepository notificationRepository, PushTokenRepository pushTokenRepository, UserRepository userRepository, AnimalinProperties properties) {
         this.notificationRepository = notificationRepository;
         this.pushTokenRepository = pushTokenRepository;
         this.userRepository = userRepository;
         this.properties = properties;
-        this.mailSender = mailSender;
     }
 
     @Transactional
@@ -51,7 +46,6 @@ public class NotificationService {
         notification.setEntityId(entityId);
         notificationRepository.save(notification);
         sendPushPrepared(userId, titleEs, bodyEs);
-        sendEmailPrepared(userId, titleEs, bodyEs);
     }
 
     @Transactional(readOnly = true)
@@ -88,34 +82,6 @@ public class NotificationService {
         }
         pushTokenRepository.findByUserId(userId).forEach(token ->
                 log.info("Would send FCM to {} ({})", token.getToken(), title));
-    }
-
-    public void sendPlainEmail(String to, String subject, String body) {
-        mailSender.ifPresentOrElse(sender -> {
-            try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setTo(to);
-                message.setSubject(subject);
-                message.setText(body);
-                sender.send(message);
-            } catch (Exception ex) {
-                log.info("Email not delivered to {} (integration prepared): {}", to, ex.getMessage());
-            }
-        }, () -> log.info("Email prepared for {} [{}]", to, subject));
-    }
-
-    private void sendEmailPrepared(Long userId, String title, String body) {
-        mailSender.ifPresent(sender -> userRepository.findById(userId).ifPresent(user -> {
-            try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setTo(user.getEmail());
-                message.setSubject(title);
-                message.setText(body);
-                sender.send(message);
-            } catch (Exception ex) {
-                log.debug("Email not sent (integration prepared): {}", ex.getMessage());
-            }
-        }));
     }
 
     public record NotificationDto(Long id, String type, String title, String body, String entityType, Long entityId,

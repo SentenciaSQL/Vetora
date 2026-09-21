@@ -11,7 +11,9 @@ import { AuthService } from '../../core/services/auth.service';
     <div class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
       <h1 class="font-display text-2xl font-semibold">{{ 'auth.resetTitle' | translate }}</h1>
       <form class="mt-6 space-y-3" [formGroup]="form" (ngSubmit)="submit()">
-        <input class="input" formControlName="token" [placeholder]="'auth.resetToken' | translate" />
+        @if (showToken()) {
+          <input class="input" formControlName="token" [placeholder]="'auth.resetToken' | translate" />
+        }
         <input class="input" type="password" formControlName="password" [placeholder]="'auth.password' | translate" />
         <button class="btn-primary w-full" [disabled]="form.invalid">{{ 'auth.resetSubmit' | translate }}</button>
       </form>
@@ -31,6 +33,7 @@ export class ResetPage implements OnInit {
   private route = inject(ActivatedRoute);
   done = signal(false);
   error = signal(false);
+  showToken = signal(true);
   form = this.fb.group({
     token: ['', Validators.required],
     password: ['', [Validators.required, Validators.minLength(8)]]
@@ -38,7 +41,10 @@ export class ResetPage implements OnInit {
 
   ngOnInit() {
     const token = this.route.snapshot.queryParamMap.get('token');
-    if (token) this.form.patchValue({ token });
+    if (token) {
+      this.form.patchValue({ token });
+      this.showToken.set(false);
+    }
   }
 
   submit(): void {

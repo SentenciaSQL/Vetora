@@ -88,7 +88,8 @@ public final class TenantContext {
             Set<String> roles,
             Set<String> permissions,
             String locale,
-            String theme
+            String theme,
+            boolean emailVerified
     ) {
         public boolean hasRole(String role) {
             return roles.contains(role);

@@ -38,7 +38,7 @@ export class RegisterPage {
 
   submit(): void {
     this.auth.register(this.form.getRawValue() as Record<string, string>).subscribe({
-      next: () => void this.router.navigateByUrl(this.auth.homePath()),
+      next: () => void this.router.navigateByUrl('/verify-email'),
       error: err => this.error.set(err.error?.message || 'common.error')
     });
   }

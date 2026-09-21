@@ -42,6 +42,9 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
             @if (error()) {
               <p class="text-sm text-rose-600">{{ error() | translate }}</p>
             }
+            @if (needsVerification()) {
+              <a routerLink="/verify-email" class="block text-sm font-medium text-brand-700 hover:underline">{{ 'signup.verifyTitle' | translate }}</a>
+            }
             <button class="btn-primary w-full" [disabled]="form.invalid || loading">{{ 'auth.submit' | translate }}</button>
           </form>
           <div class="mt-4 flex justify-between text-sm">
@@ -61,6 +64,7 @@ export class LoginPage implements OnInit {
   private route = inject(ActivatedRoute);
   branding = inject(BrandingService);
   error = signal('');
+  needsVerification = signal(false);
   loading = false;
   year = new Date().getFullYear();
   form = this.fb.group({
@@ -83,14 +87,20 @@ export class LoginPage implements OnInit {
     }
     this.loading = true;
     this.error.set('');
+    this.needsVerification.set(false);
     const slug = this.route.snapshot.paramMap.get('slug') || undefined;
     this.auth.login(this.form.value.email!, this.form.value.password!, slug).subscribe({
       next: () => {
         this.branding.loadForSession();
         void this.router.navigateByUrl(this.auth.homePath());
       },
-      error: () => {
+      error: err => {
         this.loading = false;
+        if (err.error?.code === 'EMAIL_NOT_VERIFIED') {
+          this.needsVerification.set(true);
+          this.error.set('auth.verifyRequired');
+          return;
+        }
         this.error.set('auth.invalid');
       }
     });

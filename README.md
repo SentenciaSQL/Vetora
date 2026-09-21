@@ -31,6 +31,15 @@ Angular + Flutter  →  Spring Boot /api/v1  →  PostgreSQL
 | `DATABASE_PASSWORD` | Contraseña PostgreSQL | `postgres` |
 | `ANIMALIN_JWT_SECRET` | Secreto JWT (≥ 256 bits) | solo desarrollo |
 | `API_URL` | Base URL Flutter (`--dart-define`) | `http://localhost:8080/api/v1` |
+| `FRONTEND_URL` | Origen del panel Angular (enlaces de correo) | `http://localhost:4200` |
+| `PUBLIC_APP_URL` | Alias de `FRONTEND_URL` | `http://localhost:4200` |
+| `RESEND_API_KEY` | API key de Resend (solo backend / Railway) | vacío en local |
+| `RESEND_FROM` | Remitente verificado | `LunaVeta <no-reply@lunaveta.com>` |
+| `RESEND_API_URL` | API REST de Resend | `https://api.resend.com` |
+
+Los correos transaccionales (verificación, reenvío, recuperación de contraseña, confirmación de cambio e invitaciones de equipo) se envían con `POST https://api.resend.com/emails` mediante `RestClient`. No se usa SMTP ni el SDK de Resend. En Railway agregue las variables `RESEND_*` y `FRONTEND_URL` en el servicio del API; no las exponga al frontend Angular.
+
+Vea `.env.example` para una plantilla. No coloque la API key en el repositorio.
 
 El API usa **PostgreSQL** en todos los perfiles (incluido `dev` y `test`). Arranque local típico:
 
@@ -150,4 +159,4 @@ Cubierto en esta base:
 
 Aún preparado, no obligatorio para el MVP:
 
-- Pasarela de pago, S3/Cloudinary en producción, FCM real, verificación de email, drag & drop del calendario, reportes PDF, inventario/POS/facturación.
+- Pasarela de pago, S3/Cloudinary en producción, FCM real, drag & drop del calendario, reportes PDF, inventario/POS/facturación.

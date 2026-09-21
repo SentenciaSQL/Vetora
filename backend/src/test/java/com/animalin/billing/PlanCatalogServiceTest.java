@@ -52,7 +52,7 @@ class PlanCatalogServiceTest {
         plan = seededPlan();
         TenantContext.set(new TenantContext.AuthPrincipal(
                 1L, "owner@animexa.test", "Owner", null, null,
-                Set.of("SUPER_ADMIN"), Set.of(), "es", "light"));
+                Set.of("SUPER_ADMIN"), Set.of(), "es", "light", true));
     }
 
     @AfterEach

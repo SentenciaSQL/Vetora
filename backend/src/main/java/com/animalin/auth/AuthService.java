@@ -3,7 +3,9 @@ package com.animalin.auth;
 import com.animalin.audit.AuditService;
 import com.animalin.common.exception.ApiException;
 import com.animalin.config.AnimalinProperties;
-import com.animalin.notification.NotificationService;
+import com.animalin.email.EmailService;
+import com.animalin.email.ResendEmailService;
+import com.animalin.email.TransactionalEmailSender;
 import com.animalin.security.JwtService;
 import com.animalin.security.TenantContext;
 import com.animalin.tenant.Tenant;
@@ -18,13 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,9 +39,13 @@ public class AuthService {
     private final JwtService jwtService;
     private final AnimalinProperties properties;
     private final AuditService auditService;
-    private final NotificationService notificationService;
+    private final EmailService emailService;
+    private final TransactionalEmailSender transactionalEmailSender;
+    private final EmailVerificationIssuer verificationIssuer;
+    private final SecureTokenService tokens;
+    private final Clock clock;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, RefreshTokenRepository refreshTokenRepository, PasswordResetTokenRepository passwordResetTokenRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AnimalinProperties properties, AuditService auditService, NotificationService notificationService) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, RefreshTokenRepository refreshTokenRepository, PasswordResetTokenRepository passwordResetTokenRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AnimalinProperties properties, AuditService auditService, EmailService emailService, TransactionalEmailSender transactionalEmailSender, EmailVerificationIssuer verificationIssuer, SecureTokenService tokens, Clock clock) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.tenantRepository = tenantRepository;
@@ -55,7 +56,11 @@ public class AuthService {
         this.jwtService = jwtService;
         this.properties = properties;
         this.auditService = auditService;
-        this.notificationService = notificationService;
+        this.emailService = emailService;
+        this.transactionalEmailSender = transactionalEmailSender;
+        this.verificationIssuer = verificationIssuer;
+        this.tokens = tokens;
+        this.clock = clock;
     }
 
 
@@ -66,10 +71,13 @@ public class AuthService {
         if (!user.isEnabled() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw ApiException.unauthorized("Credenciales inválidas");
         }
-        List<TenantMembership> memberships = membershipRepository.findActiveByUserId(user.getId());
         boolean superAdmin = user.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getCode()));
+        if (!user.isEmailVerified() && !superAdmin) {
+            throw ApiException.emailNotVerified();
+        }
+        List<TenantMembership> memberships = membershipRepository.findActiveByUserId(user.getId());
         Tenant tenant = resolveTenant(request.tenantSlug(), memberships, superAdmin, user);
-        user.setLastLoginAt(Instant.now());
+        user.setLastLoginAt(clock.instant());
         auditService.record(tenant == null ? null : tenant.getId(), user.getId(), user.getEmail(),
                 "LOGIN", "USER", user.getId(), "Inicio de sesión", null, null);
         return issueTokens(user, tenant, memberships);
@@ -90,17 +98,22 @@ public class AuthService {
         user.setLastName(request.lastName());
         user.setPhone(request.phone());
         user.setLocale(request.locale() == null || request.locale().isBlank() ? "es" : request.locale());
+        user.setEmailVerified(false);
         user.getRoles().add(ownerRole);
         userRepository.save(user);
+        String rawToken = verificationIssuer.issue(user);
+        int hours = verificationIssuer.expirationHours();
+        transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_VERIFICATION, user.getEmail(), () ->
+                emailService.sendEmailVerification(user.getEmail(), user.fullName(), rawToken, null, null, hours));
         return issueTokens(user, null, List.of());
     }
 
     @Transactional
     public AuthDtos.TokenResponse refresh(AuthDtos.RefreshRequest request) {
-        String hash = sha256(request.refreshToken());
+        String hash = tokens.sha256(request.refreshToken());
         RefreshToken stored = refreshTokenRepository.findByTokenHash(hash)
                 .orElseThrow(() -> ApiException.unauthorized("Refresh token inválido"));
-        if (stored.isRevoked() || stored.getExpiresAt().isBefore(Instant.now())) {
+        if (stored.isRevoked() || stored.getExpiresAt().isBefore(clock.instant())) {
             throw ApiException.unauthorized("Refresh token inválido o expirado");
         }
         stored.setRevoked(true);
@@ -109,7 +122,7 @@ public class AuthService {
         List<TenantMembership> memberships = membershipRepository.findActiveByUserId(user.getId());
         Tenant tenant = stored.getTenant();
         AuthDtos.TokenResponse response = issueTokens(user, tenant, memberships);
-        stored.setReplacedBy(sha256(response.refreshToken()));
+        stored.setReplacedBy(tokens.sha256(response.refreshToken()));
         return response;
     }
 
@@ -118,7 +131,7 @@ public class AuthService {
         if (refreshToken == null || refreshToken.isBlank()) {
             return;
         }
-        refreshTokenRepository.findByTokenHash(sha256(refreshToken)).ifPresent(token -> token.setRevoked(true));
+        refreshTokenRepository.findByTokenHash(tokens.sha256(refreshToken)).ifPresent(token -> token.setRevoked(true));
     }
 
     @Transactional
@@ -138,27 +151,42 @@ public class AuthService {
     @Transactional
     public void forgotPassword(AuthDtos.ForgotPasswordRequest request) {
         userRepository.findByEmailIgnoreCase(request.email().trim().toLowerCase()).ifPresent(user -> {
+            passwordResetTokenRepository.expireUnusedByUserId(user.getId());
             PasswordResetToken token = new PasswordResetToken();
             token.setUser(user);
-            String raw = randomToken();
-            token.setTokenHash(sha256(raw));
-            token.setExpiresAt(Instant.now().plus(2, ChronoUnit.HOURS));
+            String raw = tokens.randomToken();
+            token.setTokenHash(tokens.sha256(raw));
+            token.setExpiresAt(clock.instant().plus(2, ChronoUnit.HOURS));
             passwordResetTokenRepository.save(token);
-            notificationService.sendPlainEmail(user.getEmail(),
-                    "Restablecer contraseña / Reset password",
-                    "Use this token on /reset-password: " + raw);
+            Tenant tenant = firstTenant(user);
+            transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_PASSWORD_RESET, user.getEmail(), () ->
+                    emailService.sendPasswordReset(
+                            user.getEmail(),
+                            user.fullName(),
+                            raw,
+                            tenant == null ? null : tenant.getName(),
+                            tenant == null ? null : tenant.getLogoUrl(),
+                            2));
         });
     }
 
     @Transactional
     public void resetPassword(AuthDtos.ResetPasswordRequest request) {
-        PasswordResetToken token = passwordResetTokenRepository.findByTokenHash(sha256(request.token()))
+        PasswordResetToken token = passwordResetTokenRepository.findByTokenHash(tokens.sha256(request.token()))
                 .orElseThrow(() -> ApiException.badRequest("Token de restablecimiento inválido"));
-        if (token.isUsed() || token.getExpiresAt().isBefore(Instant.now())) {
+        if (token.isUsed() || token.getExpiresAt().isBefore(clock.instant())) {
             throw ApiException.badRequest("Token de restablecimiento inválido o expirado");
         }
         token.setUsed(true);
-        token.getUser().setPasswordHash(passwordEncoder.encode(request.password()));
+        User user = token.getUser();
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        Tenant tenant = firstTenant(user);
+        transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_PASSWORD_CHANGED, user.getEmail(), () ->
+                emailService.sendPasswordChangedConfirmation(
+                        user.getEmail(),
+                        user.fullName(),
+                        tenant == null ? null : tenant.getName(),
+                        tenant == null ? null : tenant.getLogoUrl()));
     }
 
     @Transactional
@@ -169,6 +197,13 @@ public class AuthService {
             throw ApiException.badRequest("La contraseña actual no es correcta");
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        Tenant tenant = firstTenant(user);
+        transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_PASSWORD_CHANGED, user.getEmail(), () ->
+                emailService.sendPasswordChangedConfirmation(
+                        user.getEmail(),
+                        user.fullName(),
+                        tenant == null ? null : tenant.getName(),
+                        tenant == null ? null : tenant.getLogoUrl()));
     }
 
     @Transactional(readOnly = true)
@@ -257,12 +292,12 @@ public class AuthService {
                 user.getId(), user.getEmail(), tenant == null ? null : tenant.getId(),
                 List.copyOf(roles), List.copyOf(permissions)
         );
-        String refreshRaw = randomToken();
+        String refreshRaw = tokens.randomToken();
         RefreshToken refresh = new RefreshToken();
         refresh.setUser(user);
         refresh.setTenant(tenant);
-        refresh.setTokenHash(sha256(refreshRaw));
-        refresh.setExpiresAt(Instant.now().plus(properties.jwt().refreshTokenDays(), ChronoUnit.DAYS));
+        refresh.setTokenHash(tokens.sha256(refreshRaw));
+        refresh.setExpiresAt(clock.instant().plus(properties.jwt().refreshTokenDays(), ChronoUnit.DAYS));
         refreshTokenRepository.save(refresh);
         return AuthDtos.TokenResponse.of(access, refreshRaw, jwtService.accessExpiresInSeconds(),
                 toProfile(user, tenant, memberships));
@@ -309,18 +344,8 @@ public class AuthService {
         );
     }
 
-    private String randomToken() {
-        byte[] bytes = new byte[48];
-        new SecureRandom().nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private String sha256(String value) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
+    private Tenant firstTenant(User user) {
+        List<TenantMembership> memberships = membershipRepository.findActiveByUserId(user.getId());
+        return memberships.isEmpty() ? null : memberships.getFirst().getTenant();
     }
 }

@@ -70,7 +70,7 @@ class PlanLimitServiceTest {
         tenant.setPlan(plan);
         TenantContext.set(new TenantContext.AuthPrincipal(
                 99L, "admin@test.com", "Admin", 10L, null,
-                Set.of("TENANT_ADMIN"), Set.of(), "es", "light"));
+                Set.of("TENANT_ADMIN"), Set.of(), "es", "light", true));
     }
 
     @AfterEach

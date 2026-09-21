@@ -33,14 +33,17 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final TenantSubscriptionAccessFilter subscriptionAccessFilter;
+    private final com.animalin.security.EmailVerificationAccessFilter emailVerificationAccessFilter;
     private final com.animalin.security.PublicRateLimitFilter publicRateLimitFilter;
     private final AnimalinProperties properties;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter, TenantSubscriptionAccessFilter subscriptionAccessFilter,
+                          com.animalin.security.EmailVerificationAccessFilter emailVerificationAccessFilter,
                           com.animalin.security.PublicRateLimitFilter publicRateLimitFilter,
                           AnimalinProperties properties) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.subscriptionAccessFilter = subscriptionAccessFilter;
+        this.emailVerificationAccessFilter = emailVerificationAccessFilter;
         this.publicRateLimitFilter = publicRateLimitFilter;
         this.properties = properties;
     }
@@ -66,7 +69,8 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(publicRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(subscriptionAccessFilter, JwtAuthFilter.class);
+                .addFilterAfter(emailVerificationAccessFilter, JwtAuthFilter.class)
+                .addFilterAfter(subscriptionAccessFilter, com.animalin.security.EmailVerificationAccessFilter.class);
         return http.build();
     }
 
@@ -101,6 +105,14 @@ public class SecurityConfig {
     @Bean
     public FilterRegistrationBean<OncePerRequestFilter> jwtFilterRegistration(JwtAuthFilter filter) {
         FilterRegistrationBean<OncePerRequestFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<com.animalin.security.EmailVerificationAccessFilter> emailVerificationFilterRegistration(
+            com.animalin.security.EmailVerificationAccessFilter filter) {
+        FilterRegistrationBean<com.animalin.security.EmailVerificationAccessFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

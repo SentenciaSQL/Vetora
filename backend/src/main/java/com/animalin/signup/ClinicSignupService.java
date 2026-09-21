@@ -3,6 +3,7 @@ package com.animalin.signup;
 import com.animalin.audit.AuditService;
 import com.animalin.auth.AuthDtos;
 import com.animalin.auth.AuthService;
+import com.animalin.auth.EmailVerificationIssuer;
 import com.animalin.auth.EmailVerificationToken;
 import com.animalin.auth.EmailVerificationTokenRepository;
 import com.animalin.auth.SecureTokenService;
@@ -13,7 +14,9 @@ import com.animalin.billing.SubscriptionCycle;
 import com.animalin.billing.SubscriptionStatuses;
 import com.animalin.common.exception.ApiException;
 import com.animalin.config.AnimalinProperties;
-import com.animalin.notification.NotificationService;
+import com.animalin.email.EmailService;
+import com.animalin.email.ResendEmailService;
+import com.animalin.email.TransactionalEmailSender;
 import com.animalin.plan.Plan;
 import com.animalin.plan.PlanRepository;
 import com.animalin.security.TenantContext;
@@ -70,7 +73,9 @@ public class ClinicSignupService {
     private final EmailVerificationTokenRepository verificationTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecureTokenService tokens;
-    private final NotificationService notificationService;
+    private final EmailService emailService;
+    private final TransactionalEmailSender transactionalEmailSender;
+    private final EmailVerificationIssuer verificationIssuer;
     private final AnimalinProperties properties;
     private final PaddleProperties paddleProperties;
     private final BillingService billingService;
@@ -89,7 +94,9 @@ public class ClinicSignupService {
                                EmailVerificationTokenRepository verificationTokenRepository,
                                PasswordEncoder passwordEncoder,
                                SecureTokenService tokens,
-                               NotificationService notificationService,
+                               EmailService emailService,
+                               TransactionalEmailSender transactionalEmailSender,
+                               EmailVerificationIssuer verificationIssuer,
                                AnimalinProperties properties,
                                PaddleProperties paddleProperties,
                                BillingService billingService,
@@ -107,7 +114,9 @@ public class ClinicSignupService {
         this.verificationTokenRepository = verificationTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
-        this.notificationService = notificationService;
+        this.emailService = emailService;
+        this.transactionalEmailSender = transactionalEmailSender;
+        this.verificationIssuer = verificationIssuer;
         this.properties = properties;
         this.paddleProperties = paddleProperties;
         this.billingService = billingService;
@@ -157,9 +166,12 @@ public class ClinicSignupService {
     @Transactional
     public SignupDtos.SignupStatusResponse verifyEmail(SignupDtos.VerifyEmailRequest request) {
         EmailVerificationToken token = verificationTokenRepository.findByTokenHash(tokens.sha256(request.token()))
-                .orElseThrow(() -> ApiException.badRequest("Enlace de verificación inválido"));
-        if (token.isUsed() || token.getExpiresAt().isBefore(clock.instant())) {
-            throw ApiException.badRequest("El enlace de verificación no es válido o expiró");
+                .orElseThrow(() -> ApiException.badRequest("El enlace de verificación no es válido"));
+        if (token.isUsed()) {
+            throw ApiException.badRequest("Este enlace ya fue utilizado. Si ya confirmó su correo, inicie sesión.");
+        }
+        if (token.getExpiresAt().isBefore(clock.instant())) {
+            throw ApiException.badRequest("El enlace de verificación expiró. Solicite uno nuevo.");
         }
         token.setUsed(true);
         User user = token.getUser();
@@ -408,20 +420,21 @@ public class ClinicSignupService {
     }
 
     private void sendVerification(User user, ClinicSignup signup) {
-        verificationTokenRepository.expireUnusedByUserId(user.getId());
-        String raw = tokens.randomToken();
-        EmailVerificationToken token = new EmailVerificationToken();
-        token.setUser(user);
-        token.setTokenHash(tokens.sha256(raw));
-        token.setExpiresAt(clock.instant().plus(properties.signupOrDefault().verificationHours(), ChronoUnit.HOURS));
-        verificationTokenRepository.save(token);
+        String raw = verificationIssuer.issue(user);
         if (signup != null) {
             signup.setLastVerificationSentAt(clock.instant());
         }
-        String link = properties.signupOrDefault().publicAppUrl().replaceAll("/$", "") + "/verify-email?token=" + raw;
-        notificationService.sendPlainEmail(user.getEmail(),
-                "Verifique su correo / Verify your email",
-                "Confirme su correo para continuar el registro de su veterinaria:\n" + link);
+        String veterinaryName = signup != null && signup.getTenant() != null ? signup.getTenant().getName() : null;
+        String logoUrl = signup != null && signup.getTenant() != null ? signup.getTenant().getLogoUrl() : null;
+        int hours = verificationIssuer.expirationHours();
+        transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_VETERINARY_REGISTRATION, user.getEmail(), () ->
+                emailService.sendVeterinaryRegistrationConfirmation(
+                        user.getEmail(),
+                        user.fullName(),
+                        veterinaryName,
+                        raw,
+                        logoUrl,
+                        hours));
     }
 
     private void assertCanCreateClinic(User user) {

@@ -115,7 +115,7 @@ export class AuthService {
       return '/admin';
     }
     const user = this.user();
-    if (this.isTenantOwner() && user && !user.emailVerified) {
+    if (user && !user.emailVerified) {
       return '/verify-email';
     }
     if (this.isTenantOwner() && (!user?.tenantId || user.tenantStatus === 'PENDING_PAYMENT')) {
