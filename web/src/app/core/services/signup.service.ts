@@ -38,7 +38,9 @@ export class SignupService {
   }
 
   completeClinic(payload: Record<string, unknown>): Observable<SignupStatus> {
-    return this.api.post<SignupStatus>('/signup/clinic', payload);
+    return this.api.post<SignupStatus>('/signup/clinic', payload).pipe(
+      tap(status => this.syncUser(status))
+    );
   }
 
   checkout(planId: number, billingCycle: BillingCycle): Observable<CheckoutSession> {
@@ -46,7 +48,9 @@ export class SignupService {
   }
 
   status(): Observable<SignupStatus> {
-    return this.api.get<SignupStatus>('/signup/status');
+    return this.api.get<SignupStatus>('/signup/status').pipe(
+      tap(status => this.syncUser(status))
+    );
   }
 
   refreshOwnerSession(): Observable<TokenResponse> {
@@ -75,5 +79,11 @@ export class SignupService {
     return this.api.post<TokenResponse>('/auth/accept-invite', payload).pipe(
       tap(response => this.auth.store(response))
     );
+  }
+
+  private syncUser(status: SignupStatus): void {
+    if (status.user) {
+      this.auth.applyUser(status.user);
+    }
   }
 }

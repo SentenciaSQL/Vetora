@@ -260,7 +260,7 @@ public class PlanCatalogService {
                     plan.getPaddleProductId(),
                     new PaddleDtos.UnitPrice(toCents(amount), "USD"),
                     new PaddleDtos.BillingCycle(interval, 1),
-                    trialPeriod()
+                    trialPeriodFor(plan, monthly)
             ));
         } catch (PaddleApiException ex) {
             throw paddleError("No se pudo crear el nuevo precio en Paddle");
@@ -325,7 +325,7 @@ public class PlanCatalogService {
             throw ApiException.badRequest("El precio " + cycleLabel + " no pertenece al producto del plan ("
                     + plan.getPaddleProductId() + ")");
         }
-        ensureTrialPeriod(price);
+        inspectTrialPeriod(plan, price, "year".equals(expectedInterval) ? SubscriptionStatuses.CYCLE_ANNUAL : SubscriptionStatuses.CYCLE_MONTHLY);
         return price;
     }
 
@@ -360,7 +360,7 @@ public class PlanCatalogService {
             throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no está activo (estado: "
                     + price.status() + ")");
         }
-        ensureTrialPeriod(price);
+        inspectTrialPeriod(plan, price, monthly ? SubscriptionStatuses.CYCLE_MONTHLY : SubscriptionStatuses.CYCLE_ANNUAL);
         BigDecimal paddleAmount = fromCents(price.unitPrice().amount());
         BigDecimal local = monthly ? plan.getMonthlyPrice() : plan.getAnnualPrice();
         boolean amountsMatch = local != null && local.compareTo(paddleAmount) == 0;
@@ -402,7 +402,7 @@ public class PlanCatalogService {
                     product.id(),
                     new PaddleDtos.UnitPrice(toCents(plan.getMonthlyPrice()), plan.getCurrency()),
                     new PaddleDtos.BillingCycle("month", 1),
-                    trialPeriod()
+                    trialPeriodFor(plan, true)
             ));
             plan.setPaddleMonthlyPriceId(monthly.id());
             plan.setPaddleMonthlyPriceStatus(monthly.status());
@@ -412,7 +412,7 @@ public class PlanCatalogService {
                         product.id(),
                         new PaddleDtos.UnitPrice(toCents(plan.getAnnualPrice()), plan.getCurrency()),
                         new PaddleDtos.BillingCycle("year", 1),
-                        trialPeriod()
+                        trialPeriodFor(plan, false)
                 ));
                 plan.setPaddleAnnualPriceId(annual.id());
                 plan.setPaddleAnnualPriceStatus(annual.status());
@@ -560,38 +560,37 @@ public class PlanCatalogService {
         return TenantContext.getOrNull() == null ? "platform" : Objects.toString(TenantContext.getOrNull().email(), "platform");
     }
 
-    public void ensureTrialPeriod(String priceId) {
+    public void inspectTrialPeriod(String priceId, Plan plan, String billingCycle) {
         if (!paddleProperties.configured() || !StringUtils.hasText(priceId)) {
             return;
         }
         try {
-            PaddleDtos.Price price = paddleClient.getPrice(priceId);
-            ensureTrialPeriod(price);
+            inspectTrialPeriod(plan, paddleClient.getPrice(priceId), billingCycle);
         } catch (PaddleApiException ex) {
-            log.warn("Could not load Paddle price {} to attach the trial period", priceId);
+            log.warn("Could not load Paddle price {} to inspect the trial period", TrialPolicy.maskPaddleId(priceId));
         }
     }
 
-    private void ensureTrialPeriod(PaddleDtos.Price price) {
-        if (price == null || !StringUtils.hasText(price.id()) || hasConfiguredTrial(price.trialPeriod())) {
+    private void inspectTrialPeriod(Plan plan, PaddleDtos.Price price, String billingCycle) {
+        if (price == null || !StringUtils.hasText(price.id())) {
             return;
         }
-        try {
-            paddleClient.updatePrice(price.id(), new PaddleDtos.UpdatePriceRequest(null, null, trialPeriod()));
-        } catch (PaddleApiException ex) {
-            log.warn("Could not attach the {}-day trial to Paddle price {}", animalinProperties.trialDays(), price.id());
+        boolean shouldHaveTrial = TrialPolicy.basicMonthly(plan, billingCycle);
+        if (shouldHaveTrial && !TrialPolicy.hasConfiguredBasicMonthlyTrial(price.trialPeriod())) {
+            log.warn("Paddle Price ID {} for BASIC monthly is missing Trial period: 14 days. Configure it in Paddle without changing the amount. Currency must remain USD.",
+                    TrialPolicy.maskPaddleId(price.id()));
+        } else if (!shouldHaveTrial && TrialPolicy.hasTrialPeriod(price.trialPeriod())) {
+            log.warn("Paddle Price ID {} for plan {} cycle {} has a trial period; only BASIC monthly should. Remove the trial in Paddle without changing the amount.",
+                    TrialPolicy.maskPaddleId(price.id()),
+                    plan == null ? "unknown" : plan.getCode(),
+                    billingCycle);
         }
     }
 
-    private boolean hasConfiguredTrial(PaddleDtos.TrialPeriod period) {
-        return period != null
-                && "day".equalsIgnoreCase(period.interval())
-                && period.frequency() != null
-                && period.frequency() == animalinProperties.trialDays();
-    }
-
-    private PaddleDtos.TrialPeriod trialPeriod() {
-        return new PaddleDtos.TrialPeriod("day", animalinProperties.trialDays());
+    private PaddleDtos.TrialPeriod trialPeriodFor(Plan plan, boolean monthly) {
+        return TrialPolicy.basicMonthly(plan, monthly ? SubscriptionStatuses.CYCLE_MONTHLY : SubscriptionStatuses.CYCLE_ANNUAL)
+                ? new PaddleDtos.TrialPeriod("day", TrialPolicy.DAYS)
+                : null;
     }
 
     private static ApiException paddleError(String message) {

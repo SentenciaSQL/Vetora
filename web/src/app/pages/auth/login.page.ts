@@ -45,8 +45,17 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
             @if (needsVerification()) {
               <a routerLink="/verify-email" class="block text-sm font-medium text-brand-700 hover:underline">{{ 'signup.verifyTitle' | translate }}</a>
             }
-            <button class="btn-primary w-full" [disabled]="form.invalid || loading">{{ 'auth.submit' | translate }}</button>
+            <button type="submit" class="btn-primary w-full" [disabled]="form.invalid || loading">{{ 'auth.submit' | translate }}</button>
           </form>
+          @if (auth.isAuthenticated) {
+            <div class="mt-6 space-y-3 rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-700">
+              <p>{{ 'auth.alreadySignedIn' | translate:{ email: auth.user()?.email } }}</p>
+              <div class="flex flex-wrap gap-2">
+                <a [routerLink]="auth.homePath()" class="btn-primary">{{ 'auth.continueSession' | translate }}</a>
+                <button type="button" class="btn-secondary" (click)="auth.logout()">{{ 'nav.logout' | translate }}</button>
+              </div>
+            </div>
+          }
           <div class="mt-4 flex justify-between text-sm">
             <a routerLink="/forgot" class="text-brand-700 hover:underline">{{ 'auth.forgot' | translate }}</a>
             <a routerLink="/register" class="text-brand-700 hover:underline">{{ 'auth.register' | translate }}</a>
@@ -59,7 +68,7 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
 })
 export class LoginPage implements OnInit {
   private fb = inject(FormBuilder);
-  private auth = inject(AuthService);
+  auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   branding = inject(BrandingService);

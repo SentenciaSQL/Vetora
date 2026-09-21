@@ -14,8 +14,10 @@ import {
   displayedPrice,
   isPopularPlan,
   monthlyEquivalentAmount,
-  savingsPercentAmount
+  savingsPercentAmount,
+  showsFreeTrial
 } from '../clinic/billing/billing.page';
+import { apiErrorMessage } from '../../core/http-error';
 
 function matchPassword(group: AbstractControl): ValidationErrors | null {
   const password = group.get('password')?.value;
@@ -33,7 +35,10 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
           <p class="text-sm uppercase tracking-wide text-brand-700">{{ 'signup.kicker' | translate }}</p>
           <h1 class="font-display text-3xl font-semibold">{{ 'signup.title' | translate }}</h1>
         </div>
-        <a routerLink="/login" class="text-sm text-brand-700 hover:underline">{{ 'auth.hasAccount' | translate }}</a>
+        <a routerLink="/login"
+           class="cursor-pointer text-sm font-medium text-brand-700 underline decoration-brand-500/70 underline-offset-2 hover:text-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+          {{ 'auth.hasAccount' | translate }}
+        </a>
       </div>
 
       <ol class="mb-8 grid grid-cols-4 gap-2 text-center text-xs font-medium sm:text-sm">
@@ -68,7 +73,7 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
             <input type="checkbox" formControlName="termsAccepted" class="mt-1" />
             <span>{{ 'signup.terms' | translate }}</span>
           </label>
-          <button class="btn-primary w-full" [disabled]="account.invalid || busy()">{{ 'common.continue' | translate }}</button>
+          <button type="submit" class="btn-primary w-full" [disabled]="account.invalid || busy()">{{ 'common.continue' | translate }}</button>
         </form>
       }
 
@@ -96,7 +101,7 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
           <input class="input" type="file" accept="image/*" (change)="onLogo($event)" />
           <div class="flex justify-between">
             <button type="button" class="btn-secondary" (click)="go(1)">{{ 'common.back' | translate }}</button>
-            <button class="btn-primary" [disabled]="clinic.invalid || slugTaken()">{{ 'common.continue' | translate }}</button>
+            <button type="button" class="btn-primary" [disabled]="clinic.invalid || slugTaken()">{{ 'common.continue' | translate }}</button>
           </div>
         </form>
       }
@@ -126,7 +131,9 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
                     @if (savingsPercentAmount(plan); as save) { · {{ 'billing.savePercent' | translate:{ percent: save } }} }
                   </p>
                 }
-                <p class="text-xs text-brand-700">{{ 'billing.trialDays' | translate:{ days: config()?.trialDays || 14 } }}</p>
+                @if (showsFreeTrial(plan, cycle())) {
+                  <p class="text-xs font-medium text-brand-700">{{ 'billing.basicMonthlyTrial' | translate }}</p>
+                }
                 <ul class="text-sm text-slate-600">
                   <li>{{ 'admin.users' | translate }}: {{ plan.limits.maxUsers }}</li>
                   <li>{{ 'nav.team' | translate }}: {{ plan.limits.maxVeterinarians }}</li>
@@ -137,7 +144,7 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
           </div>
           <div class="mt-6 flex justify-between">
             <button type="button" class="btn-secondary" (click)="go(2)">{{ 'common.back' | translate }}</button>
-            <button class="btn-primary" [disabled]="!canContinuePlan()" (click)="go(4)">{{ 'common.continue' | translate }}</button>
+            <button type="button" class="btn-primary" [disabled]="!canContinuePlan()" (click)="go(4)">{{ 'common.continue' | translate }}</button>
           </div>
         </section>
       }
@@ -149,8 +156,12 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
           <p>{{ 'signup.clinic' | translate }}: {{ clinic.value.name }}</p>
           <p>{{ 'admin.plan' | translate }}: {{ plan.name }} · {{ cycle() }}</p>
           <p>{{ 'signup.price' | translate }}: {{ displayedPrice(plan, cycle()) | number:'1.2-2' }} {{ plan.currency }}</p>
-          <p>{{ 'billing.trialDays' | translate:{ days: config()?.trialDays || 14 } }}</p>
-          <p>{{ 'billing.nextCharge' | translate }}: {{ firstCharge() | date:'mediumDate' }}</p>
+          @if (showsFreeTrial(plan, cycle())) {
+            <p>{{ 'billing.basicMonthlyTrial' | translate }}</p>
+            <p>{{ 'billing.nextCharge' | translate }}: {{ firstCharge() | date:'mediumDate' }}</p>
+          } @else {
+            <p>{{ 'billing.nextCharge' | translate }}: {{ 'billing.chargeNow' | translate }}</p>
+          }
           <ul class="text-sm text-slate-600">
             <li>{{ 'admin.users' | translate }}: {{ plan.limits.maxUsers }}</li>
             <li>{{ 'nav.team' | translate }}: {{ plan.limits.maxVeterinarians }}</li>
@@ -158,10 +169,17 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
           </ul>
           <div class="flex justify-between">
             <button type="button" class="btn-secondary" (click)="go(3)">{{ 'common.back' | translate }}</button>
-            <button class="btn-primary" [disabled]="busy()" (click)="pay()">{{ 'signup.pay' | translate }}</button>
+            <button type="button" class="btn-primary" [disabled]="busy()" (click)="pay()">{{ 'signup.pay' | translate }}</button>
           </div>
         </section>
       }
+
+      <p class="mt-8 text-center">
+        <a routerLink="/login"
+           class="cursor-pointer text-sm font-medium text-brand-700 underline decoration-brand-500/70 underline-offset-2 hover:text-brand-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+          {{ 'auth.hasAccount' | translate }}
+        </a>
+      </p>
     </div>
   `
 })
@@ -187,6 +205,7 @@ export class RegisterClinicPage implements OnInit {
   readonly monthlyEquivalentAmount = monthlyEquivalentAmount;
   readonly savingsPercentAmount = savingsPercentAmount;
   readonly isPopularPlan = isPopularPlan;
+  readonly showsFreeTrial = showsFreeTrial;
 
   countries = [
     { code: 'DO', label: 'República Dominicana' },
@@ -235,14 +254,57 @@ export class RegisterClinicPage implements OnInit {
       });
     });
     const user = this.auth.user();
-    if (user && this.auth.isTenantOwner()) {
+    if (user && this.auth.isAuthenticated) {
       this.account.patchValue({ firstName: user.firstName, lastName: user.lastName, email: user.email, phone: user.phone || '' });
-      if (!user.emailVerified) {
-        void this.router.navigateByUrl('/verify-email');
-        return;
-      }
-      this.step.set(user.tenantId ? 3 : 2);
+      this.signup.status().subscribe({
+        next: status => this.applyStatus(status),
+        error: () => this.applyStoredUser()
+      });
     }
+  }
+
+  private applyStatus(status: { signupStatus?: string; emailVerified: boolean; tenantId?: number | null; onboardingComplete?: boolean; accessGranted?: boolean; checkoutPending?: boolean; user?: { firstName?: string; lastName?: string; email?: string; phone?: string } }): void {
+    if (status.user) {
+      this.account.patchValue({
+        firstName: status.user.firstName || '',
+        lastName: status.user.lastName || '',
+        email: status.user.email || '',
+        phone: status.user.phone || ''
+      });
+    }
+    if (this.auth.onboardingComplete() || status.onboardingComplete || status.accessGranted) {
+      void this.router.navigateByUrl(this.auth.isSuspended() ? '/billing' : '/dashboard');
+      return;
+    }
+    if (!status.emailVerified) {
+      void this.router.navigateByUrl('/verify-email');
+      return;
+    }
+    if (status.checkoutPending) {
+      void this.router.navigateByUrl('/signup/processing');
+      return;
+    }
+    this.step.set(status.tenantId ? 3 : 2);
+  }
+
+  private applyStoredUser(): void {
+    const user = this.auth.user();
+    if (!user || !this.auth.isTenantOwner()) {
+      return;
+    }
+    if (this.auth.onboardingComplete() || this.auth.accessGranted()) {
+      void this.router.navigateByUrl(this.auth.homePath());
+      return;
+    }
+    if (!user.emailVerified) {
+      void this.router.navigateByUrl('/verify-email');
+      return;
+    }
+    if (this.auth.checkoutPending()) {
+      void this.router.navigateByUrl('/signup/processing');
+      return;
+    }
+    this.step.set(user.tenantId ? 3 : 2);
   }
 
   ownerName(): string {
@@ -251,7 +313,11 @@ export class RegisterClinicPage implements OnInit {
   }
 
   firstCharge(): Date {
-    const days = this.config()?.trialDays || 14;
+    const plan = this.selectedPlan();
+    if (!showsFreeTrial(plan, this.cycle())) {
+      return new Date();
+    }
+    const days = plan?.monthlyTrialDays || 14;
     return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   }
 
@@ -292,7 +358,7 @@ export class RegisterClinicPage implements OnInit {
       },
       error: err => {
         this.busy.set(false);
-        this.error.set(err.error?.message || 'No se pudo crear la cuenta');
+        this.error.set(apiErrorMessage(err, 'No se pudo crear la cuenta'));
       }
     });
   }
@@ -312,7 +378,7 @@ export class RegisterClinicPage implements OnInit {
       },
       error: err => {
         this.busy.set(false);
-        this.error.set(err.error?.message || 'No se pudo iniciar el pago');
+        this.error.set(apiErrorMessage(err, 'No se pudo iniciar el pago'));
       }
     });
     if (this.auth.user()?.tenantId) {
@@ -341,7 +407,7 @@ export class RegisterClinicPage implements OnInit {
       }),
       error: err => {
         this.busy.set(false);
-        this.error.set(err.error?.message || 'No se pudo registrar la veterinaria');
+        this.error.set(apiErrorMessage(err, 'No se pudo registrar la veterinaria'));
       }
     });
   }

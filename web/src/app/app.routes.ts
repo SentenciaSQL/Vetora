@@ -1,15 +1,13 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, medicalWriteGuard, staffGuard, superAdminGuard, billingAccessGuard, clinicSignupGuard } from './core/guards/auth.guard';
+import { authGuard, guestGuard, medicalWriteGuard, staffGuard, superAdminGuard, billingAccessGuard, clinicSignupGuard, onboardingGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
     path: 'login',
-    canActivate: [guestGuard],
     loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage)
   },
   {
     path: 'login/:slug',
-    canActivate: [guestGuard],
     loadComponent: () => import('./pages/auth/login.page').then(m => m.LoginPage)
   },
   {
@@ -52,7 +50,7 @@ export const routes: Routes = [
   },
   {
     path: '',
-    canActivate: [authGuard],
+    canActivate: [authGuard, onboardingGuard],
     loadComponent: () => import('./layout/shell.component').then(m => m.ShellComponent),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },

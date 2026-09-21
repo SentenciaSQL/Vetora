@@ -206,14 +206,10 @@ export class ShellComponent implements OnInit {
   }));
 
   ngOnInit(): void {
-    if (this.auth.needsClinicSetup() && !this.router.url.startsWith('/register-clinic') && !this.router.url.startsWith('/verify-email') && !this.router.url.startsWith('/signup')) {
-      void this.router.navigateByUrl(this.auth.homePath());
-      return;
-    }
     this.branding.loadForSession();
     if (this.auth.isStaff() && !this.auth.isSuperAdmin()) {
       this.billing.loadSubscription().subscribe(sub => {
-        if (sub.suspended && !this.router.url.startsWith('/billing')) {
+        if (sub.suspended && !this.router.url.startsWith('/billing') && !this.router.url.startsWith('/profile')) {
           void this.router.navigate(['/billing']);
         }
       });

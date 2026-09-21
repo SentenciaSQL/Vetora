@@ -82,6 +82,10 @@ public final class AuthDtos {
             java.util.Set<String> roles,
             java.util.Set<String> permissions,
             boolean emailVerified,
+            String signupStatus,
+            boolean onboardingComplete,
+            boolean accessGranted,
+            boolean checkoutPending,
             java.util.List<TenantSummary> memberships
     ) {
     }

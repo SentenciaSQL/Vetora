@@ -24,6 +24,10 @@ export interface UserProfile {
   roles: string[];
   permissions: string[];
   emailVerified?: boolean;
+  signupStatus?: string | null;
+  onboardingComplete?: boolean;
+  accessGranted?: boolean;
+  checkoutPending?: boolean;
   memberships: TenantSummary[];
 }
 
@@ -186,6 +190,7 @@ export interface BillingPlan {
   paddleAnnualPriceId?: string | null;
   enabled: boolean;
   limits: PlanLimits;
+  monthlyTrialDays?: number;
 }
 
 export interface BillingConfig {
@@ -212,6 +217,7 @@ export interface PublicPlan {
   annualAvailable?: boolean;
   enabled: boolean;
   limits: PlanLimits;
+  monthlyTrialDays?: number;
 }
 
 export interface SignupConfig {
@@ -244,6 +250,8 @@ export interface SignupStatus {
   subscriptionStatus?: string | null;
   checkoutReady: boolean;
   accessGranted: boolean;
+  onboardingComplete?: boolean;
+  checkoutPending?: boolean;
   limits?: PlanLimits | null;
   user?: UserProfile;
 }

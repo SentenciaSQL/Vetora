@@ -128,6 +128,12 @@ public class BillingService {
         }
         Tenant tenant = tenantRepository.findById(tenantId).orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         User user = userRepository.findById(TenantContext.userId()).orElseThrow(() -> ApiException.unauthorized("No hay un usuario autenticado"));
+        boolean paddleTrialUsed = subscription != null && StringUtils.hasText(subscription.getPaddleCustomerId())
+                && subscriptionRepository.existsTrialForPaddleCustomer(subscription.getPaddleCustomerId());
+        int trialDays = TrialPolicy.trialDays(plan, cycle.name(), tenant, user, paddleTrialUsed);
+        log.info("Billing checkout userId={} tenantId={} tenantStatus={} planCode={} cycle={} trialDays={} paddlePrice={}",
+                user.getId(), tenant.getId(), tenant.getStatus(), plan.getCode(), cycle.name(),
+                trialDays, TrialPolicy.maskPaddleId(priceId));
         return new BillingDtos.CheckoutResponse(
                 paddleProperties.sandbox() ? "sandbox" : "production",
                 paddleProperties.clientToken(),
@@ -161,7 +167,7 @@ public class BillingService {
             }
             return new BillingDtos.PortalResponse(session.overviewUrl());
         } catch (PaddleApiException ex) {
-            throw translatePaddle(ex);
+            throw translatePaddle(ex, tenantId, subscription, "portal");
         }
     }
 
@@ -183,7 +189,7 @@ public class BillingService {
                     new PaddleDtos.CancelSubscriptionRequest(effectiveFrom)
             );
         } catch (PaddleApiException ex) {
-            throw translatePaddle(ex);
+            throw translatePaddle(ex, tenantId, subscription, "cancel");
         }
         return currentSubscription();
     }
@@ -207,7 +213,7 @@ public class BillingService {
             return toPreview(currentPlan, subscription.getBillingCycle(), newPlan, cycle.name(),
                     estimatedAmount(preview), currencyOf(preview, subscription), nextBilling, change.prorationMode());
         } catch (PaddleApiException ex) {
-            throw translatePaddle(ex);
+            throw translatePaddle(ex, tenantId, subscription, "preview-change");
         }
     }
 
@@ -224,8 +230,13 @@ public class BillingService {
         try {
             updateWithFallback(subscription, priceId, tenantId);
         } catch (PaddleApiException ex) {
-            throw translatePaddle(ex);
+            throw translatePaddle(ex, tenantId, subscription, "change-plan");
         }
+        log.info("Plan change submitted userId={} tenantId={} tenantStatus={} paddleSub={} newPlan={} cycle={} onboardingUnchanged=true",
+                TenantContext.userId(), tenantId,
+                subscription.getTenant() == null ? null : subscription.getTenant().getStatus(),
+                TrialPolicy.maskPaddleId(subscription.getPaddleSubscriptionId()),
+                plan.getCode(), cycle.name());
         return currentSubscription();
     }
 
@@ -299,7 +310,8 @@ public class BillingService {
                 plan.getPaddleMonthlyPriceId(),
                 plan.getPaddleAnnualPriceId(),
                 plan.isActive(),
-                limits(plan)
+                limits(plan),
+                TrialPolicy.catalogMonthlyTrialDays(plan)
         );
     }
 
@@ -510,14 +522,31 @@ public class BillingService {
     }
 
     private ApiException translatePaddle(PaddleApiException ex) {
+        return translatePaddle(ex, TenantContext.tenantIdOrNull(), null, "billing");
+    }
+
+    private ApiException translatePaddle(PaddleApiException ex, Long tenantId, Subscription subscription, String step) {
         HttpStatus status = ex.getStatus() == 404 ? HttpStatus.NOT_FOUND
                 : ex.getStatus() == 409 ? HttpStatus.CONFLICT
                 : ex.getStatus() >= 400 && ex.getStatus() < 500 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.BAD_GATEWAY;
         String code = ex.getStatus() == 0 ? "PADDLE_NOT_CONFIGURED" : "PADDLE_API_ERROR";
         String detail = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
-        log.warn("Paddle billing operation failed status={} detail={}", ex.getStatus(), ex.getMessage());
+        log.warn("Paddle billing failed userId={} tenantId={} step={} subscriptionStatus={} paddleSub={} paddleHttp={} paddleType={} paddleCode={}",
+                TenantContext.userId(),
+                tenantId,
+                step,
+                subscription == null ? null : subscription.getStatus(),
+                subscription == null ? null : TrialPolicy.maskPaddleId(subscription.getPaddleSubscriptionId()),
+                ex.getStatus(),
+                ex.getPaddleErrorType(),
+                ex.getPaddleErrorCode());
         String message = "No se pudo completar la operación de facturación";
+        if (StringUtils.hasText(ex.getMessage()) && ex.getStatus() >= 400 && ex.getStatus() < 500
+                && !detail.contains("api key") && !detail.contains("secret") && !detail.contains("token")
+                && !detail.contains("signature") && !detail.contains("bearer")) {
+            message = ex.getMessage();
+        }
         if (detail.contains("proration") || detail.contains("trial") || detail.contains("do_not_bill")) {
             message = "No se pudo cambiar el plan durante la prueba gratis. El cobro del nuevo plan se hará al terminar los días de prueba.";
         } else if (detail.contains("not changed") || detail.contains("same")) {

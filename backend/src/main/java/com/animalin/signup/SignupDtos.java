@@ -76,7 +76,8 @@ public final class SignupDtos {
             boolean monthlyAvailable,
             boolean annualAvailable,
             boolean enabled,
-            BillingDtos.PlanLimits limits
+            BillingDtos.PlanLimits limits,
+            int monthlyTrialDays
     ) {
     }
 
@@ -111,6 +112,8 @@ public final class SignupDtos {
             String subscriptionStatus,
             boolean checkoutReady,
             boolean accessGranted,
+            boolean onboardingComplete,
+            boolean checkoutPending,
             BillingDtos.PlanLimits limits,
             AuthDtos.UserProfile user
     ) {

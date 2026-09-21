@@ -28,6 +28,13 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     Optional<Subscription> findByPaddleSubscriptionId(String paddleSubscriptionId);
     Optional<Subscription> findFirstByPaddleCustomerIdOrderByStartedAtDesc(String paddleCustomerId);
 
+    @Query("""
+            select (count(s) > 0) from Subscription s
+            where s.paddleCustomerId = :customerId
+              and (s.trial = true or s.status in ('TRIAL', 'TRIALING'))
+            """)
+    boolean existsTrialForPaddleCustomer(@Param("customerId") String customerId);
+
     long countByPlanId(Long planId);
     long countByPlanIdAndStatusIn(Long planId, Collection<String> statuses);
 

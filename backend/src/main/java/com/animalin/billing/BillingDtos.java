@@ -41,7 +41,8 @@ public final class BillingDtos {
             String paddleMonthlyPriceId,
             String paddleAnnualPriceId,
             boolean enabled,
-            PlanLimits limits
+            PlanLimits limits,
+            int monthlyTrialDays
     ) {
     }
 
