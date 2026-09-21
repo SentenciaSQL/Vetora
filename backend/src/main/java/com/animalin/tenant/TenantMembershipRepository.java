@@ -41,4 +41,15 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
               and m.tenant.status not in :excludedStatuses
             """)
     long countOwnedClinics(Long userId, String roleCode, java.util.Collection<String> excludedStatuses);
+
+    @Query("""
+            select count(m) from TenantMembership m
+            where m.tenant.id = :tenantId
+              and m.role.code = :roleCode
+              and m.status = 'ACTIVE'
+              and m.user.id <> :userId
+            """)
+    long countOtherActiveByRole(Long tenantId, String roleCode, Long userId);
+
+    List<TenantMembership> findByUser_Id(Long userId);
 }

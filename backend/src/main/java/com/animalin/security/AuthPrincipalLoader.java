@@ -24,7 +24,7 @@ public class AuthPrincipalLoader {
     @Transactional(readOnly = true)
     public Optional<TenantContext.AuthPrincipal> load(Long userId, Long tenantId) {
         User user = userRepository.findByIdWithRoles(userId).orElse(null);
-        if (user == null || !user.isEnabled()) {
+        if (user == null || !user.isEnabled() || user.isAccountDeleted()) {
             return Optional.empty();
         }
         Set<String> roles = new HashSet<>();

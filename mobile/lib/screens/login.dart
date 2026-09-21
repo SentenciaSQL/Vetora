@@ -114,6 +114,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
             if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
             if (sent) Padding(padding: const EdgeInsets.only(top: 12), child: Text(i.t('forgotSent'))),
+            if (widget.auth.logoutReason == 'ACCOUNT_DELETED')
+              Padding(padding: const EdgeInsets.only(top: 12), child: Text(i.t('deleteDone'))),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: loading ? null : submit,

@@ -8,7 +8,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,14 +25,23 @@ public class Branch extends TenantEntity {
     private String email;
 
     @Column(nullable = false)
-    private String timezone = "Europe/Madrid";
+    private String timezone = "America/Santo_Domingo";
 
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(name = "hours_configured", nullable = false)
+    private boolean hoursConfigured = false;
+
     @JsonIgnore
     @OneToMany(mappedBy = "branch", cascade = CascadeType.ALL, orphanRemoval = true)
+    @jakarta.persistence.OrderBy("dayOfWeek ASC, openTime ASC")
     private List<BranchHour> hours = new ArrayList<>();
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "branch", cascade = CascadeType.ALL, orphanRemoval = true)
+    @jakarta.persistence.OrderBy("exceptionDate ASC")
+    private List<BranchHourException> hourExceptions = new ArrayList<>();
 
     public String getName() {
         return name;
@@ -88,5 +96,17 @@ public class Branch extends TenantEntity {
     }
     public void setHours(List<BranchHour> hours) {
         this.hours = hours;
+    }
+    public boolean isHoursConfigured() {
+        return hoursConfigured;
+    }
+    public void setHoursConfigured(boolean hoursConfigured) {
+        this.hoursConfigured = hoursConfigured;
+    }
+    public List<BranchHourException> getHourExceptions() {
+        return hourExceptions;
+    }
+    public void setHourExceptions(List<BranchHourException> hourExceptions) {
+        this.hourExceptions = hourExceptions;
     }
 }

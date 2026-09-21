@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/auth.dart';
+import '../core/config.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
 import 'billing.dart';
@@ -112,6 +114,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  bool get _canManageHours =>
+      widget.auth.hasAnyRole(const ['TENANT_OWNER', 'TENANT_ADMIN'])
+      || widget.auth.hasPermission('BRANCH_MANAGE')
+      || widget.auth.hasPermission('SETTINGS_UPDATE');
+
+  Future<void> _openWebHours() async {
+    final uri = Uri.parse('${AppConfig.webUrl}/settings');
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('hoursManageWeb'))));
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final i = I18n.instance;
+    final password = TextEditingController();
+    final confirmation = TextEditingController();
+    String? error;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setDialog) {
+          return AlertDialog(
+            title: Text(i.t('deleteAccount')),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(i.t('deleteWarning')),
+                  const SizedBox(height: 12),
+                  TextField(controller: password, obscureText: true, decoration: InputDecoration(labelText: i.t('currentPassword'))),
+                  const SizedBox(height: 8),
+                  TextField(controller: confirmation, decoration: InputDecoration(labelText: i.t('deleteType'))),
+                  if (error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(error!, style: const TextStyle(color: Colors.red))),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(i.t('cancel'))),
+              FilledButton(
+                onPressed: saving ? null : () async {
+                  setDialog(() => error = null);
+                  try {
+                    await widget.auth.api.post('/account/deletion', {
+                      'currentPassword': password.text,
+                      'confirmation': confirmation.text.trim(),
+                    });
+                    if (ctx.mounted) Navigator.pop(ctx, true);
+                  } catch (e) {
+                    setDialog(() => error = userMessage(e));
+                  }
+                },
+                child: Text(i.t('deleteConfirm')),
+              ),
+            ],
+          );
+        });
+      },
+    );
+    password.dispose();
+    confirmation.dispose();
+    if (confirmed == true) {
+      await widget.auth.expire('ACCOUNT_DELETED');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final i = I18n.instance;
@@ -192,6 +261,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: Text(i.t('notifyPush')),
               value: _notifyPush,
               onChanged: _savingPrefs ? null : (value) => _savePrefs(push: value),
+            ),
+          ],
+          if (_canManageHours)
+            ListTile(
+              title: Text(i.t('hoursTitle')),
+              subtitle: Text(i.t('hoursManageWeb')),
+              onTap: _openWebHours,
+            ),
+          if (!auth.isSuperAdmin) ...[
+            const Divider(),
+            Text(i.t('securityPrivacy'), style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(i.t('deleteWarning'), style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: saving ? null : _deleteAccount,
+              child: Text(i.t('deleteAccount')),
             ),
           ],
           const SizedBox(height: 12),

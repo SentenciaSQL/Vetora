@@ -84,7 +84,8 @@ public class AuthService {
     public AuthDtos.TokenResponse login(AuthDtos.LoginRequest request) {
         User user = userRepository.findByEmailWithRoles(request.email().trim().toLowerCase())
                 .orElseThrow(() -> ApiException.unauthorized("Credenciales inválidas"));
-        if (!user.isEnabled() || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (!user.isEnabled() || user.isAccountDeleted()
+                || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw ApiException.unauthorized("Credenciales inválidas");
         }
         boolean superAdmin = user.getRoles().stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getCode()));

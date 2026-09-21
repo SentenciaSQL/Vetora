@@ -56,6 +56,12 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(name = "deletion_status", nullable = false, length = 32)
+    private String deletionStatus = "ACTIVE";
+
+    @Column(name = "anonymized_at")
+    private Instant anonymizedAt;
+
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
@@ -140,6 +146,21 @@ public class User extends BaseEntity {
     }
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+    public String getDeletionStatus() {
+        return deletionStatus;
+    }
+    public void setDeletionStatus(String deletionStatus) {
+        this.deletionStatus = deletionStatus;
+    }
+    public Instant getAnonymizedAt() {
+        return anonymizedAt;
+    }
+    public void setAnonymizedAt(Instant anonymizedAt) {
+        this.anonymizedAt = anonymizedAt;
+    }
+    public boolean isAccountDeleted() {
+        return "DELETED".equals(deletionStatus);
     }
     public Instant getLastLoginAt() {
         return lastLoginAt;

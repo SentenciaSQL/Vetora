@@ -63,6 +63,7 @@ public class EmailVerificationAccessFilter extends OncePerRequestFilter {
         }
         return path.startsWith("/api/v1/public/")
                 || path.startsWith("/api/v1/billing/webhooks/")
+                || path.startsWith("/api/v1/account/")
                 || path.startsWith("/actuator/")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/swagger-ui");

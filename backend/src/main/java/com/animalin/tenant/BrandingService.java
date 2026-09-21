@@ -164,6 +164,7 @@ public class BrandingService {
 
     public AppDtos.PublicClinicResponse toPublicClinic(Tenant tenant) {
         return new AppDtos.PublicClinicResponse(
+                tenant.getId(),
                 tenant.getSlug(),
                 tenant.getName(),
                 tenant.getCommercialName(),

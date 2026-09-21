@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -64,7 +63,10 @@ public class BranchController {
         Branch branch = new Branch();
         branch.setTenantId(tenantId);
         apply(branch, request);
-        defaultHours(branch, tenantId);
+        if (branch.getTimezone() == null || branch.getTimezone().isBlank()) {
+            branch.setTimezone("America/Santo_Domingo");
+        }
+        branch.setHoursConfigured(false);
         branchRepository.save(branch);
         auditService.record("CREATE", "BRANCH", branch.getId(), branch.getName());
         return branch;
@@ -94,18 +96,6 @@ public class BranchController {
         }
         if (request.active() != null) {
             branch.setActive(request.active());
-        }
-    }
-
-    private void defaultHours(Branch branch, Long tenantId) {
-        for (int d = 1; d <= 5; d++) {
-            BranchHour hour = new BranchHour();
-            hour.setTenantId(tenantId);
-            hour.setBranch(branch);
-            hour.setDayOfWeek(d);
-            hour.setOpenTime(LocalTime.of(9, 0));
-            hour.setCloseTime(LocalTime.of(19, 0));
-            branch.getHours().add(hour);
         }
     }
 

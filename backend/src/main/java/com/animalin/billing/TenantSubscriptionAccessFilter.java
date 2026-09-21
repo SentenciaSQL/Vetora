@@ -115,7 +115,8 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/v1/auth/me")
                 || "/api/v1/auth/logout".equals(path)
                 || "/api/v1/auth/switch-tenant".equals(path)
-                || "/api/v1/auth/change-password".equals(path);
+                || "/api/v1/auth/change-password".equals(path)
+                || path.startsWith("/api/v1/account/");
     }
 
     private boolean blocks(SubscriptionAccessView subscription) {

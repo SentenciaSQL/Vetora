@@ -11,6 +11,7 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
     Optional<Owner> findByIdAndTenantId(Long id, Long tenantId);
     Optional<Owner> findByTenantIdAndUserId(Long tenantId, Long userId);
     Optional<Owner> findByUserIdAndId(Long userId, Long id);
+    java.util.List<Owner> findByUser_Id(Long userId);
     @Query("""
             select o from Owner o
             where o.tenantId = :tenantId

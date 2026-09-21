@@ -96,6 +96,9 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/public/slug-available")) {
             return new Limit("slug-available", 30, Duration.ofMinutes(1));
         }
+        if (path.equals("/api/v1/account/deletion")) {
+            return new Limit("account-deletion", 5, Duration.ofHours(1));
+        }
         return null;
     }
 
