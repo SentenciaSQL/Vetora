@@ -1,4 +1,4 @@
-# Animexa mobile
+# Lunaveta mobile
 
 Aplicación Flutter para propietarios de mascotas. Comparte la API REST `/api/v1` con el panel Angular.
 

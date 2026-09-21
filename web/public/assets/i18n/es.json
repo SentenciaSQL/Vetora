@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Animexa", "tagline": "Plataforma veterinaria multi-tenant" },
+  "app": { "name": "Lunaveta", "tagline": "Plataforma veterinaria multi-tenant" },
   "common": {
     "search": "Buscar",
     "save": "Guardar",
@@ -57,7 +57,7 @@
     "resetDone": "Contraseña actualizada. Ya puede iniciar sesión."
   },
   "signup": {
-    "kicker": "Animexa para clínicas",
+    "kicker": "Lunaveta para clínicas",
     "title": "Registre su veterinaria",
     "clinicCta": "¿Quiere registrar su veterinaria?",
     "stepAccount": "Cuenta",
@@ -177,7 +177,7 @@
     "updateAnnualPrice": "Actualizar precio anual",
     "rotatePriceConfirm": "Se creará un precio nuevo en Paddle y se archivará el anterior. Las suscripciones existentes conservarán su precio. ¿Continuar?",
     "paddleInSync": "Los precios coinciden con Paddle",
-    "paddleDrift": "Había diferencias: Animexa ahora usa el importe de Paddle",
+    "paddleDrift": "Había diferencias: Lunaveta ahora usa el importe de Paddle",
     "priceRotated": "Precio nuevo creado en Paddle",
     "annualIdRequired": "Pegue un Paddle Annual Price ID (pri_) para activar la venta anual. El precio anual se guarda, pero no se venderá hasta que exista un ID válido.",
     "sync": {

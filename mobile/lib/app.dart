@@ -39,7 +39,7 @@ class _VetoraAppState extends State<VetoraApp> {
   Widget build(BuildContext context) {
     if (!ready) {
       return MaterialApp(
-        title: 'Animexa',
+        title: 'Lunaveta',
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           backgroundColor: const Color(0xFF0F766E),
@@ -53,7 +53,7 @@ class _VetoraAppState extends State<VetoraApp> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Animexa',
+                  'Lunaveta',
                   style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 0.4),
                 ),
               ],
@@ -66,7 +66,7 @@ class _VetoraAppState extends State<VetoraApp> {
       animation: Listenable.merge([auth, I18n.instance]),
       builder: (context, _) {
         return MaterialApp(
-          title: 'Animexa',
+          title: 'Lunaveta',
           debugShowCheckedModeBanner: false,
           locale: Locale(I18n.instance.locale),
           theme: VetoraTheme.light,

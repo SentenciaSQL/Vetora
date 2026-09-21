@@ -134,7 +134,7 @@ public class StaffInviteService {
         String link = properties.signupOrDefault().publicAppUrl().replaceAll("/$", "") + "/accept-invite?token=" + raw;
         notificationService.sendPlainEmail(email,
                 "Invitación a " + tenant.getName(),
-                "Lo invitaron a unirse a " + tenant.getName() + " en Animexa como " + roleCode + ".\n" + link);
+                "Lo invitaron a unirse a " + tenant.getName() + " en Lunaveta como " + roleCode + ".\n" + link);
         auditService.record(tenantId, TenantContext.userId(), TenantContext.get().email(),
                 "INVITE", "STAFF_INVITATION", invitation.getId(), email, null, roleCode);
         return toResponse(invitation);
