@@ -47,7 +47,7 @@ class PlanCatalogServiceTest {
         service = new PlanCatalogService(
                 planRepository, subscriptionRepository, paddleClient, properties, auditService,
                 Clock.fixed(now, ZoneOffset.UTC),
-                new com.animalin.config.AnimalinProperties(null, null, null, null, null,
+                new com.animalin.config.AnimalinProperties(null, null, null, null, null, null,
                         new com.animalin.config.AnimalinProperties.Signup(14, 1, 48, 60, 7, "http://localhost:4200")));
         plan = seededPlan();
         TenantContext.set(new TenantContext.AuthPrincipal(
