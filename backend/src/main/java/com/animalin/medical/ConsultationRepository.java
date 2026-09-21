@@ -15,4 +15,5 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
     Page<Consultation> findByTenantId(Long tenantId, Pageable pageable);
     List<Consultation> findByTenantIdAndConsultedAtBetweenOrderByConsultedAtDesc(Long tenantId, Instant from, Instant to);
     long countByTenantId(Long tenantId);
+    long countByConsultedAtGreaterThanEqualAndConsultedAtLessThan(Instant from, Instant to);
 }

@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../core/services/api.service';
@@ -12,6 +13,14 @@ import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
     <div class="flex items-center justify-between">
       <h1 class="font-display text-2xl font-semibold">{{ 'nav.tenants' | translate }}</h1>
       <button class="btn-primary" (click)="open=true">{{ 'admin.createTenant' | translate }}</button>
+    </div>
+    <div class="card mt-6 grid gap-3 sm:grid-cols-3">
+      <label class="text-sm">{{ 'common.status' | translate }}
+        <select class="input mt-1" [(ngModel)]="statusFilter" (ngModelChange)="load()">
+          <option value="">{{ 'common.all' | translate }}</option>
+          @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </label>
     </div>
     <div class="card mt-6 overflow-x-auto p-0">
       <table class="min-w-full text-sm">
@@ -81,8 +90,11 @@ export class AdminTenantsPage implements OnInit {
   private api = inject(ApiService);
   private toast = inject(ToastService);
   private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
   tenants = signal<any[]>([]);
   open = false;
+  statusFilter = '';
+  statuses = ['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'GRACE_PERIOD', 'SUSPENDED', 'CANCELED', 'PENDING_PAYMENT'];
   form = this.fb.group({
     name: ['', Validators.required],
     slug: ['', Validators.required],
@@ -97,9 +109,17 @@ export class AdminTenantsPage implements OnInit {
     trialEndsAt: ['']
   });
 
-  ngOnInit() { this.load(); }
+  ngOnInit() {
+    this.route.queryParamMap.subscribe(params => {
+      this.statusFilter = params.get('status') || this.statusFilter;
+      if (params.get('create') === '1') {
+        this.open = true;
+      }
+      this.load();
+    });
+  }
 
-  load() { this.api.get<any[]>('/admin/tenants').subscribe(t => this.tenants.set(t)); }
+  load() { this.api.get<any[]>('/admin/tenants', { status: this.statusFilter || undefined }).subscribe(t => this.tenants.set(t)); }
 
   status(id: number, status: string) {
     this.api.post(`/admin/tenants/${id}/status`, { status }).subscribe(() => this.load());

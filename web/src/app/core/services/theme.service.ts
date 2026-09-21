@@ -27,6 +27,10 @@ export class ThemeService {
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
   }
 
+  isDark(): boolean {
+    return document.documentElement.classList.contains('dark');
+  }
+
   private read(): ThemeMode {
     const value = localStorage.getItem('animalin.theme');
     return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';

@@ -80,7 +80,7 @@ export const billingAccessGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (auth.isSuperAdmin()) {
-    return router.createUrlTree(['/admin']);
+    return router.createUrlTree(['/dashboard']);
   }
   return auth.isStaff() || router.createUrlTree([auth.homePath()]);
 };

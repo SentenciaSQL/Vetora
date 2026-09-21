@@ -10,4 +10,5 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     long countByConversation_TenantIdAndReadAtIsNullAndSenderIdNot(Long tenantId, Long userId);
     long countByConversationIdAndReadAtIsNullAndSenderIdNot(Long conversationId, Long userId);
     long countByTenantIdAndCreatedAtGreaterThanEqual(Long tenantId, Instant createdAt);
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(Instant from, Instant to);
 }
