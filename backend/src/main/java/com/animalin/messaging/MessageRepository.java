@@ -48,7 +48,10 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
               and (exists (
                     select p from m.conversation.participants p where p.id = :userId
                   )
-                  or m.conversation.owner.user.id = :userId)
+                  or exists (
+                    select o from Owner o
+                    where o = m.conversation.owner and o.user.id = :userId
+                  ))
               and (not exists (
                     select r from ConversationReadState r
                     where r.conversation = m.conversation and r.user.id = :userId
@@ -60,13 +63,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             """)
     long countUnreadForParticipant(@Param("userId") Long userId);
 
-    @Query("""
-            select count(m) from Message m
-            where m.conversation.id = :conversationId
-              and m.sender.id <> :userId
-              and (:lastReadAt is null or m.createdAt > :lastReadAt)
-            """)
-    long countUnreadInConversation(@Param("conversationId") Long conversationId,
-                                   @Param("userId") Long userId,
-                                   @Param("lastReadAt") Instant lastReadAt);
+    long countByConversationIdAndSenderIdNot(Long conversationId, Long userId);
+
+    long countByConversationIdAndSenderIdNotAndCreatedAtAfter(Long conversationId, Long userId, Instant createdAt);
 }
