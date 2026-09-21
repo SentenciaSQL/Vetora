@@ -199,12 +199,14 @@ public class PaddleApiClient implements PaddleClient {
         int status = response.getStatusCode().value();
         String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
         log.warn("Paddle API error method={} path={} status={}", request.getMethod(), request.getURI().getPath(), status);
-        throw new PaddleApiException(status, sanitizeError(body));
+        PaddleErrorInfo sanitized = sanitizeError(body);
+        throw new PaddleApiException(status, sanitized.detail(), sanitized.type(), sanitized.code());
     }
 
     private PaddleApiException toApiException(RestClientResponseException ex) {
         log.warn("Paddle API error status={}", ex.getStatusCode().value());
-        return new PaddleApiException(ex.getStatusCode().value(), sanitizeError(ex.getResponseBodyAsString()));
+        PaddleErrorInfo sanitized = sanitizeError(ex.getResponseBodyAsString());
+        return new PaddleApiException(ex.getStatusCode().value(), sanitized.detail(), sanitized.type(), sanitized.code());
     }
 
     private PaddleApiException wrap(Exception ex) {
@@ -218,20 +220,26 @@ public class PaddleApiClient implements PaddleClient {
         return new PaddleApiException(0, "Paddle API request failed");
     }
 
-    private String sanitizeError(String body) {
+    private PaddleErrorInfo sanitizeError(String body) {
         if (!StringUtils.hasText(body)) {
-            return "Paddle API request failed";
+            return new PaddleErrorInfo("Paddle API request failed", null, null);
         }
         try {
             PaddleDtos.ErrorEnvelope envelope = objectMapper.readValue(body, new TypeReference<>() {
             });
-            if (envelope != null && envelope.error() != null && StringUtils.hasText(envelope.error().detail())) {
-                return envelope.error().detail();
+            if (envelope != null && envelope.error() != null) {
+                String detail = StringUtils.hasText(envelope.error().detail())
+                        ? envelope.error().detail()
+                        : "Paddle API request failed";
+                return new PaddleErrorInfo(detail, envelope.error().type(), envelope.error().code());
             }
         } catch (Exception ignored) {
             // Fall through to a generic message so payment payloads are never logged or returned.
         }
-        return "Paddle API request failed";
+        return new PaddleErrorInfo("Paddle API request failed", null, null);
+    }
+
+    private record PaddleErrorInfo(String detail, String type, String code) {
     }
 
     private void ensureConfigured() {

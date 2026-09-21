@@ -229,6 +229,7 @@ public class SubscriptionSyncService {
         subscription.setTrial(true);
         Tenant tenant = subscription.getTenant();
         tenant.setStatus(SubscriptionStatuses.TRIAL);
+        markTrialUsed(tenant, subscription);
         if (paddleSub.currentBillingPeriod() != null && paddleSub.currentBillingPeriod().endsAt() != null) {
             tenant.setTrialEndsAt(paddleSub.currentBillingPeriod().endsAt());
         }
@@ -236,6 +237,21 @@ public class SubscriptionSyncService {
             subscription.setStartedAt(paddleSub.startedAt());
         }
         completeSignup(tenant);
+        log.info("Paddle trialing user tenantId={} signup completed paddleSub={} status={}",
+                tenant.getId(), TrialPolicy.maskPaddleId(paddleSub.id()), subscription.getStatus());
+    }
+
+    private void markTrialUsed(Tenant tenant, Subscription subscription) {
+        if (tenant != null) {
+            tenant.setTrialUsed(true);
+        }
+        if (subscription != null && subscription.getTenant() != null) {
+            signupRepository.findFirstByTenantIdOrderByCreatedAtDesc(subscription.getTenant().getId()).ifPresent(signup -> {
+                if (signup.getUser() != null) {
+                    signup.getUser().setTrialUsed(true);
+                }
+            });
+        }
     }
 
     private void completeSignup(Tenant tenant) {
@@ -243,6 +259,9 @@ public class SubscriptionSyncService {
             return;
         }
         signupRepository.findFirstByTenantIdOrderByCreatedAtDesc(tenant.getId()).ifPresent(signup -> {
+            if (!ClinicSignup.COMPLETED.equals(signup.getStatus())) {
+                log.info("Completing clinic onboarding tenantId={} previousStatus={}", tenant.getId(), signup.getStatus());
+            }
             signup.setStatus(ClinicSignup.COMPLETED);
             if (signup.getCompletedAt() == null) {
                 signup.setCompletedAt(clock.instant());

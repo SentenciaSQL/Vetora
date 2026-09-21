@@ -50,6 +50,9 @@ public class User extends BaseEntity {
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 
+    @Column(name = "trial_used", nullable = false)
+    private boolean trialUsed = false;
+
     @Column(nullable = false)
     private boolean enabled = true;
 
@@ -125,6 +128,12 @@ public class User extends BaseEntity {
     }
     public void setEmailVerified(boolean emailVerified) {
         this.emailVerified = emailVerified;
+    }
+    public boolean isTrialUsed() {
+        return trialUsed;
+    }
+    public void setTrialUsed(boolean trialUsed) {
+        this.trialUsed = trialUsed;
     }
     public boolean isEnabled() {
         return enabled;

@@ -7,7 +7,7 @@ import { BillingService } from '../../../core/services/billing.service';
 import { PaddleService } from '../../../core/services/paddle.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
-import { BillingPlan, ChangePreview, UsageMetric } from '../../../core/models';
+import { BillingPlan, ChangePreview, PublicPlan, UsageMetric } from '../../../core/models';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
 
 export type BillingCycle = 'MONTHLY' | 'ANNUAL';
@@ -61,6 +61,16 @@ export function checkoutPayload(planId: number, billingCycle: BillingCycle) {
 
 export function isPopularPlan(code?: string | null): boolean {
   return (code || '').toUpperCase() === 'PROFESSIONAL';
+}
+
+export function showsFreeTrial(
+  plan: Pick<BillingPlan, 'code' | 'monthlyTrialDays'> | Pick<PublicPlan, 'code' | 'monthlyTrialDays'> | null | undefined,
+  cycle: BillingCycle
+): boolean {
+  if (!plan || cycle !== 'MONTHLY') {
+    return false;
+  }
+  return (plan.code || '').toUpperCase() === 'BASIC' && (plan.monthlyTrialDays || 0) > 0;
 }
 
 export function isSuccessfulCheckoutStatus(status?: string | null): boolean {
@@ -182,14 +192,15 @@ export function usageReached(metric?: UsageMetric | null): boolean {
             <p class="text-xs text-slate-400">{{ cycle() === 'ANNUAL' ? ('billing.perYear' | translate) : ('billing.perMonth' | translate) }}</p>
             @if (cycle() === 'ANNUAL' && monthlyEquivalentAmount(plan); as equivalent) {
               <p class="text-sm text-slate-500">{{ equivalent | number:'1.2-2' }} {{ plan.currency }}/mes, {{ 'billing.billedAnnually' | translate }}</p>
-              <p class="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                {{ 'billing.twoMonthsFree' | translate }}
+              <p class="text-xs font-medium text-brand-700">{{ 'billing.twoMonthsFree' | translate }}
                 @if (savingsPercentAmount(plan); as save) {
                   · {{ 'billing.savePercent' | translate:{ percent: save } }}
                 }
               </p>
             }
-            <p class="text-xs font-medium text-brand-700">{{ 'billing.trialDays' | translate:{ days: trialDays() } }}</p>
+            @if (!hasActivePaddleSubscription() && showsFreeTrial(plan, cycle())) {
+              <p class="text-xs font-medium text-brand-700">{{ 'billing.basicMonthlyTrial' | translate }}</p>
+            }
             <ul class="text-sm text-slate-600 dark:text-slate-300">
               <li>{{ 'admin.users' | translate }}: {{ plan.limits.maxUsers }}</li>
               <li>{{ 'nav.team' | translate }}: {{ plan.limits.maxVeterinarians }}</li>
@@ -225,7 +236,6 @@ export class BillingPage implements OnInit {
   subscription = this.billing.subscription;
   busy = signal(false);
   cycle = signal<BillingCycle>('MONTHLY');
-  trialDays = signal(14);
   preview = signal<ChangePreview | null>(null);
 
   readonly selectedPriceId = selectedPriceId;
@@ -234,6 +244,7 @@ export class BillingPage implements OnInit {
   readonly monthlyEquivalentAmount = monthlyEquivalentAmount;
   readonly savingsPercentAmount = savingsPercentAmount;
   readonly isPopularPlan = isPopularPlan;
+  readonly showsFreeTrial = showsFreeTrial;
   readonly isSuccessfulCheckoutStatus = isSuccessfulCheckoutStatus;
   readonly formatUsage = formatUsage;
   readonly usageReached = usageReached;
@@ -242,7 +253,6 @@ export class BillingPage implements OnInit {
     this.billing.loadSubscription().subscribe();
     this.billing.loadConfig().subscribe(config => {
       this.plans.set(config.plans || []);
-      this.trialDays.set(config.trialDays || 14);
       void this.paddle.ensure(config);
     });
     this.route.queryParamMap.subscribe(params => {

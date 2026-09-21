@@ -118,6 +118,28 @@ Dashboard fallback:
 
 Amounts in the Paddle API are the lowest currency unit as a string (`"2900"` = $29.00). Changing a local monthly amount creates a **new** Paddle price and archives the old one for new sales; existing subscribers keep the archived price unless you migrate them.
 
+## Trial period — BASIC monthly only
+
+The 14-day free trial must exist **only** on the BASIC monthly Paddle price. The backend never sends `trialDays` from Angular and never writes a trial onto every catalog price.
+
+| Plan | Cycle | Trial in Paddle |
+| --- | --- | --- |
+| BASIC | Monthly | **14 days**, interval `day`, USD, billing period monthly |
+| BASIC | Annual | none |
+| PROFESSIONAL | Monthly | none |
+| PROFESSIONAL | Annual | none |
+| PREMIUM | Monthly | none |
+| PREMIUM | Annual | none |
+
+Manual check in Paddle Catalog:
+
+1. Open the BASIC product → monthly price (`pri_…` stored as `paddleMonthlyPriceId`).
+2. Confirm **Trial period: 14 days**, **Billing period: Monthly**, **Currency: USD**.
+3. Confirm the BASIC **annual** price and every PROFESSIONAL / PREMIUM price have **Trial period: none**.
+4. Do **not** change amounts if a price is wrong. Either edit the trial period only, or create a **new** price with the same amount and map the new `pri_…` in Plataforma → Planes.
+
+Lunaveta records `trial_used` on the tenant and owner account (and consults the Paddle Customer ID when present). A later change from another plan back to BASIC monthly must not grant another 14 days.
+
 ## How to create the client-side token
 
 Sandbox → Developer tools → Authentication → **Client-side token**. Put it in `PADDLE_CLIENT_TOKEN`. Angular receives it from `GET /api/v1/billing/config` and `POST /api/v1/billing/checkout`. You may also paste it into `web/src/environments/environment.ts` (`paddleClientToken`) for local builds. Never put an API key or webhook secret in Angular.

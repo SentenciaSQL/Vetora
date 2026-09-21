@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { apiErrorMessage } from '../http-error';
 
 export interface Toast {
   id: number;
@@ -18,8 +19,7 @@ export class ToastService {
   }
 
   showHttpError(error: unknown, fallback = 'common.error'): void {
-    const body = (error as { error?: { message?: string; code?: string } })?.error;
-    this.show(body?.message || fallback, true);
+    this.show(apiErrorMessage(error, fallback), true);
   }
 
   dismiss(id: number): void {
