@@ -76,8 +76,12 @@ public class BillingService {
         return properties.trialDays();
     }
 
-    public void requireActiveUsdPrice(Plan plan, String priceId, String interval) {
-        planCatalogService.requireActiveUsdPrice(plan, priceId, interval);
+    public String requireActiveUsdPrice(Plan plan, String priceId, String interval) {
+        return planCatalogService.requireActiveUsdPrice(plan, priceId, interval).id();
+    }
+
+    public String resolveAlignedPriceId(Plan plan, SubscriptionCycle cycle) {
+        return requireActiveUsdPrice(plan, resolvePriceId(plan, cycle), cycle.paddleInterval());
     }
 
     @Transactional(readOnly = true)
@@ -110,14 +114,13 @@ public class BillingService {
         return toSubscription(tenant, subscription);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public BillingDtos.CheckoutResponse prepareCheckout(BillingDtos.CheckoutRequest request) {
         Long tenantId = requireBillingTenant();
         requireTenantAdmin();
         SubscriptionCycle cycle = SubscriptionCycle.parse(request == null ? null : request.billingCycle());
         Plan plan = requireActivePlan(request == null ? null : request.planId());
-        String priceId = resolvePriceId(plan, cycle);
-        planCatalogService.requireActiveUsdPrice(plan, priceId, cycle.paddleInterval());
+        String priceId = resolveAlignedPriceId(plan, cycle);
         Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenantId).orElse(null);
         if (subscription != null
                 && StringUtils.hasText(subscription.getPaddleSubscriptionId())
@@ -194,14 +197,13 @@ public class BillingService {
         return currentSubscription();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public BillingDtos.ChangePreviewResponse previewChange(BillingDtos.ChangePlanRequest request) {
         Long tenantId = requireBillingTenant();
         requireTenantAdmin();
         SubscriptionCycle cycle = SubscriptionCycle.parse(request == null ? null : request.billingCycle());
         Plan newPlan = requireActivePlan(request == null ? null : request.planId());
-        String priceId = resolvePriceId(newPlan, cycle);
-        planCatalogService.requireActiveUsdPrice(newPlan, priceId, cycle.paddleInterval());
+        String priceId = resolveAlignedPriceId(newPlan, cycle);
         Subscription subscription = requirePaddleSubscription(tenantId);
         rejectUnchangedPlan(subscription, priceId);
         Plan currentPlan = subscription.getPlan();
@@ -223,8 +225,7 @@ public class BillingService {
         requireTenantAdmin();
         SubscriptionCycle cycle = SubscriptionCycle.parse(request == null ? null : request.billingCycle());
         Plan plan = requireActivePlan(request == null ? null : request.planId());
-        String priceId = resolvePriceId(plan, cycle);
-        planCatalogService.requireActiveUsdPrice(plan, priceId, cycle.paddleInterval());
+        String priceId = resolveAlignedPriceId(plan, cycle);
         Subscription subscription = requirePaddleSubscription(tenantId);
         rejectUnchangedPlan(subscription, priceId);
         try {

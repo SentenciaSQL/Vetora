@@ -140,6 +140,8 @@ Manual check in Paddle Catalog:
 
 Lunaveta records `trial_used` on the tenant and owner account (and consults the Paddle Customer ID when present). A later change from another plan back to BASIC monthly must not grant another 14 days.
 
+On checkout, the API inspects the selected Price ID. If it is **not** BASIC monthly and still has a leftover trial (which would make Paddle collect **$0** today), Lunaveta clears that trial without changing the amount. If Paddle rejects the update, it creates a replacement `pri_…` with the **same** unit price and no trial, then maps it on the local plan. BASIC monthly keeps the 14-day trial.
+
 ## How to create the client-side token
 
 Sandbox → Developer tools → Authentication → **Client-side token**. Put it in `PADDLE_CLIENT_TOKEN`. Angular receives it from `GET /api/v1/billing/config` and `POST /api/v1/billing/checkout`. You may also paste it into `web/src/environments/environment.ts` (`paddleClientToken`) for local builds. Never put an API key or webhook secret in Angular.
