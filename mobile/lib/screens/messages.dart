@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../core/api.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/notification_router.dart';
 import '../core/widgets.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -26,11 +28,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
   int? petId;
   final subject = TextEditingController();
   Timer? _poll;
+  int? _consuming;
 
   @override
   void initState() {
     super.initState();
+    NotificationRouter.instance.addListener(_consumeRoute);
+    NotificationRouter.instance.onVisibleChat = (id) async {
+      if (!mounted || asInt(current?['id']) != id) return;
+      await _open(asMap(current), silent: true);
+    };
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _consumeRoute());
     _poll = Timer.periodic(const Duration(seconds: 45), (_) {
       if (current == null) {
         _load(silent: true);
@@ -45,7 +54,92 @@ class _MessagesScreenState extends State<MessagesScreen> {
     _poll?.cancel();
     draft.dispose();
     subject.dispose();
+    NotificationRouter.instance.removeListener(_consumeRoute);
+    if (NotificationRouter.instance.onVisibleChat != null) {
+      NotificationRouter.instance.onVisibleChat = null;
+    }
+    if (NotificationRouter.instance.visibleConversationId == asInt(current?['id'])) {
+      NotificationRouter.instance.visibleConversationId = null;
+    }
     super.dispose();
+  }
+
+  List<Map<String, dynamic>> _uniqueMessages(List<dynamic> raw) {
+    final seen = <int>{};
+    final items = <Map<String, dynamic>>[];
+    for (final item in raw) {
+      final map = asMap(item);
+      final id = asInt(map['id']);
+      if (id != 0 && !seen.add(id)) continue;
+      items.add(map);
+    }
+    return items;
+  }
+
+  Future<void> _consumeRoute() async {
+    final id = NotificationRouter.instance.pendingConversationId;
+    if (id == null || _consuming == id) return;
+    _consuming = id;
+    final shown = await _openById(id);
+    if (!mounted) {
+      if (_consuming == id) _consuming = null;
+      return;
+    }
+    if (shown != null) {
+      await NotificationRouter.instance.consume();
+    }
+    if (_consuming == id) _consuming = null;
+  }
+
+  Future<bool?> _openById(int id) async {
+    try {
+      final page = await widget.auth.api.get('/messages/$id', {'size': '50', 'page': '0', 'sort': 'createdAt,asc'});
+      if (!mounted) return null;
+      var convo = <String, dynamic>{'id': id};
+      try {
+        final list = asList(await widget.auth.api.get('/messages', null, true));
+        convos = list;
+        for (final item in list) {
+          final map = asMap(item);
+          if (asInt(map['id']) == id) {
+            convo = map;
+            break;
+          }
+        }
+      } catch (_) {}
+      if (!mounted) return null;
+      setState(() {
+        current = convo;
+        messages = _uniqueMessages(asList(page));
+        chatError = null;
+        loading = false;
+        error = null;
+      });
+      NotificationRouter.instance.visibleConversationId = id;
+      try {
+        await widget.auth.api.post('/messages/$id/read', {});
+        await widget.auth.inbox.refresh();
+        await _load(silent: true);
+        if (!mounted) return true;
+        for (final item in convos) {
+          final map = asMap(item);
+          if (asInt(map['id']) == id) {
+            setState(() => current = {...asMap(current), ...map});
+            break;
+          }
+        }
+      } catch (_) {}
+      return true;
+    } catch (e) {
+      if (!mounted || e is UnauthorizedException) return null;
+      NotificationRouter.instance.visibleConversationId = null;
+      setState(() => current = null);
+      final denied = e is ApiException && (e.status == 403 || e.status == 404);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(denied ? I18n.instance.t('conversationUnavailable') : userMessage(e))),
+      );
+      return false;
+    }
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -92,12 +186,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       final m = await widget.auth.api.get('/messages/${convo['id']}', {'size': '50', 'page': '$page', 'sort': 'createdAt,asc'}, silent);
       if (!mounted) return;
-      final items = asList(m);
+      final items = _uniqueMessages(asList(m));
       setState(() {
         current = {...asMap(current), ...asMap(convo), 'id': convo['id']};
         messages = items;
         chatError = null;
       });
+      NotificationRouter.instance.visibleConversationId = asInt(convo['id']);
       try {
         await widget.auth.api.post('/messages/${convo['id']}/read', {});
         await widget.auth.inbox.refresh();
@@ -116,8 +211,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
     try {
       final message = asMap(await widget.auth.api.post('/messages/${current!['id']}', {'body': body}));
       draft.clear();
+      final next = [...messages, message];
       setState(() {
-        messages = [...messages, message];
+        messages = _uniqueMessages(next);
         sending = false;
       });
       await _load(silent: true);
@@ -151,14 +247,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
     return PopScope(
       canPop: !open,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && open) setState(() => current = null);
+        if (!didPop && open) {
+          NotificationRouter.instance.visibleConversationId = null;
+          setState(() => current = null);
+        }
       },
       child: Scaffold(
         appBar: AppBar(
           leading: open
               ? IconButton(
                   icon: const Icon(Icons.arrow_back),
-                  onPressed: () => setState(() => current = null),
+                  onPressed: () {
+                    NotificationRouter.instance.visibleConversationId = null;
+                    setState(() => current = null);
+                  },
                 )
               : null,
           title: Text(open ? _title(asMap(current)) : i.t('messages')),

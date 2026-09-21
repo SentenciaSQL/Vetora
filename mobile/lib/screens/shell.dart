@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/auth.dart';
 import '../core/l10n.dart';
+import '../core/notification_router.dart';
 import 'appointments.dart';
 import 'home.dart';
 import 'messages.dart';
@@ -15,7 +16,7 @@ class ShellScreen extends StatefulWidget {
   State<ShellScreen> createState() => _ShellScreenState();
 }
 
-class _ShellScreenState extends State<ShellScreen> {
+class _ShellScreenState extends State<ShellScreen> with WidgetsBindingObserver {
   int index = 0;
   bool _dialogOpen = false;
 
@@ -23,12 +24,47 @@ class _ShellScreenState extends State<ShellScreen> {
   void initState() {
     super.initState();
     widget.auth.addListener(_onAuth);
+    NotificationRouter.instance.addListener(_onPushRoute);
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onPushRoute());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    NotificationRouter.instance.removeListener(_onPushRoute);
     widget.auth.removeListener(_onAuth);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.auth.isLoggedIn) {
+      widget.auth.inbox.refresh();
+    }
+  }
+
+  int? _messagesTabIndex() {
+    final auth = widget.auth;
+    if (auth.clinicalLocked || !auth.messagingEnabled) return null;
+    var tab = 1;
+    if (!auth.clinicalLocked) tab += 2;
+    return tab;
+  }
+
+  void _onPushRoute() {
+    if (!mounted || !widget.auth.isLoggedIn) return;
+    if (NotificationRouter.instance.pendingConversationId == null) return;
+    final tab = _messagesTabIndex();
+    if (tab == null) {
+      NotificationRouter.instance.consume();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('conversationUnavailable'))));
+      return;
+    }
+    NotificationRouter.navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    if (index != tab) {
+      setState(() => index = tab);
+    }
   }
 
   void _onAuth() {

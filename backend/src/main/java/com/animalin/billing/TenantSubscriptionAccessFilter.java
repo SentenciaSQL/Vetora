@@ -118,7 +118,10 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
                 || "/api/v1/auth/switch-tenant".equals(path)
                 || "/api/v1/auth/change-password".equals(path)
                 || path.startsWith("/api/v1/account/")
-                || path.startsWith("/api/v1/files/");
+                || path.startsWith("/api/v1/files/")
+                || path.startsWith("/api/v1/devices")
+                || path.startsWith("/api/v1/notifications/push-token")
+                || "/api/v1/notifications/preferences".equals(path);
     }
 
     private boolean blocks(SubscriptionAccessView subscription) {

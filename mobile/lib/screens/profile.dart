@@ -4,6 +4,7 @@ import '../core/auth.dart';
 import '../core/config.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/push.dart';
 import 'billing.dart';
 import 'clinics.dart';
 import 'notifications.dart';
@@ -26,6 +27,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List pets = [];
   bool _notifyEmail = true;
   bool _notifyPush = true;
+  bool _messagePush = true;
+  bool _messagePreview = true;
+  bool _messageSound = true;
   bool _savingPrefs = false;
 
   @override
@@ -39,6 +43,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) setState(() => pets = asList(value));
       }).catchError((_) {});
     }
+    widget.auth.api.get('/notifications/preferences', null, true).then((value) {
+      final prefs = asMap(value);
+      if (!mounted) return;
+      setState(() {
+        _messagePush = prefs['messagePushEnabled'] != false;
+        _messagePreview = prefs['messagePreviewEnabled'] != false;
+        _messageSound = prefs['messageSoundEnabled'] != false;
+      });
+      PushService.soundEnabled = _messageSound;
+    }).catchError((_) {});
     if (widget.auth.isStaff) {
       widget.auth.api.get('/settings').then((value) {
         final settings = asMap(value);
@@ -60,6 +74,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     currentPassword.dispose();
     newPassword.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveMessagePrefs({bool? push, bool? preview, bool? sound}) async {
+    setState(() {
+      if (push != null) _messagePush = push;
+      if (preview != null) _messagePreview = preview;
+      if (sound != null) _messageSound = sound;
+      _savingPrefs = true;
+    });
+    PushService.soundEnabled = _messageSound;
+    try {
+      await widget.auth.api.put('/notifications/preferences', {
+        'messagePushEnabled': _messagePush,
+        'messagePreviewEnabled': _messagePreview,
+        'messageSoundEnabled': _messageSound,
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+    } finally {
+      if (mounted) setState(() => _savingPrefs = false);
+    }
   }
 
   Future<void> _savePrefs({bool? email, bool? push}) async {
@@ -196,6 +231,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: Text(i.t('notifications')),
             trailing: CountOrChevron(count: auth.inbox.unreadNotifications),
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen(auth: auth))),
+          ),
+          SwitchListTile(
+            title: Text(i.t('messagePush')),
+            value: _messagePush,
+            onChanged: _savingPrefs ? null : (value) => _saveMessagePrefs(push: value),
+          ),
+          SwitchListTile(
+            title: Text(i.t('messagePreview')),
+            subtitle: Text(i.t('messagePreviewHelp')),
+            value: _messagePreview,
+            onChanged: _savingPrefs ? null : (value) => _saveMessagePrefs(preview: value),
+          ),
+          SwitchListTile(
+            title: Text(i.t('messageSound')),
+            value: _messageSound,
+            onChanged: _savingPrefs ? null : (value) => _saveMessagePrefs(sound: value),
           ),
           if (auth.isOwner)
             ListTile(

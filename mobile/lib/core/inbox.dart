@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'auth.dart';
 import 'format.dart';
+import 'push.dart';
 
 class MessageInbox extends ChangeNotifier {
   MessageInbox(this.auth);
@@ -27,6 +28,8 @@ class MessageInbox extends ChangeNotifier {
     _inFlight = false;
     unreadMessages = 0;
     unreadNotifications = 0;
+    PushService.syncBadge(0);
+    notifyListeners();
   }
 
   Future<void> refresh() async {
@@ -46,6 +49,7 @@ class MessageInbox extends ChangeNotifier {
     } catch (_) {}
     _inFlight = false;
     notifyListeners();
+    await PushService.syncBadge(unreadMessages);
   }
 
   void setMessagesUnread(int count) {

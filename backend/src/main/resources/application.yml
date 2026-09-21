@@ -62,7 +62,9 @@ animalin:
       - http://localhost:8081
       - http://10.0.2.2:8080
   fcm:
-    enabled: false
+    enabled: ${FCM_ENABLED:false}
+    project-id: ${FIREBASE_PROJECT_ID:}
+    service-account-base64: ${FIREBASE_SERVICE_ACCOUNT_BASE64:}
   clinic:
     default-locale: es
     default-timezone: America/Santo_Domingo

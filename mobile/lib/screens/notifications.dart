@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/notification_router.dart';
 import '../core/widgets.dart';
 import 'appointments.dart';
-import 'messages.dart';
 import 'pet_detail.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -53,7 +53,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final type = asString(item['type']);
     final entity = asString(item['entityType']);
     if (type == 'NEW_MESSAGE' || entity == 'CONVERSATION') {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => MessagesScreen(auth: widget.auth)));
+      final conversationId = asInt(item['entityId']);
+      if (conversationId > 0) {
+        await NotificationRouter.instance.acceptData({
+          'type': 'CHAT_MESSAGE',
+          'conversationId': '$conversationId',
+          'route': '/messages',
+        });
+        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     } else if (entity == 'APPOINTMENT' || type.startsWith('APPOINTMENT')) {
       await Navigator.push(context, MaterialPageRoute(builder: (_) => AppointmentsScreen(auth: widget.auth)));
     } else if (entity == 'PET' && item['entityId'] != null) {

@@ -177,5 +177,10 @@
   "notifyEmail": "Email alerts",
   "notifyPush": "Push alerts",
   "nextIndications": "Next instructions",
-  "support": "Support"
+  "support": "Support",
+  "messagePush": "Message notifications",
+  "messagePreview": "Show message preview",
+  "messagePreviewHelp": "When off, the alert only says that you have a new message.",
+  "messageSound": "Sound",
+  "conversationUnavailable": "The conversation could not be opened. You may no longer have access."
 }

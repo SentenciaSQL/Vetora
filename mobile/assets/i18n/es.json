@@ -177,5 +177,10 @@
   "notifyEmail": "Avisos por email",
   "notifyPush": "Avisos emergentes",
   "nextIndications": "Próximas indicaciones",
-  "support": "Soporte"
+  "support": "Soporte",
+  "messagePush": "Notificaciones de mensajes",
+  "messagePreview": "Mostrar vista previa",
+  "messagePreviewHelp": "Si se desactiva, el aviso solo indica que hay un mensaje nuevo.",
+  "messageSound": "Sonido",
+  "conversationUnavailable": "No se pudo abrir la conversación. Puede que ya no tengas acceso."
 }
