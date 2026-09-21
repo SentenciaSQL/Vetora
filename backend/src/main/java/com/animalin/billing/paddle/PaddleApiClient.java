@@ -1,6 +1,7 @@
 package com.animalin.billing.paddle;
 
 import com.animalin.billing.PaddleProperties;
+import com.animalin.billing.TrialPolicy;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -124,6 +125,19 @@ public class PaddleApiClient implements PaddleClient {
     @Override
     public PaddleDtos.Price updatePrice(String priceId, PaddleDtos.UpdatePriceRequest request) {
         return patch("/prices/" + priceId, request, PaddleDtos.Price.class);
+    }
+
+    @Override
+    public PaddleDtos.Price setPriceTrialPeriod(String priceId, PaddleDtos.TrialPeriod trialPeriod) {
+        var body = objectMapper.createObjectNode();
+        if (trialPeriod == null) {
+            body.putNull("trial_period");
+        } else {
+            var period = body.putObject("trial_period");
+            period.put("interval", trialPeriod.interval());
+            period.put("frequency", trialPeriod.frequency() == null ? TrialPolicy.DAYS : trialPeriod.frequency());
+        }
+        return patch("/prices/" + priceId, body, PaddleDtos.Price.class);
     }
 
     @Override

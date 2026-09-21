@@ -312,8 +312,7 @@ public class ClinicSignupService {
         if (plan == null) {
             throw ApiException.badRequest("Debe indicar el identificador interno del plan");
         }
-        String priceId = billingService.resolvePriceId(plan, cycle);
-        billingService.requireActiveUsdPrice(plan, priceId, cycle.paddleInterval());
+        String priceId = billingService.resolveAlignedPriceId(plan, cycle);
 
         Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenant.getId())
                 .orElseThrow(() -> ApiException.badRequest("No hay una suscripción inicial"));
