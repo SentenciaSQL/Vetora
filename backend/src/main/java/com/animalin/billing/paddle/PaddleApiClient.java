@@ -69,7 +69,7 @@ public class PaddleApiClient implements PaddleClient {
 
     @Override
     public PaddleDtos.SubscriptionPreview previewSubscriptionUpdate(String subscriptionId, PaddleDtos.UpdateSubscriptionRequest request) {
-        return post("/subscriptions/" + subscriptionId + "/preview", request, PaddleDtos.SubscriptionPreview.class);
+        return patch("/subscriptions/" + subscriptionId + "/preview", request, PaddleDtos.SubscriptionPreview.class);
     }
 
     @Override
@@ -212,14 +212,18 @@ public class PaddleApiClient implements PaddleClient {
     private void onError(org.springframework.http.HttpRequest request, ClientHttpResponse response) throws IOException {
         int status = response.getStatusCode().value();
         String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
-        log.warn("Paddle API error method={} path={} status={}", request.getMethod(), request.getURI().getPath(), status);
+        String method = request.getMethod() == null ? null : request.getMethod().name();
+        String path = request.getURI() == null ? null : request.getURI().getPath();
         PaddleErrorInfo sanitized = sanitizeError(body);
-        throw new PaddleApiException(status, sanitized.detail(), sanitized.type(), sanitized.code());
+        log.warn("Paddle API error method={} path={} status={} paddleType={} paddleCode={} paddleDetail={}",
+                method, path, status, sanitized.type(), sanitized.code(), sanitized.detail());
+        throw new PaddleApiException(status, sanitized.detail(), sanitized.type(), sanitized.code(), method, path);
     }
 
     private PaddleApiException toApiException(RestClientResponseException ex) {
-        log.warn("Paddle API error status={}", ex.getStatusCode().value());
         PaddleErrorInfo sanitized = sanitizeError(ex.getResponseBodyAsString());
+        log.warn("Paddle API error method={} path={} status={} paddleType={} paddleCode={} paddleDetail={}",
+                null, null, ex.getStatusCode().value(), sanitized.type(), sanitized.code(), sanitized.detail());
         return new PaddleApiException(ex.getStatusCode().value(), sanitized.detail(), sanitized.type(), sanitized.code());
     }
 

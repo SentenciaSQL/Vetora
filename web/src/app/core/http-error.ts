@@ -1,13 +1,18 @@
 export function apiErrorMessage(error: unknown, fallback = 'No se pudo completar la acción'): string {
-  const body = (error as { error?: unknown })?.error;
+  const response = error as { error?: unknown; message?: unknown };
+  const body = response?.error;
+  if (typeof body === 'string' && body.trim() && isSafeClientMessage(body)) {
+    return body.trim();
+  }
   if (body && typeof body === 'object') {
     const message = (body as { message?: unknown }).message;
     if (typeof message === 'string' && message.trim() && isSafeClientMessage(message)) {
       return message.trim();
     }
   }
-  if (error instanceof Error && isSafeClientMessage(error.message)) {
-    return error.message;
+  if (typeof response?.message === 'string' && response.message.trim() && isSafeClientMessage(response.message)
+      && !response.message.startsWith('Http failure response')) {
+    return response.message.trim();
   }
   return fallback;
 }

@@ -320,6 +320,15 @@ export interface TenantSubscription {
   trialAccess?: boolean;
   limits?: PlanLimits;
   usage?: PlanUsage;
+  pendingPlanId?: number | null;
+  pendingPlanCode?: string | null;
+  pendingPlanName?: string | null;
+  pendingPriceId?: string | null;
+  pendingBillingInterval?: string | null;
+  pendingChangeEffectiveAt?: string | null;
+  pendingChangeCreatedAt?: string | null;
+  pendingChangeStatus?: string | null;
+  pendingChangeMessage?: string | null;
 }
 
 export interface AdminPlan {
@@ -398,6 +407,14 @@ export interface ChangePreview {
   currency: string;
   nextBillingAt?: string | null;
   prorationMode?: string;
+  currentPlan?: string | null;
+  newPlan?: string | null;
+  changeType?: 'UPGRADE' | 'DOWNGRADE' | 'CYCLE_CHANGE' | string;
+  effectiveAt?: string | null;
+  immediateCharge?: number | null;
+  credit?: number | null;
+  billingInterval?: string | null;
+  message?: string | null;
 }
 
 export interface ApiErrorBody {

@@ -89,6 +89,8 @@ paddle:
   jobs:
     grace-period-enabled: ${PADDLE_GRACE_PERIOD_JOB_ENABLED:true}
     grace-period-cron: ${PADDLE_GRACE_PERIOD_CRON:0 5 0 * * *}
+    pending-change-enabled: ${PADDLE_PENDING_CHANGE_JOB_ENABLED:true}
+    pending-change-cron: ${PADDLE_PENDING_CHANGE_CRON:0 */5 * * * *}
 
 springdoc:
   api-docs:
@@ -131,6 +133,7 @@ paddle:
   webhook-tolerance-seconds: 300
   jobs:
     grace-period-enabled: false
+    pending-change-enabled: false
 resend:
   api-key:
   from: LunaVeta <no-reply@lunaveta.com>

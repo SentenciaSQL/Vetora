@@ -132,7 +132,25 @@ export function usageReached(metric?: UsageMetric | null): boolean {
         @if (sub.nextBillingAt) {
           <p class="text-sm text-slate-500">{{ 'billing.nextCharge' | translate }}: {{ sub.nextBillingAt | date:'mediumDate' }}</p>
         }
-        @if (sub.scheduledChangeEffectiveAt) {
+        @if (sub.pendingPlanName || sub.pendingPlanCode) {
+          <section class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40">
+            <p class="text-sm font-medium text-amber-900 dark:text-amber-100">{{ 'billing.pendingChangeTitle' | translate }}</p>
+            <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
+              {{ sub.pendingChangeMessage || ('billing.pendingChangeBody' | translate:{ pendingPlan: sub.pendingPlanName || sub.pendingPlanCode, currentPlan: sub.planName || sub.planCode, date: formatEffectiveDate(sub.pendingChangeEffectiveAt) }) }}
+            </p>
+            <p class="mt-1 text-sm text-amber-800 dark:text-amber-200">
+              {{ 'billing.currentPlan' | translate }}: {{ sub.planName || sub.planCode }}
+              · {{ 'billing.pendingPlan' | translate }}: {{ sub.pendingPlanName || sub.pendingPlanCode }}
+              · {{ 'billing.effectiveAt' | translate }}: {{ formatEffectiveDate(sub.pendingChangeEffectiveAt) }}
+            </p>
+            @if (canManage()) {
+              <button type="button" class="btn-secondary mt-3" [disabled]="busy()" (click)="cancelPending()">
+                {{ 'billing.cancelPending' | translate }}
+              </button>
+            }
+          </section>
+        }
+        @if (sub.scheduledChangeEffectiveAt && sub.scheduledChangeAction === 'cancel') {
           <p class="text-sm text-amber-700">{{ 'billing.cancelsOn' | translate }}: {{ sub.scheduledChangeEffectiveAt | date:'mediumDate' }}</p>
         }
         @if (sub.usage; as usage) {
@@ -158,12 +176,24 @@ export function usageReached(metric?: UsageMetric | null): boolean {
     @if (preview(); as change) {
       <section class="card mt-6 space-y-2 border-brand-200">
         <h2 class="font-medium">{{ 'billing.changePreviewTitle' | translate }}</h2>
+        @if (change.changeType === 'DOWNGRADE') {
+          <p class="text-sm font-medium text-amber-800 dark:text-amber-100">{{ 'billing.downgradeLabel' | translate }}</p>
+        }
         <p class="text-sm">{{ 'billing.currentPlan' | translate }}: {{ change.currentPlanName || change.currentPlanCode }} ({{ change.currentCycle || '—' }})</p>
         <p class="text-sm">{{ 'billing.newPlan' | translate }}: {{ change.newPlanName || change.newPlanCode }} ({{ change.newCycle }})</p>
-        <p class="text-sm">{{ 'billing.estimatedAmount' | translate }}:
-          {{ change.estimatedAmount == null ? '—' : (change.estimatedAmount | number:'1.2-2') }} {{ change.currency }}
-        </p>
-        <p class="text-sm">{{ 'billing.nextCharge' | translate }}: {{ change.nextBillingAt ? (change.nextBillingAt | date:'mediumDate') : '—' }}</p>
+        @if (change.changeType === 'DOWNGRADE') {
+          <p class="text-sm">{{ 'billing.effectiveAt' | translate }}: {{ formatEffectiveDate(change.effectiveAt) }}</p>
+          <p class="text-sm">{{ 'billing.immediateCharge' | translate }}: 0.00 {{ change.currency }}</p>
+          <p class="text-sm">{{ 'billing.credit' | translate }}: 0.00 {{ change.currency }}</p>
+        } @else {
+          <p class="text-sm">{{ 'billing.estimatedAmount' | translate }}:
+            {{ change.estimatedAmount == null ? '—' : (change.estimatedAmount | number:'1.2-2') }} {{ change.currency }}
+          </p>
+          <p class="text-sm">{{ 'billing.nextCharge' | translate }}: {{ change.nextBillingAt ? (change.nextBillingAt | date:'mediumDate') : '—' }}</p>
+        }
+        @if (change.message) {
+          <p class="text-sm text-slate-600 dark:text-slate-300">{{ change.message }}</p>
+        }
         <div class="flex flex-wrap gap-2">
           <button type="button" class="btn-primary" [disabled]="busy()" (click)="confirmChange()">{{ 'billing.confirmChange' | translate }}</button>
           <button type="button" class="btn-secondary" [disabled]="busy()" (click)="preview.set(null)">{{ 'common.cancel' | translate }}</button>
@@ -212,9 +242,18 @@ export function usageReached(metric?: UsageMetric | null): boolean {
               <li>{{ 'pets.tabs.labs' | translate }}: {{ plan.limits.laboratoryEnabled ? ('common.yes' | translate) : ('common.no' | translate) }}</li>
             </ul>
             @if (canManage() && cycleAvailable(plan, cycle())) {
-              <button type="button" class="btn-primary w-full" [disabled]="busy()" (click)="subscribe(plan)">
-                {{ hasActivePaddleSubscription() ? ('billing.changePlan' | translate) : ('billing.subscribe' | translate) }}
-              </button>
+              @if (isCurrentPlan(plan)) {
+                <p class="text-sm font-medium text-emerald-700">{{ 'billing.currentPlanBadge' | translate }}</p>
+              } @else if (isPendingPlan(plan)) {
+                <p class="text-sm font-medium text-amber-700">{{ 'billing.pendingPlanBadge' | translate }}: {{ formatEffectiveDate(subscription()?.pendingChangeEffectiveAt) }}</p>
+                <button type="button" class="btn-primary w-full" [disabled]="busy()" (click)="subscribe(plan)">
+                  {{ 'billing.replacePending' | translate }}
+                </button>
+              } @else {
+                <button type="button" class="btn-primary w-full" [disabled]="busy()" (click)="subscribe(plan)">
+                  {{ hasActivePaddleSubscription() ? ('billing.changePlan' | translate) : ('billing.subscribe' | translate) }}
+                </button>
+              }
             } @else if (canManage() && cycle() === 'ANNUAL') {
               <p class="text-xs text-slate-400">{{ 'billing.annualUnavailable' | translate }}</p>
             }
@@ -282,6 +321,11 @@ export class BillingPage implements OnInit {
     }
     this.busy.set(true);
     if (this.hasActivePaddleSubscription()) {
+      if (this.isCurrentPlan(plan) && !this.subscription()?.pendingPlanId) {
+        this.busy.set(false);
+        this.toast.show('Ya está suscrito a este plan y ciclo.', true);
+        return;
+      }
       this.billing.previewChange(plan.id, this.cycle()).subscribe({
         next: preview => {
           this.preview.set(preview);
@@ -316,10 +360,14 @@ export class BillingPage implements OnInit {
     }
     this.busy.set(true);
     this.billing.changePlan(change.newPlanId, change.newCycle as BillingCycle).subscribe({
-      next: () => {
+      next: sub => {
         this.busy.set(false);
         this.preview.set(null);
-        this.toast.show('billing.changeSubmitted');
+        if (change.changeType === 'DOWNGRADE') {
+          this.toast.show(sub.pendingChangeMessage || change.message || 'billing.downgradeScheduled');
+        } else {
+          this.toast.show('billing.changeSubmitted');
+        }
         this.billing.loadSubscription().subscribe();
       },
       error: err => {
@@ -354,6 +402,46 @@ export class BillingPage implements OnInit {
       next: () => this.toast.show('billing.cancelScheduled'),
       error: err => this.toast.showHttpError(err)
     });
+  }
+
+  cancelPending(): void {
+    if (this.busy()) {
+      return;
+    }
+    if (!confirm(this.i18n.instant('billing.cancelPendingConfirm'))) {
+      return;
+    }
+    this.busy.set(true);
+    this.billing.cancelPendingChange().subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.show('billing.pendingCanceled');
+      },
+      error: err => {
+        this.busy.set(false);
+        this.toast.showHttpError(err);
+      }
+    });
+  }
+
+  isCurrentPlan(plan: BillingPlan): boolean {
+    const sub = this.subscription();
+    return !!sub && sub.planId === plan.id && (sub.billingCycle || 'MONTHLY') === this.cycle();
+  }
+
+  isPendingPlan(plan: BillingPlan): boolean {
+    const sub = this.subscription();
+    return !!sub?.pendingPlanId && sub.pendingPlanId === plan.id
+      && (sub.pendingBillingInterval || this.cycle()) === this.cycle();
+  }
+
+  formatEffectiveDate(value?: string | null): string {
+    if (!value) {
+      return '—';
+    }
+    const current = this.i18n.currentLang();
+    const locale = (current || 'es').toLowerCase().startsWith('en') ? 'en-US' : 'es-ES';
+    return new Date(value).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   private refreshUntilActive(attempt = 0): void {

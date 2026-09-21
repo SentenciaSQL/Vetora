@@ -61,4 +61,9 @@ public class BillingController {
     public BillingDtos.SubscriptionResponse changePlan(@Valid @RequestBody BillingDtos.ChangePlanRequest request) {
         return billingService.changePlan(request);
     }
+
+    @PostMapping("/subscription/pending-change/cancel")
+    public BillingDtos.SubscriptionResponse cancelPendingChange() {
+        return billingService.cancelPendingChange();
+    }
 }

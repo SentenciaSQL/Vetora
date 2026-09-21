@@ -91,6 +91,28 @@ public class Subscription {
     @Column(name = "scheduled_change_effective_at")
     private Instant scheduledChangeEffectiveAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pending_plan_id")
+    private Plan pendingPlan;
+
+    @Column(name = "pending_price_id", length = 64)
+    private String pendingPriceId;
+
+    @Column(name = "pending_billing_interval", length = 20)
+    private String pendingBillingInterval;
+
+    @Column(name = "pending_change_effective_at")
+    private Instant pendingChangeEffectiveAt;
+
+    @Column(name = "pending_change_created_at")
+    private Instant pendingChangeCreatedAt;
+
+    @Column(name = "pending_change_status", length = 20)
+    private String pendingChangeStatus;
+
+    @Column(name = "pending_change_paddle_updated_at")
+    private Instant pendingChangePaddleUpdatedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -263,6 +285,60 @@ public class Subscription {
     }
     public void setScheduledChangeEffectiveAt(Instant scheduledChangeEffectiveAt) {
         this.scheduledChangeEffectiveAt = scheduledChangeEffectiveAt;
+    }
+    public Plan getPendingPlan() {
+        return pendingPlan;
+    }
+    public void setPendingPlan(Plan pendingPlan) {
+        this.pendingPlan = pendingPlan;
+    }
+    public String getPendingPriceId() {
+        return pendingPriceId;
+    }
+    public void setPendingPriceId(String pendingPriceId) {
+        this.pendingPriceId = pendingPriceId;
+    }
+    public String getPendingBillingInterval() {
+        return pendingBillingInterval;
+    }
+    public void setPendingBillingInterval(String pendingBillingInterval) {
+        this.pendingBillingInterval = pendingBillingInterval;
+    }
+    public Instant getPendingChangeEffectiveAt() {
+        return pendingChangeEffectiveAt;
+    }
+    public void setPendingChangeEffectiveAt(Instant pendingChangeEffectiveAt) {
+        this.pendingChangeEffectiveAt = pendingChangeEffectiveAt;
+    }
+    public Instant getPendingChangeCreatedAt() {
+        return pendingChangeCreatedAt;
+    }
+    public void setPendingChangeCreatedAt(Instant pendingChangeCreatedAt) {
+        this.pendingChangeCreatedAt = pendingChangeCreatedAt;
+    }
+    public String getPendingChangeStatus() {
+        return pendingChangeStatus;
+    }
+    public void setPendingChangeStatus(String pendingChangeStatus) {
+        this.pendingChangeStatus = pendingChangeStatus;
+    }
+    public Instant getPendingChangePaddleUpdatedAt() {
+        return pendingChangePaddleUpdatedAt;
+    }
+    public void setPendingChangePaddleUpdatedAt(Instant pendingChangePaddleUpdatedAt) {
+        this.pendingChangePaddleUpdatedAt = pendingChangePaddleUpdatedAt;
+    }
+    public boolean hasPendingPlanChange() {
+        return pendingPlan != null || (pendingPriceId != null && !pendingPriceId.isBlank());
+    }
+    public void clearPendingPlanChange() {
+        this.pendingPlan = null;
+        this.pendingPriceId = null;
+        this.pendingBillingInterval = null;
+        this.pendingChangeEffectiveAt = null;
+        this.pendingChangeCreatedAt = null;
+        this.pendingChangeStatus = null;
+        this.pendingChangePaddleUpdatedAt = null;
     }
     public Instant getCreatedAt() {
         return createdAt;
