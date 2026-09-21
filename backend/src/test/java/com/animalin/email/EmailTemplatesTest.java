@@ -21,7 +21,7 @@ class EmailTemplatesTest {
                 .contains("Confirmar mi correo")
                 .contains("https://lunaveta.com/verify-email?token=secret-token-value")
                 .contains("&lt;script&gt;alert(1)&lt;/script&gt;")
-                .contains("Clínica &quot;Huellas&quot;")
+                .contains("Cl&iacute;nica &quot;Huellas&quot;")
                 .doesNotContain("<script>alert(1)</script>")
                 .doesNotContain("javascript:alert(1)")
                 .doesNotContain(">secret-token-value<");
