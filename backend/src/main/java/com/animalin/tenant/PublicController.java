@@ -1,6 +1,7 @@
 package com.animalin.tenant;
 
 import com.animalin.auth.AuthDtos;
+import com.animalin.branch.BusinessHoursService;
 import com.animalin.config.AnimalinProperties;
 import com.animalin.dto.AppDtos;
 import com.animalin.signup.ClinicSignupService;
@@ -20,12 +21,14 @@ public class PublicController {
     private final BrandingService brandingService;
     private final ClinicSignupService signupService;
     private final AnimalinProperties properties;
+    private final BusinessHoursService businessHoursService;
 
     public PublicController(BrandingService brandingService, ClinicSignupService signupService,
-                            AnimalinProperties properties) {
+                            AnimalinProperties properties, BusinessHoursService businessHoursService) {
         this.brandingService = brandingService;
         this.signupService = signupService;
         this.properties = properties;
+        this.businessHoursService = businessHoursService;
     }
 
     @GetMapping("/session-config")
@@ -57,5 +60,19 @@ public class PublicController {
     @GetMapping("/tenants/{slug}/branding")
     public AppDtos.BrandingResponse branding(@PathVariable String slug) {
         return brandingService.publicBySlug(slug);
+    }
+
+    @GetMapping("/tenants/{slug}/business-hours")
+    public com.animalin.branch.BusinessHoursDtos.HoursResponse publicHours(
+            @PathVariable String slug,
+            @RequestParam(required = false) Long branchId) {
+        return businessHoursService.publicHours(slug, branchId);
+    }
+
+    @GetMapping("/tenants/{slug}/availability-status")
+    public com.animalin.branch.BusinessHoursDtos.AvailabilityStatusResponse publicStatus(
+            @PathVariable String slug,
+            @RequestParam(required = false) Long branchId) {
+        return businessHoursService.publicStatus(slug, branchId);
     }
 }

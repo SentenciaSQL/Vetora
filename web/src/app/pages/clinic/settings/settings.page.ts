@@ -8,10 +8,11 @@ import { BrandingService } from '../../../core/services/branding.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 import { Branding } from '../../../core/models';
+import { BusinessHoursEditorComponent } from './business-hours-editor.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, TranslatePipe],
+  imports: [CommonModule, ReactiveFormsModule, TranslatePipe, BusinessHoursEditorComponent],
   template: `
     <h1 class="font-display text-2xl font-semibold">{{ 'settings.title' | translate }}</h1>
     <p class="text-sm text-slate-500">{{ 'settings.subtitle' | translate }}</p>
@@ -58,6 +59,7 @@ import { Branding } from '../../../core/models';
         <button class="btn-primary">{{ 'common.save' | translate }}</button>
       }
     </form>
+    <app-business-hours-editor />
   `
 })
 export class SettingsPage implements OnInit {

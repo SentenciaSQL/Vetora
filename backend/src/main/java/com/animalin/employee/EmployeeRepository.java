@@ -15,4 +15,6 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     long countByTenantId(Long tenantId);
 
     boolean existsByTenantIdAndUserId(Long tenantId, Long userId);
+
+    java.util.List<Employee> findByUser_Id(Long userId);
 }

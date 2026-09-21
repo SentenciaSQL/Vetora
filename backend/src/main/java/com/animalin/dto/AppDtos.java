@@ -13,6 +13,7 @@ public final class AppDtos {
     }
 
     public record PublicClinicResponse(
+            Long id,
             String slug,
             String name,
             String commercialName,

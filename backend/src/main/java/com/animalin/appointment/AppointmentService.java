@@ -2,8 +2,7 @@ package com.animalin.appointment;
 
 import com.animalin.audit.AuditService;
 import com.animalin.branch.Branch;
-import com.animalin.branch.BranchHour;
-import com.animalin.branch.BranchRepository;
+import com.animalin.branch.BusinessHoursService;
 import com.animalin.catalog.ClinicService;
 import com.animalin.catalog.ClinicServiceRepository;
 import com.animalin.common.exception.ApiException;
@@ -59,21 +58,21 @@ public class AppointmentService {
     private final VeterinarianScheduleRepository scheduleRepository;
     private final VeterinarianTimeOffRepository timeOffRepository;
     private final ClinicServiceRepository clinicServiceRepository;
-    private final BranchRepository branchRepository;
+    private final BusinessHoursService businessHoursService;
     private final TenantRepository tenantRepository;
     private final TenantSettingsRepository settingsRepository;
     private final AccessGuard accessGuard;
     private final AuditService auditService;
     private final NotificationService notificationService;
 
-    public AppointmentService(AppointmentRepository appointmentRepository, ScheduleBlockRepository scheduleBlockRepository, VeterinarianRepository veterinarianRepository, VeterinarianScheduleRepository scheduleRepository, VeterinarianTimeOffRepository timeOffRepository, ClinicServiceRepository clinicServiceRepository, BranchRepository branchRepository, TenantRepository tenantRepository, TenantSettingsRepository settingsRepository, AccessGuard accessGuard, AuditService auditService, NotificationService notificationService) {
+    public AppointmentService(AppointmentRepository appointmentRepository, ScheduleBlockRepository scheduleBlockRepository, VeterinarianRepository veterinarianRepository, VeterinarianScheduleRepository scheduleRepository, VeterinarianTimeOffRepository timeOffRepository, ClinicServiceRepository clinicServiceRepository, BusinessHoursService businessHoursService, TenantRepository tenantRepository, TenantSettingsRepository settingsRepository, AccessGuard accessGuard, AuditService auditService, NotificationService notificationService) {
         this.appointmentRepository = appointmentRepository;
         this.scheduleBlockRepository = scheduleBlockRepository;
         this.veterinarianRepository = veterinarianRepository;
         this.scheduleRepository = scheduleRepository;
         this.timeOffRepository = timeOffRepository;
         this.clinicServiceRepository = clinicServiceRepository;
-        this.branchRepository = branchRepository;
+        this.businessHoursService = businessHoursService;
         this.tenantRepository = tenantRepository;
         this.settingsRepository = settingsRepository;
         this.accessGuard = accessGuard;
@@ -182,48 +181,53 @@ public class AppointmentService {
             duration = clinicServiceRepository.findByIdAndTenantId(serviceId, tenantId).map(ClinicService::getDurationMin).orElse(duration);
         }
         Tenant tenant = tenantRepository.findById(tenantId).orElseThrow();
-        ZoneId zone = ZoneId.of(tenant.getTimezone());
+        Branch branch = businessHoursService.requireBranchForAppointments(tenantId, branchId);
+        if (branch == null || !businessHoursService.isConfigured(branch)) {
+            return List.of();
+        }
+        ZoneId zone = businessHoursService.zoneOf(branch, tenant);
         List<VeterinarianSchedule> schedules = scheduleRepository.findByVeterinarianId(vet.getId());
-        int dow = date.getDayOfWeek().getValue() % 7;
-        VeterinarianSchedule daySchedule = schedules.stream().filter(s -> s.getDayOfWeek() == dow).findFirst().orElse(null);
-        LocalTime start = LocalTime.of(9, 0);
-        LocalTime end = LocalTime.of(18, 0);
-        if (daySchedule != null) {
-            start = daySchedule.getStartTime();
-            end = daySchedule.getEndTime();
-        } else if (branchId != null) {
-            Branch branch = branchRepository.findByIdAndTenantId(branchId, tenantId).orElse(null);
-            if (branch != null) {
-                BranchHour hour = branch.getHours().stream().filter(h -> h.getDayOfWeek() == dow).findFirst().orElse(null);
-                if (hour != null && hour.isClosed()) {
-                    return List.of();
-                }
-                if (hour != null) {
-                    start = hour.getOpenTime();
-                    end = hour.getCloseTime();
-                }
-            }
+        int vetDow = date.getDayOfWeek().getValue() % 7;
+        VeterinarianSchedule daySchedule = schedules.stream().filter(s -> s.getDayOfWeek() == vetDow).findFirst().orElse(null);
+        List<BusinessHoursService.LocalInterval> clinicIntervals = businessHoursService.intervalsOn(branch, date);
+        if (clinicIntervals.isEmpty()) {
+            return List.of();
         }
         List<AppDtos.SlotResponse> slots = new ArrayList<>();
-        ZonedDateTime cursor = date.atTime(start).atZone(zone);
-        ZonedDateTime limit = date.atTime(end).atZone(zone);
-        while (!cursor.plusMinutes(duration).isAfter(limit)) {
-            Instant slotStart = cursor.toInstant();
-            Instant slotEnd = cursor.plusMinutes(duration).toInstant();
-            boolean blocked = appointmentRepository.countOverlaps(tenantId, vet.getId(), slotStart, slotEnd, null) > 0
-                    || !timeOffRepository.findByVeterinarianIdAndEndAtAfterAndStartAtBefore(vet.getId(), slotStart, slotEnd).isEmpty()
-                    || scheduleBlockRepository.findByTenantIdAndStartAtBeforeAndEndAtAfter(tenantId, slotEnd, slotStart)
-                    .stream().anyMatch(b -> b.getVeterinarianId() == null || b.getVeterinarianId().equals(vet.getId()));
-            if (daySchedule != null && daySchedule.getBreakStart() != null && daySchedule.getBreakEnd() != null) {
-                LocalTime t = cursor.toLocalTime();
-                if (!t.isBefore(daySchedule.getBreakStart()) && t.isBefore(daySchedule.getBreakEnd())) {
-                    blocked = true;
+        for (BusinessHoursService.LocalInterval interval : clinicIntervals) {
+            LocalTime start = interval.open();
+            LocalTime end = interval.close();
+            if (daySchedule != null) {
+                if (daySchedule.getStartTime().isAfter(start)) {
+                    start = daySchedule.getStartTime();
+                }
+                if (daySchedule.getEndTime().isBefore(end)) {
+                    end = daySchedule.getEndTime();
+                }
+                if (!start.isBefore(end)) {
+                    continue;
                 }
             }
-            if (!blocked) {
-                slots.add(new AppDtos.SlotResponse(slotStart, slotEnd));
+            ZonedDateTime cursor = date.atTime(start).atZone(zone);
+            ZonedDateTime limit = date.atTime(end).atZone(zone);
+            while (!cursor.plusMinutes(duration).isAfter(limit)) {
+                Instant slotStart = cursor.toInstant();
+                Instant slotEnd = cursor.plusMinutes(duration).toInstant();
+                boolean blocked = appointmentRepository.countOverlaps(tenantId, vet.getId(), slotStart, slotEnd, null) > 0
+                        || !timeOffRepository.findByVeterinarianIdAndEndAtAfterAndStartAtBefore(vet.getId(), slotStart, slotEnd).isEmpty()
+                        || scheduleBlockRepository.findByTenantIdAndStartAtBeforeAndEndAtAfter(tenantId, slotEnd, slotStart)
+                        .stream().anyMatch(b -> b.getVeterinarianId() == null || b.getVeterinarianId().equals(vet.getId()));
+                if (daySchedule != null && daySchedule.getBreakStart() != null && daySchedule.getBreakEnd() != null) {
+                    LocalTime t = cursor.toLocalTime();
+                    if (!t.isBefore(daySchedule.getBreakStart()) && t.isBefore(daySchedule.getBreakEnd())) {
+                        blocked = true;
+                    }
+                }
+                if (!blocked) {
+                    slots.add(new AppDtos.SlotResponse(slotStart, slotEnd));
+                }
+                cursor = cursor.plusMinutes(duration);
             }
-            cursor = cursor.plusMinutes(duration);
         }
         return slots;
     }
@@ -244,6 +248,11 @@ public class AppointmentService {
             }
         }
         Instant end = request.startAt().plusSeconds(duration * 60L);
+        Branch branch = businessHoursService.requireBranchForAppointments(tenantId, request.branchId() != null
+                ? request.branchId() : appointment.getBranchId());
+        if (branch != null) {
+            businessHoursService.assertWithinHours(branch, request.startAt(), end);
+        }
         if (request.veterinarianId() != null) {
             Veterinarian vet = veterinarianRepository.findByIdAndTenantId(request.veterinarianId(), tenantId)
                     .orElseThrow(() -> ApiException.notFound("Veterinario no encontrado"));

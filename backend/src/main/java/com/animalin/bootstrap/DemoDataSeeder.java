@@ -320,7 +320,8 @@ public class DemoDataSeeder implements CommandLineRunner {
         branch.setAddress(address);
         branch.setCity(city);
         branch.setCountry("ES");
-        branch.setTimezone("Europe/Madrid");
+        branch.setTimezone("America/Santo_Domingo");
+        branch.setHoursConfigured(true);
         for (int d = 1; d <= 5; d++) {
             BranchHour hour = new BranchHour();
             hour.setTenantId(tenant.getId());
