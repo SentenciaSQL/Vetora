@@ -147,108 +147,133 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   Widget build(BuildContext context) {
     final i = I18n.instance;
-    if (!widget.auth.messagingEnabled) {
-      return SafeArea(child: Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(i.t('featureUnavailable')))));
-    }
-    if (current != null) {
-      return SafeArea(
-        child: Column(
-          children: [
-            ListTile(
-              leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => current = null)),
-              title: Text(_title(asMap(current))),
-              subtitle: Text('${current!['petName'] ?? ''}'),
-            ),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(i.t('emergency'), style: Theme.of(context).textTheme.bodySmall)),
-            if (chatError != null)
-              Expanded(child: StatusView(error: chatError, onRetry: () => _open(current!)))
-            else
-              Expanded(
-                child: messages.isEmpty
-                    ? Center(child: Text(i.t('empty')))
-                    : ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          for (final m in messages)
-                            Align(
-                              alignment: asInt(m['senderId']) == asInt(widget.auth.user?['id']) ? Alignment.centerRight : Alignment.centerLeft,
-                              child: Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text('${m['senderName']} · ${formatDate(m['createdAt'])}', style: Theme.of(context).textTheme.labelSmall),
-                                    Text('${m['body']}'),
-                                    if (asInt(m['senderId']) == asInt(widget.auth.user?['id']))
-                                      Text(m['readAt'] == null ? i.t('sent') : i.t('read'), style: Theme.of(context).textTheme.labelSmall),
-                                  ]),
-                                ),
-                              ),
+    final open = current != null;
+    return PopScope(
+      canPop: !open,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && open) setState(() => current = null);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: open
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => setState(() => current = null),
+                )
+              : null,
+          title: Text(open ? _title(asMap(current)) : i.t('messages')),
+          actions: [
+            if (!open && (widget.auth.isOwner || widget.auth.hasPermission('MESSAGE_WRITE')))
+              IconButton(onPressed: () => setState(() => composing = true), icon: const Icon(Icons.add)),
+          ],
+        ),
+        body: !widget.auth.messagingEnabled
+            ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(i.t('featureUnavailable'))))
+            : (open ? _chat(i) : _inbox(i)),
+      ),
+    );
+  }
+
+  Widget _chat(I18n i) {
+    return Column(
+      children: [
+        if (asString(current?['petName']).isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Align(alignment: Alignment.centerLeft, child: Text('${current!['petName']}', style: Theme.of(context).textTheme.bodySmall)),
+          ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(i.t('emergency'), style: Theme.of(context).textTheme.bodySmall),
+        ),
+        if (chatError != null)
+          Expanded(child: StatusView(error: chatError, onRetry: () => _open(current!)))
+        else
+          Expanded(
+            child: messages.isEmpty
+                ? Center(child: Text(i.t('empty')))
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      for (final m in messages)
+                        Align(
+                          alignment: asInt(m['senderId']) == asInt(widget.auth.user?['id']) ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('${m['senderName']} · ${formatDate(m['createdAt'])}', style: Theme.of(context).textTheme.labelSmall),
+                                Text('${m['body']}'),
+                                if (asInt(m['senderId']) == asInt(widget.auth.user?['id']))
+                                  Text(m['readAt'] == null ? i.t('sent') : i.t('read'), style: Theme.of(context).textTheme.labelSmall),
+                              ]),
                             ),
-                        ],
-                      ),
-              ),
-            Padding(
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+        Material(
+          elevation: 2,
+          child: SafeArea(
+            top: false,
+            child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(children: [
-                Expanded(child: TextField(controller: draft, enabled: !sending, decoration: InputDecoration(hintText: i.t('send')))),
+                Expanded(child: TextField(controller: draft, enabled: !sending, minLines: 1, maxLines: 4, decoration: InputDecoration(hintText: i.t('send')))),
                 IconButton(onPressed: sending ? null : _send, icon: const Icon(Icons.send)),
               ]),
             ),
-          ],
+          ),
         ),
-      );
-    }
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Row(children: [
-              Expanded(child: Text(i.t('messages'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700))),
-              if (widget.auth.isOwner || widget.auth.hasPermission('MESSAGE_WRITE'))
-                IconButton(onPressed: () => setState(() => composing = true), icon: const Icon(Icons.add)),
-            ]),
-            const SizedBox(height: 8),
-            Text(i.t('emergency'), style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
-            if (loading || error != null)
-              StatusView(loading: loading, error: error, onRetry: _load)
-            else if (convos.isEmpty)
-              Text(i.t('empty'))
-            else
-              for (final c in convos)
-                Card(
-                  color: asInt(c['unread']) > 0 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08) : null,
-                  child: ListTile(
-                    title: Text(_title(asMap(c)), style: TextStyle(fontWeight: asInt(c['unread']) > 0 ? FontWeight.w700 : FontWeight.w400)),
-                    subtitle: Text('${c['lastMessage'] ?? ''}\n${formatDate(c['updatedAt'])}'),
-                    isThreeLine: true,
-                    trailing: asInt(c['unread']) > 0 ? CountBadge(count: asInt(c['unread']), label: '${c['unread']} ${i.t('unread')}') : null,
-                    onTap: () => _open(asMap(c)),
-                  ),
-                ),
-            if (composing)
+      ],
+    );
+  }
+
+  Widget _inbox(I18n i) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(i.t('emergency'), style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          if (loading || error != null)
+            StatusView(loading: loading, error: error, onRetry: _load)
+          else if (convos.isEmpty)
+            Text(i.t('empty'))
+          else
+            for (final c in convos)
               Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(children: [
-                    DropdownButtonFormField<int>(
-                      decoration: InputDecoration(labelText: i.t('pets')),
-                      items: [
-                        for (final p in pets)
-                          DropdownMenuItem(value: asInt(p['id']), child: Text('${p['name']} · ${p['tenantName'] ?? ''}')),
-                      ],
-                      onChanged: (v) => petId = v,
-                    ),
-                    TextField(controller: subject, decoration: InputDecoration(labelText: i.t('subject'))),
-                    const SizedBox(height: 8),
-                    FilledButton(onPressed: _start, child: Text(i.t('newMessage'))),
-                  ]),
+                color: asInt(c['unread']) > 0 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08) : null,
+                child: ListTile(
+                  title: Text(_title(asMap(c)), style: TextStyle(fontWeight: asInt(c['unread']) > 0 ? FontWeight.w700 : FontWeight.w400)),
+                  subtitle: Text('${c['lastMessage'] ?? ''}\n${formatDate(c['updatedAt'])}'),
+                  isThreeLine: true,
+                  trailing: asInt(c['unread']) > 0 ? CountBadge(count: asInt(c['unread']), label: '${c['unread']} ${i.t('unread')}') : null,
+                  onTap: () => _open(asMap(c)),
                 ),
               ),
-          ],
-        ),
+          if (composing)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(children: [
+                  DropdownButtonFormField<int>(
+                    decoration: InputDecoration(labelText: i.t('pets')),
+                    items: [
+                      for (final p in pets)
+                        DropdownMenuItem(value: asInt(p['id']), child: Text('${p['name']} · ${p['tenantName'] ?? ''}')),
+                    ],
+                    onChanged: (v) => petId = v,
+                  ),
+                  TextField(controller: subject, decoration: InputDecoration(labelText: i.t('subject'))),
+                  const SizedBox(height: 8),
+                  FilledButton(onPressed: _start, child: Text(i.t('newMessage'))),
+                ]),
+              ),
+            ),
+        ],
       ),
     );
   }

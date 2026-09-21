@@ -12,14 +12,14 @@ class StatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget content;
     if (loading) {
-      return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
-    }
-    if (error != null && error!.isNotEmpty) {
-      return Padding(
+      content = const Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator());
+    } else if (error != null && error!.isNotEmpty) {
+      content = Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(error!, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             if (onRetry != null) ...[
@@ -29,11 +29,17 @@ class StatusView extends StatelessWidget {
           ],
         ),
       );
+    } else if (empty != null) {
+      content = Padding(padding: const EdgeInsets.all(24), child: Text(empty!, textAlign: TextAlign.center));
+    } else {
+      content = child ?? const SizedBox.shrink();
     }
-    if (empty != null) {
-      return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(empty!, textAlign: TextAlign.center)));
-    }
-    return child ?? const SizedBox.shrink();
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.hasBoundedHeight && constraints.maxHeight.isFinite) {
+        return Center(child: SingleChildScrollView(child: content));
+      }
+      return content;
+    });
   }
 }
 
