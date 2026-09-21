@@ -53,6 +53,7 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/v1/auth/invite")
                 || path.startsWith("/api/v1/auth/accept-invite")
                 || path.startsWith("/api/v1/public/")
+                || path.startsWith("/api/v1/files/")
                 || path.startsWith("/actuator/")
                 || path.startsWith("/v3/api-docs")
                 || path.startsWith("/swagger-ui")) {
@@ -116,7 +117,8 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
                 || "/api/v1/auth/logout".equals(path)
                 || "/api/v1/auth/switch-tenant".equals(path)
                 || "/api/v1/auth/change-password".equals(path)
-                || path.startsWith("/api/v1/account/");
+                || path.startsWith("/api/v1/account/")
+                || path.startsWith("/api/v1/files/");
     }
 
     private boolean blocks(SubscriptionAccessView subscription) {

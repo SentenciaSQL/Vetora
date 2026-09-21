@@ -84,7 +84,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 || uri.contains("/auth/invite")
                 || uri.contains("/auth/accept-invite")
                 || uri.contains("/public/")
-                || uri.contains("/billing/webhooks/paddle");
+                || uri.contains("/billing/webhooks/paddle")
+                || uri.contains("/files/");
     }
 
     private Long toNullableTenant(Object raw) {
