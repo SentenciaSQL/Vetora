@@ -41,6 +41,11 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", message);
     }
 
+    public static ApiException emailNotVerified() {
+        return new ApiException(HttpStatus.FORBIDDEN, "EMAIL_NOT_VERIFIED",
+                "Debe verificar su correo electrónico antes de continuar");
+    }
+
     public static ApiException tooManyRequests(String message) {
         return new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", message);
     }

@@ -68,7 +68,15 @@ animalin:
     verification-hours: ${SIGNUP_VERIFICATION_HOURS:48}
     resend-cooldown-seconds: ${SIGNUP_RESEND_COOLDOWN_SECONDS:60}
     invite-days: ${SIGNUP_INVITE_DAYS:7}
-    public-app-url: ${PUBLIC_APP_URL:http://localhost:4200}
+    public-app-url: ${PUBLIC_APP_URL:${FRONTEND_URL:http://localhost:4200}}
+
+resend:
+  api-key: ${RESEND_API_KEY:}
+  from: ${RESEND_FROM:LunaVeta <no-reply@lunaveta.com>}
+  api-url: ${RESEND_API_URL:https://api.resend.com}
+
+app:
+  frontend-url: ${FRONTEND_URL:${PUBLIC_APP_URL:http://localhost:4200}}
 
 paddle:
   api-key: ${PADDLE_API_KEY:}
@@ -123,3 +131,9 @@ paddle:
   webhook-tolerance-seconds: 300
   jobs:
     grace-period-enabled: false
+resend:
+  api-key:
+  from: LunaVeta <no-reply@lunaveta.com>
+  api-url: https://api.resend.com
+app:
+  frontend-url: http://localhost:4200

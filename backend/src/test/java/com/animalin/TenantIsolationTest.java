@@ -177,6 +177,7 @@ class TenantIsolationTest {
         user.setFirstName("Admin");
         user.setLastName(email);
         user.setPasswordHash(passwordEncoder.encode("Admin123!"));
+        user.setEmailVerified(true);
         user.getRoles().add(role);
         return userRepository.save(user);
     }

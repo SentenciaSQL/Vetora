@@ -31,6 +31,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   return next(authorized).pipe(
     catchError((error: HttpErrorResponse) => {
       const body = error.error as ApiErrorBody | undefined;
+      if (error.status === 403 && body?.code === 'EMAIL_NOT_VERIFIED' && !router.url.startsWith('/verify-email')) {
+        void router.navigate(['/verify-email']);
+        return throwError(() => error);
+      }
       if (error.status === 403 && body?.code === 'TENANT_SUBSCRIPTION_SUSPENDED' && !router.url.startsWith('/billing')) {
         void router.navigate(['/billing']);
         return throwError(() => error);
