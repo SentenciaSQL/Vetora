@@ -149,8 +149,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   Widget build(BuildContext context) {
     final i = I18n.instance;
     final statuses = const [null, 'REQUESTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
-    return SafeArea(
-      child: Column(
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
@@ -228,6 +229,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
