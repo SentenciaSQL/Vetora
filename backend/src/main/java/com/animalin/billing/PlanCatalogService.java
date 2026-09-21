@@ -312,6 +312,10 @@ public class PlanCatalogService {
         if (price.unitPrice() == null || !"USD".equalsIgnoreCase(price.unitPrice().currencyCode())) {
             throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe estar en USD");
         }
+        BigDecimal amount = fromCents(price.unitPrice().amount());
+        if (amount.compareTo(ZERO) <= 0) {
+            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no puede ser cero. Revise el Price ID (pri_) sin cambiar otros importes.");
+        }
         if (price.billingCycle() == null || !StringUtils.hasText(price.billingCycle().interval())) {
             throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe ser recurrente");
         }
@@ -325,8 +329,19 @@ public class PlanCatalogService {
             throw ApiException.badRequest("El precio " + cycleLabel + " no pertenece al producto del plan ("
                     + plan.getPaddleProductId() + ")");
         }
-        inspectTrialPeriod(plan, price, "year".equals(expectedInterval) ? SubscriptionStatuses.CYCLE_ANNUAL : SubscriptionStatuses.CYCLE_MONTHLY);
-        return price;
+        String billingCycle = "year".equals(expectedInterval) ? SubscriptionStatuses.CYCLE_ANNUAL : SubscriptionStatuses.CYCLE_MONTHLY;
+        PaddleDtos.Price aligned = enforceTrialPeriod(plan, price, billingCycle);
+        if (aligned == null || !StringUtils.hasText(aligned.id())) {
+            throw paddleError("Paddle no devolvió un precio válido");
+        }
+        log.info("Checkout Paddle price plan={} cycle={} paddlePrice={} amount={}{} trial={}",
+                plan.getCode(),
+                billingCycle,
+                TrialPolicy.maskPaddleId(aligned.id()),
+                fromCents(aligned.unitPrice() == null ? null : aligned.unitPrice().amount()),
+                aligned.unitPrice() == null ? "" : " " + aligned.unitPrice().currencyCode(),
+                TrialPolicy.hasTrialPeriod(aligned.trialPeriod()));
+        return aligned;
     }
 
     private BillingDtos.PaddlePriceDiff syncPrice(Plan plan, PaddleDtos.Product product, String priceId, boolean monthly) {
@@ -360,7 +375,7 @@ public class PlanCatalogService {
             throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no está activo (estado: "
                     + price.status() + ")");
         }
-        inspectTrialPeriod(plan, price, monthly ? SubscriptionStatuses.CYCLE_MONTHLY : SubscriptionStatuses.CYCLE_ANNUAL);
+        price = enforceTrialPeriod(plan, price, monthly ? SubscriptionStatuses.CYCLE_MONTHLY : SubscriptionStatuses.CYCLE_ANNUAL);
         BigDecimal paddleAmount = fromCents(price.unitPrice().amount());
         BigDecimal local = monthly ? plan.getMonthlyPrice() : plan.getAnnualPrice();
         boolean amountsMatch = local != null && local.compareTo(paddleAmount) == 0;
@@ -565,25 +580,91 @@ public class PlanCatalogService {
             return;
         }
         try {
-            inspectTrialPeriod(plan, paddleClient.getPrice(priceId), billingCycle);
+            enforceTrialPeriod(plan, paddleClient.getPrice(priceId), billingCycle);
         } catch (PaddleApiException ex) {
-            log.warn("Could not load Paddle price {} to inspect the trial period", TrialPolicy.maskPaddleId(priceId));
+            log.warn("Could not load Paddle price {} to align the trial period", TrialPolicy.maskPaddleId(priceId));
         }
     }
 
-    private void inspectTrialPeriod(Plan plan, PaddleDtos.Price price, String billingCycle) {
+    private PaddleDtos.Price enforceTrialPeriod(Plan plan, PaddleDtos.Price price, String billingCycle) {
         if (price == null || !StringUtils.hasText(price.id())) {
-            return;
+            return price;
         }
         boolean shouldHaveTrial = TrialPolicy.basicMonthly(plan, billingCycle);
-        if (shouldHaveTrial && !TrialPolicy.hasConfiguredBasicMonthlyTrial(price.trialPeriod())) {
-            log.warn("Paddle Price ID {} for BASIC monthly is missing Trial period: 14 days. Configure it in Paddle without changing the amount. Currency must remain USD.",
-                    TrialPolicy.maskPaddleId(price.id()));
-        } else if (!shouldHaveTrial && TrialPolicy.hasTrialPeriod(price.trialPeriod())) {
-            log.warn("Paddle Price ID {} for plan {} cycle {} has a trial period; only BASIC monthly should. Remove the trial in Paddle without changing the amount.",
+        if (shouldHaveTrial) {
+            if (TrialPolicy.hasConfiguredBasicMonthlyTrial(price.trialPeriod())) {
+                return price;
+            }
+            try {
+                PaddleDtos.Price updated = paddleClient.setPriceTrialPeriod(price.id(),
+                        new PaddleDtos.TrialPeriod("day", TrialPolicy.DAYS));
+                log.info("Attached 14-day trial to BASIC monthly Paddle price {} without changing the amount",
+                        TrialPolicy.maskPaddleId(price.id()));
+                return updated == null ? price : updated;
+            } catch (PaddleApiException ex) {
+                log.warn("Could not attach the 14-day trial to BASIC monthly price {}. Configure Trial period: 14 days in Paddle without changing the amount.",
+                        TrialPolicy.maskPaddleId(price.id()));
+                return price;
+            }
+        }
+        if (!TrialPolicy.hasTrialPeriod(price.trialPeriod())) {
+            return price;
+        }
+        try {
+            PaddleDtos.Price updated = paddleClient.setPriceTrialPeriod(price.id(), null);
+            log.info("Removed leftover trial from Paddle price {} plan={} cycle={} so checkout bills immediately. Amount was not changed.",
                     TrialPolicy.maskPaddleId(price.id()),
                     plan == null ? "unknown" : plan.getCode(),
                     billingCycle);
+            if (updated != null && !TrialPolicy.hasTrialPeriod(updated.trialPeriod())) {
+                return updated;
+            }
+        } catch (PaddleApiException ex) {
+            log.warn("Could not clear trial on Paddle price {} plan={} cycle={}. Creating a replacement price with the same amount and no trial.",
+                    TrialPolicy.maskPaddleId(price.id()),
+                    plan == null ? "unknown" : plan.getCode(),
+                    billingCycle);
+        }
+        return replacePriceWithoutTrial(plan, price, billingCycle);
+    }
+
+    private PaddleDtos.Price replacePriceWithoutTrial(Plan plan, PaddleDtos.Price current, String billingCycle) {
+        boolean monthly = !SubscriptionStatuses.CYCLE_ANNUAL.equalsIgnoreCase(billingCycle);
+        try {
+            PaddleDtos.Price created = paddleClient.createPrice(new PaddleDtos.CreatePriceRequest(
+                    (plan == null ? "plan" : plan.getCode()) + (monthly ? " monthly USD" : " annual USD"),
+                    current.productId(),
+                    current.unitPrice(),
+                    current.billingCycle(),
+                    null
+            ));
+            if (plan != null) {
+                if (monthly) {
+                    plan.setPaddleMonthlyPriceId(created.id());
+                    plan.setPaddleMonthlyPriceStatus(created.status());
+                } else {
+                    plan.setPaddleAnnualPriceId(created.id());
+                    plan.setPaddleAnnualPriceStatus(created.status());
+                }
+            }
+            try {
+                paddleClient.updatePrice(current.id(), new PaddleDtos.UpdatePriceRequest("archived", null));
+            } catch (PaddleApiException ex) {
+                log.warn("Replacement price {} created; could not archive {} with leftover trial",
+                        TrialPolicy.maskPaddleId(created.id()), TrialPolicy.maskPaddleId(current.id()));
+            }
+            log.info("Mapped plan {} cycle {} to replacement Paddle price {} with the same amount and no trial",
+                    plan == null ? "unknown" : plan.getCode(),
+                    billingCycle,
+                    TrialPolicy.maskPaddleId(created.id()));
+            return created;
+        } catch (PaddleApiException ex) {
+            log.warn("Could not create a no-trial replacement for Paddle price {} plan={} cycle={}. Checkout would charge $0 until the trial is removed in Paddle.",
+                    TrialPolicy.maskPaddleId(current.id()),
+                    plan == null ? "unknown" : plan.getCode(),
+                    billingCycle);
+            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "PADDLE_TRIAL_MISMATCH",
+                    "El precio de Paddle todavía tiene prueba gratis y no corresponde a Básico mensual. Quite el trial period en Paddle sin cambiar el importe, o cree un Price ID nuevo con el mismo monto.");
         }
     }
 
