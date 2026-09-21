@@ -13,7 +13,8 @@ public interface ConversationRepository extends JpaRepository<Conversation, Long
                 select c2.id from Conversation c2
                 left join c2.participants p
                 left join c2.owner o
-                where p.id = :userId or o.user.id = :userId
+                left join o.user ou
+                where p.id = :userId or ou.id = :userId
             )
             order by c.updatedAt desc
             """)

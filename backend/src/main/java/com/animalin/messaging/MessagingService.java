@@ -83,10 +83,11 @@ public class MessagingService {
         Map<Long, Tenant> tenants = tenantRepository.findAllById(tenantIds).stream()
                 .collect(Collectors.toMap(Tenant::getId, Function.identity()));
         Long userId = TenantContext.userId();
-        Map<Long, ConversationReadState> reads = readStateRepository
-                .findByUserIdAndConversationIdIn(userId, conversations.stream().map(Conversation::getId).toList())
-                .stream()
-                .collect(Collectors.toMap(state -> state.getConversation().getId(), Function.identity()));
+        List<Long> conversationIds = conversations.stream().map(Conversation::getId).toList();
+        Map<Long, ConversationReadState> reads = conversationIds.isEmpty()
+                ? Map.of()
+                : readStateRepository.findByUserIdAndConversationIdIn(userId, conversationIds).stream()
+                .collect(Collectors.toMap(state -> state.getConversation().getId(), Function.identity(), (a, b) -> a));
         return conversations.stream().map(conversation -> toSummary(conversation, tenants.get(conversation.getTenantId()),
                 reads.get(conversation.getId()), userId)).toList();
     }
@@ -275,11 +276,12 @@ public class MessagingService {
     private ConversationSummary toSummary(Conversation conversation, Tenant tenant, ConversationReadState read, Long userId) {
         Message last = messageRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId()).orElse(null);
         Instant lastReadAt = read == null ? null : read.getLastReadAt();
-        long unread = messageRepository.countUnreadInConversation(conversation.getId(), userId, lastReadAt);
+        long unread = unreadInConversation(conversation.getId(), userId, lastReadAt);
         String tenantName = tenant == null ? "" : (tenant.getCommercialName() == null || tenant.getCommercialName().isBlank()
                 ? tenant.getName() : tenant.getCommercialName());
         String ownerName = conversation.getOwner() == null ? "" : conversation.getOwner().fullName();
         boolean ownerView = accessGuard.isOwnerContext();
+        String preview = last == null || last.getBody() == null ? "" : last.getBody();
         return new ConversationSummary(
                 conversation.getId(),
                 conversation.getSubject() == null ? "" : conversation.getSubject(),
@@ -288,10 +290,17 @@ public class MessagingService {
                 conversation.getPet() == null ? "" : conversation.getPet().getName(),
                 ownerName,
                 ownerView ? tenantName : ownerName,
-                last == null ? "" : last.getBody(),
+                preview,
                 conversation.getUpdatedAt(),
                 unread
         );
+    }
+
+    private long unreadInConversation(Long conversationId, Long userId, Instant lastReadAt) {
+        if (lastReadAt == null) {
+            return messageRepository.countByConversationIdAndSenderIdNot(conversationId, userId);
+        }
+        return messageRepository.countByConversationIdAndSenderIdNotAndCreatedAtAfter(conversationId, userId, lastReadAt);
     }
 
     private AppDtos.MessageResponse toMessage(Message message) {
