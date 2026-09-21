@@ -3,16 +3,21 @@ package com.animalin.admin;
 import com.animalin.billing.BillingDtos;
 import com.animalin.billing.PlanCatalogService;
 import com.animalin.tenant.Tenant;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -21,21 +26,58 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final AdminDashboardService adminDashboardService;
     private final PlanCatalogService planCatalogService;
 
-    public AdminController(AdminService adminService, PlanCatalogService planCatalogService) {
+    public AdminController(AdminService adminService,
+                           AdminDashboardService adminDashboardService,
+                           PlanCatalogService planCatalogService) {
         this.adminService = adminService;
+        this.adminDashboardService = adminDashboardService;
         this.planCatalogService = planCatalogService;
     }
 
     @GetMapping("/metrics")
-    public Map<String, Object> metrics() {
-        return adminService.metrics();
+    public AdminDtos.DashboardResponse metrics(
+            @RequestParam(required = false) String range,
+            @RequestParam(required = false) Instant from,
+            @RequestParam(required = false) Instant to,
+            @RequestParam(required = false) String granularity,
+            @RequestParam(required = false) String planCode,
+            @RequestParam(required = false) String tenantStatus,
+            @RequestParam(required = false) String country) {
+        return adminDashboardService.dashboard(range, from, to, granularity, planCode, tenantStatus, country);
+    }
+
+    @GetMapping("/reports/{type}")
+    public ResponseEntity<byte[]> report(@PathVariable String type,
+                                         @RequestParam(required = false) Instant from,
+                                         @RequestParam(required = false) Instant to,
+                                         @RequestParam(required = false) String planCode,
+                                         @RequestParam(required = false) String status,
+                                         @RequestParam(required = false) String country,
+                                         @RequestParam(required = false) String billingCycle,
+                                         @RequestParam(required = false) String eventType,
+                                         @RequestParam(required = false) Long tenantId,
+                                         @RequestParam(required = false) String format) {
+        boolean excel = "xlsx".equalsIgnoreCase(format) || "excel".equalsIgnoreCase(format);
+        byte[] body = adminDashboardService.exportReport(type, from, to, planCode, status, country,
+                billingCycle, eventType, tenantId, excel);
+        String filename = type + (excel ? ".xlsx" : ".csv");
+        MediaType mediaType = excel
+                ? MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                : MediaType.parseMediaType("text/csv");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
+                .contentType(mediaType)
+                .body(body);
     }
 
     @GetMapping("/tenants")
-    public List<Tenant> tenants() {
-        return adminService.tenants();
+    public List<Tenant> tenants(@RequestParam(required = false) String status,
+                                @RequestParam(required = false) String planCode,
+                                @RequestParam(required = false) String country) {
+        return adminService.tenants(status, planCode, country);
     }
 
     @GetMapping("/tenants/{id}/setup")
@@ -93,8 +135,8 @@ public class AdminController {
     }
 
     @GetMapping("/subscriptions")
-    public List<Map<String, Object>> subscriptions() {
-        return adminService.subscriptions();
+    public List<Map<String, Object>> subscriptions(@RequestParam(required = false) String status) {
+        return adminService.subscriptions(status);
     }
 
     @GetMapping("/users")

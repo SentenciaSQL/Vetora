@@ -8,16 +8,14 @@ import { AuthService } from '../../../core/services/auth.service';
 import { StatCardComponent } from '../../../shared/ui/stat-card.component';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
+import { AdminDashboardPage } from '../../admin/admin-dashboard.page';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslatePipe, StatCardComponent, StatusBadgePipe, EmptyStateComponent],
+  imports: [CommonModule, RouterLink, TranslatePipe, StatCardComponent, StatusBadgePipe, EmptyStateComponent, AdminDashboardPage],
   template: `
     @if (auth.isSuperAdmin()) {
-      <div class="card">
-        <h1 class="font-display text-2xl font-semibold">{{ 'admin.title' | translate }}</h1>
-        <a routerLink="/admin" class="btn-primary mt-4 inline-flex">{{ 'nav.admin' | translate }}</a>
-      </div>
+      <app-admin-dashboard />
     } @else if (ownerView()) {
       <h1 class="font-display text-2xl font-semibold">{{ 'dashboard.ownerTitle' | translate }}</h1>
       <p class="text-sm text-slate-500">{{ 'dashboard.ownerSubtitle' | translate }}</p>

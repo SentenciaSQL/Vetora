@@ -23,4 +23,6 @@ public interface ClinicSignupRepository extends JpaRepository<ClinicSignup, Long
     List<ClinicSignup> findDetailedByUserId(Long userId);
 
     long countByUserIdAndStatusIn(Long userId, Collection<String> statuses);
+
+    long countByStatusIn(Collection<String> statuses);
 }

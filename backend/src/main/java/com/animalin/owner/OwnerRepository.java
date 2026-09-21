@@ -25,4 +25,5 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
     long countByTenantId(Long tenantId);
     long countByCreatedAtAfter(Instant after);
     long countByTenantIdAndCreatedAtAfter(Long tenantId, Instant after);
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(Instant from, Instant to);
 }

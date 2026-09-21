@@ -37,6 +37,62 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     long countByPlanId(Long planId);
     long countByPlanIdAndStatusIn(Long planId, Collection<String> statuses);
+    long countByStatus(String status);
+    long countByStatusIn(Collection<String> statuses);
+
+    @Query("""
+            select coalesce(p.code, 'UNKNOWN'), coalesce(s.billingCycle, 'MONTHLY'),
+                   case
+                     when s.status in ('ACTIVE') then 'ACTIVE'
+                     when s.status in ('TRIAL', 'TRIALING') then 'TRIAL'
+                     when s.status in ('PAST_DUE', 'GRACE_PERIOD') then 'PAST_DUE'
+                     when s.status in ('CANCELED', 'CANCELLED') then 'CANCELED'
+                     else s.status
+                   end,
+                   count(s)
+            from Subscription s
+            join s.plan p
+            group by coalesce(p.code, 'UNKNOWN'), coalesce(s.billingCycle, 'MONTHLY'),
+                     case
+                       when s.status in ('ACTIVE') then 'ACTIVE'
+                       when s.status in ('TRIAL', 'TRIALING') then 'TRIAL'
+                       when s.status in ('PAST_DUE', 'GRACE_PERIOD') then 'PAST_DUE'
+                       when s.status in ('CANCELED', 'CANCELLED') then 'CANCELED'
+                       else s.status
+                     end
+            """)
+    List<Object[]> countGroupedByPlanCycleStatus();
+
+    long countByStartedAtGreaterThanEqualAndStartedAtLessThan(Instant from, Instant to);
+
+    long countByCancelledAtGreaterThanEqualAndCancelledAtLessThan(Instant from, Instant to);
+
+    long countByFirstPaymentFailedAtGreaterThanEqualAndFirstPaymentFailedAtLessThan(Instant from, Instant to);
+
+    long countByLastPaymentSucceededAtGreaterThanEqualAndLastPaymentSucceededAtLessThanAndFirstPaymentFailedAtNotNull(
+            Instant from, Instant to);
+
+    @Query("""
+            select count(s) from Subscription s
+            where s.status in ('TRIAL', 'TRIALING')
+              and s.plan.code = 'BASIC'
+              and coalesce(s.billingCycle, 'MONTHLY') = 'MONTHLY'
+            """)
+    long countBasicMonthlyTrials();
+
+    @Query("""
+            select count(s) from Subscription s
+            where s.status = 'ACTIVE'
+              and s.trial = false
+              and s.plan.code = 'BASIC'
+              and coalesce(s.billingCycle, 'MONTHLY') = 'MONTHLY'
+              and exists (
+                select 1 from Subscription prev
+                where prev.tenant = s.tenant
+                  and (prev.trial = true or prev.status in ('TRIAL', 'TRIALING'))
+              )
+            """)
+    long countBasicMonthlyConverted();
 
     @Query(value = """
             SELECT * FROM subscriptions

@@ -42,4 +42,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     long countByTenantIdAndStartAtBetween(Long tenantId, Instant from, Instant to);
     long countByTenantIdAndStatusAndStartAtBetween(Long tenantId, String status, Instant from, Instant to);
     long countByDeletedFalse();
+    long countByStartAtGreaterThanEqualAndStartAtLessThanAndDeletedFalse(Instant from, Instant to);
+    long countByStatusAndStartAtGreaterThanEqualAndStartAtLessThanAndDeletedFalse(String status, Instant from, Instant to);
 }
