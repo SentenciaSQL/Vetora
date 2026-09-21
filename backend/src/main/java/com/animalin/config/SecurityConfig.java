@@ -64,6 +64,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",
                                 "/api/v1/auth/invite", "/api/v1/auth/accept-invite").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhooks/paddle").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/files/**").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()

@@ -73,9 +73,7 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
                   for (final clinic in clinics)
                     Card(
                       child: ListTile(
-                        leading: asString(clinic['logoUrl']).isNotEmpty
-                            ? CircleAvatar(backgroundImage: NetworkImage(clinic['logoUrl']))
-                            : const CircleAvatar(child: Icon(Icons.local_hospital_outlined)),
+                        leading: RemoteCircleAvatar(url: asString(clinic['logoUrl'])),
                         title: Text('${clinic['commercialName'] ?? clinic['name']}'),
                         subtitle: Text('${clinic['city'] ?? ''} ${clinic['country'] ?? ''}'),
                         onTap: () => _open(asMap(clinic)),
@@ -173,7 +171,7 @@ class _ClinicDetailScreenState extends State<ClinicDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (asString(clinic['logoUrl']).isNotEmpty) Image.network(clinic['logoUrl'], height: 72, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+          if (asString(clinic['logoUrl']).isNotEmpty) RemoteImage(asString(clinic['logoUrl']), height: 72),
           ListTile(title: Text(i.t('phone')), subtitle: Text(asString(clinic['phone'], '—'))),
           ListTile(title: Text(i.t('email')), subtitle: Text(asString(clinic['email'], '—'))),
           ListTile(title: Text(i.t('address')), subtitle: Text('${clinic['address'] ?? ''} ${clinic['city'] ?? ''} ${clinic['country'] ?? ''}'.trim())),

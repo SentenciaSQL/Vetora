@@ -142,10 +142,10 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                       Row(children: [
                         GestureDetector(
                           onTap: _photo,
-                          child: CircleAvatar(
+                          child: RemoteCircleAvatar(
+                            url: asString(pet['photoUrl']),
                             radius: 28,
-                            backgroundImage: asString(pet['photoUrl']).isNotEmpty ? NetworkImage(pet['photoUrl']) : null,
-                            child: asString(pet['photoUrl']).isNotEmpty ? null : Text(asString(pet['name'], '?').substring(0, 1)),
+                            fallbackText: asString(pet['name'], '?'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -157,7 +157,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                               if (logo.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(right: 8),
-                                  child: Image.network(logo, height: 20, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                                  child: RemoteImage(logo, height: 20),
                                 ),
                               Expanded(child: Text('${i.t('clinic')}: ${pet['tenantName'] ?? ''}')),
                             ]),
