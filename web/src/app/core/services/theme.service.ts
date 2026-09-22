@@ -5,6 +5,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   mode = signal<ThemeMode>(this.read());
+  dark = signal(false);
 
   constructor() {
     this.apply(this.mode());
@@ -24,12 +25,13 @@ export class ThemeService {
 
   private apply(mode: ThemeMode): void {
     const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    this.dark.set(dark);
     document.documentElement.classList.toggle('dark', dark);
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
   }
 
   isDark(): boolean {
-    return document.documentElement.classList.contains('dark');
+    return this.dark();
   }
 
   private read(): ThemeMode {

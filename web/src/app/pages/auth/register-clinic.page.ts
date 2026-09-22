@@ -7,7 +7,9 @@ import { SignupService } from '../../core/services/signup.service';
 import { AuthService } from '../../core/services/auth.service';
 import { PaddleService } from '../../core/services/paddle.service';
 import { ApiService } from '../../core/services/api.service';
-import { PublicPlan, SignupConfig } from '../../core/models';
+import { BrandingService } from '../../core/services/branding.service';
+import { ImageUploadComponent } from '../../shared/ui/image-upload.component';
+import { Branding, PublicPlan, SignupConfig } from '../../core/models';
 import { BillingCycle } from '../../core/services/billing.service';
 import {
   cycleAvailable,
@@ -27,7 +29,7 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe, ImageUploadComponent],
   template: `
     <div class="mx-auto min-h-screen max-w-5xl px-4 py-10 sm:px-6">
       <div class="mb-8 flex items-center justify-between gap-4">
@@ -98,7 +100,7 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
           </select>
           <input class="input" formControlName="phone" [placeholder]="'signup.phoneOptional' | translate" />
           <input class="input" formControlName="address" [placeholder]="'signup.addressOptional' | translate" />
-          <input class="input" type="file" accept="image/*" (change)="onLogo($event)" />
+          <app-image-upload [label]="'signup.logo' | translate" [hint]="'signup.logoHint' | translate" [src]="logoPreview()" (selected)="onLogo($event)" (cleared)="clearLogo()" />
           <div class="flex justify-between">
             <button type="button" class="btn-secondary" (click)="go(1)">{{ 'common.back' | translate }}</button>
             <button type="submit" class="btn-primary" [disabled]="clinic.invalid || slugTaken()">{{ 'common.continue' | translate }}</button>
@@ -189,6 +191,7 @@ export class RegisterClinicPage implements OnInit {
   private auth = inject(AuthService);
   private paddle = inject(PaddleService);
   private api = inject(ApiService);
+  private branding = inject(BrandingService);
   private router = inject(Router);
 
   steps = ['signup.stepAccount', 'signup.stepClinic', 'signup.stepPlan', 'signup.stepPay'];
@@ -200,6 +203,7 @@ export class RegisterClinicPage implements OnInit {
   selectedPlan = signal<PublicPlan | null>(null);
   cycle = signal<BillingCycle>('MONTHLY');
   logo?: File;
+  logoPreview = signal<string | null>(null);
 
   readonly displayedPrice = displayedPrice;
   readonly monthlyEquivalentAmount = monthlyEquivalentAmount;
@@ -331,9 +335,14 @@ export class RegisterClinicPage implements OnInit {
     this.step.set(next);
   }
 
-  onLogo(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.logo = input.files?.[0];
+  onLogo(file: File): void {
+    this.logo = file;
+    this.logoPreview.set(URL.createObjectURL(file));
+  }
+
+  clearLogo(): void {
+    this.logo = undefined;
+    this.logoPreview.set(null);
   }
 
   suggestSlug(): void {
@@ -381,8 +390,18 @@ export class RegisterClinicPage implements OnInit {
         this.error.set(apiErrorMessage(err, 'No se pudo iniciar el pago'));
       }
     });
+    const afterClinic = () => {
+      if (!this.logo) {
+        finish();
+        return;
+      }
+      this.signup.refreshOwnerSession().subscribe({
+        next: () => this.uploadLogo(finish),
+        error: () => this.uploadLogo(finish)
+      });
+    };
     if (this.auth.user()?.tenantId) {
-      finish();
+      afterClinic();
       return;
     }
     this.signup.completeClinic({
@@ -395,19 +414,27 @@ export class RegisterClinicPage implements OnInit {
       planId: plan.id,
       billingCycle: this.cycle()
     }).subscribe({
-      next: () => this.signup.refreshOwnerSession().subscribe({
-        next: () => {
-          if (this.logo) {
-            this.api.upload('/settings/branding/logo', this.logo).subscribe({ next: finish, error: finish });
-          } else {
-            finish();
-          }
-        },
-        error: finish
-      }),
+      next: () => afterClinic(),
       error: err => {
         this.busy.set(false);
         this.error.set(apiErrorMessage(err, 'No se pudo registrar la veterinaria'));
+      }
+    });
+  }
+
+  private uploadLogo(finish: () => void): void {
+    if (!this.logo) {
+      finish();
+      return;
+    }
+    this.api.upload<Branding>('/settings/branding/logo', this.logo, { variant: 'light' }).subscribe({
+      next: brand => {
+        this.branding.branding.set(brand);
+        finish();
+      },
+      error: err => {
+        this.busy.set(false);
+        this.error.set(apiErrorMessage(err, 'No se pudo guardar el logo de la veterinaria'));
       }
     });
   }
