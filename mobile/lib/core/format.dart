@@ -20,6 +20,14 @@ int asInt(dynamic value, [int fallback = 0]) {
   return int.tryParse('$value') ?? fallback;
 }
 
+String statusLabel(dynamic status) {
+  final code = asString(status);
+  if (code.isEmpty) return '';
+  final key = 'status_$code';
+  final translated = I18n.instance.t(key);
+  return translated == key ? code : translated;
+}
+
 String asString(dynamic value, [String fallback = '']) {
   if (value == null) return fallback;
   final text = '$value';

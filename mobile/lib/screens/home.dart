@@ -127,7 +127,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListTile(
           leading: const Icon(Icons.vaccines_outlined),
           title: Text(i.t('nextVaccine')),
-          subtitle: Text(vaccine['id'] == null ? i.t('empty') : '${vaccine['pet'] ?? ''} · ${vaccine['vaccine'] ?? ''}'),
+          subtitle: Text(vaccine['id'] == null
+              ? i.t('empty')
+              : '${vaccine['pet'] ?? ''} · ${vaccine['vaccine'] ?? ''}${statusLabel(vaccine['status']).isEmpty ? '' : ' · ${statusLabel(vaccine['status'])}'}'),
         ),
       ),
       const SizedBox(height: 8),

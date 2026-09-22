@@ -385,6 +385,11 @@
   },
   "pets": {
     "title": "Mascotas",
+    "vaccineStatus": {
+      "DUE_SOON": "Por vencer",
+      "OVERDUE": "Vencida",
+      "UP_TO_DATE": "Al día"
+    },
     "subtitle": "Pacientes de la clínica",
     "ownerSubtitle": "Sus mascotas registradas",
     "new": "Nueva mascota",

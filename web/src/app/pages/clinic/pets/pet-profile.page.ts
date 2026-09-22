@@ -127,7 +127,7 @@ import { ToastService } from '../../../core/services/toast.service';
                 <p class="font-medium">{{ v.vaccineName }}</p>
                 <p class="text-sm text-slate-500">{{ v.appliedAt | date }} · {{ v.brand }}</p>
               </div>
-              <span [class]="v.status | statusBadge">{{ v.status }}</span>
+              <span [class]="v.status | statusBadge">{{ ('pets.vaccineStatus.' + v.status) | translate }}</span>
             </div>
           }
         </div>

@@ -41,7 +41,7 @@ import { AdminDashboardPage } from '../../admin/admin-dashboard.page';
             <p class="mt-3 text-sm text-slate-500">{{ 'common.empty' | translate }}</p>
           } @else {
             <p class="mt-3">{{ data().nextVaccine.pet }} · {{ data().nextVaccine.vaccine }}</p>
-            <span [class]="data().nextVaccine.status | statusBadge">{{ data().nextVaccine.status }}</span>
+            <span [class]="data().nextVaccine.status | statusBadge">{{ ('pets.vaccineStatus.' + data().nextVaccine.status) | translate }}</span>
           }
         </div>
       </div>
@@ -104,7 +104,7 @@ import { AdminDashboardPage } from '../../admin/admin-dashboard.page';
           @for (v of data().upcomingVaccinations || []; track v.id) {
             <div class="flex justify-between border-t border-slate-50 px-5 py-3 text-sm dark:border-white/5">
               <span>{{ v.pet }} · {{ v.vaccine }}</span>
-              <span [class]="v.status | statusBadge">{{ v.status }}</span>
+              <span [class]="v.status | statusBadge">{{ ('pets.vaccineStatus.' + v.status) | translate }}</span>
             </div>
           }
         </div>
