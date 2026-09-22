@@ -21,9 +21,12 @@ class _PetFormScreenState extends State<PetFormScreen> {
   String species = 'DOG';
   String sex = 'UNKNOWN';
   bool loading = false;
+  bool loadingBranches = true;
   String? error;
   List owners = [];
+  List branches = [];
   int? selectedOwner;
+  int? branchId;
   I18n get i => I18n.instance;
 
   @override
@@ -41,10 +44,12 @@ class _PetFormScreenState extends State<PetFormScreen> {
       if (!speciesOk.contains(species)) species = 'DOG';
       if (!sexOk.contains(sex)) sex = 'UNKNOWN';
       selectedOwner = asInt(pet['ownerId'], 0) == 0 ? null : asInt(pet['ownerId']);
+      branchId = asInt(pet['branchId'], 0) == 0 ? null : asInt(pet['branchId']);
     } else {
       selectedOwner = widget.ownerId;
     }
     _loadOwners();
+    _loadBranches();
   }
 
   Future<void> _loadOwners() async {
@@ -52,6 +57,26 @@ class _PetFormScreenState extends State<PetFormScreen> {
       owners = asList(await widget.auth.api.get('/owners', {'size': '100'}));
       if (mounted) setState(() {});
     } catch (_) {}
+  }
+
+  Future<void> _loadBranches() async {
+    try {
+      branches = asList(await widget.auth.api.get('/branches'));
+      if (branchId == null && branches.length == 1) {
+        branchId = asInt(asMap(branches.first)['id']);
+      }
+    } catch (_) {
+    } finally {
+      loadingBranches = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  String _branchLabel(dynamic branch) {
+    final name = asString(asMap(branch)['name']);
+    final city = asString(asMap(branch)['city']);
+    if (city.isEmpty) return name;
+    return '$name · $city';
   }
 
   @override
@@ -64,7 +89,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
   }
 
   Future<void> _save() async {
-    if (name.text.trim().isEmpty || selectedOwner == null) {
+    if (loadingBranches || name.text.trim().isEmpty || selectedOwner == null || (branches.length > 1 && (branchId == null || branchId == 0))) {
       setState(() => error = i.t('requiredFields'));
       return;
     }
@@ -79,6 +104,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
       'breed': breed.text.trim(),
       'microchip': microchip.text.trim(),
       'sex': sex,
+      if (branchId != null && branchId != 0) 'branchId': branchId,
     };
     try {
       if (widget.pet?['id'] != null) {
@@ -111,6 +137,19 @@ class _PetFormScreenState extends State<PetFormScreen> {
             ],
             onChanged: widget.pet == null ? (value) => setState(() => selectedOwner = value) : null,
           ),
+          if (branches.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              // ignore: deprecated_member_use
+              value: branches.any((branch) => asInt(asMap(branch)['id']) == branchId) ? branchId : null,
+              decoration: InputDecoration(labelText: i.t('branch')),
+              items: [
+                for (final branch in branches)
+                  DropdownMenuItem(value: asInt(asMap(branch)['id']), child: Text(_branchLabel(branch))),
+              ],
+              onChanged: (value) => setState(() => branchId = value),
+            ),
+          ],
           const SizedBox(height: 12),
           TextField(controller: name, decoration: InputDecoration(labelText: i.t('name'))),
           const SizedBox(height: 12),
@@ -141,7 +180,7 @@ class _PetFormScreenState extends State<PetFormScreen> {
           TextField(controller: microchip, decoration: InputDecoration(labelText: i.t('microchip'))),
           if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
           const SizedBox(height: 20),
-          FilledButton(onPressed: loading ? null : _save, child: Text(loading ? '…' : i.t('save'))),
+          FilledButton(onPressed: loading || loadingBranches ? null : _save, child: Text(loading || loadingBranches ? '…' : i.t('save'))),
         ],
       ),
     );

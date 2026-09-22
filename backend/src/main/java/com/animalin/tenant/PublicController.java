@@ -62,6 +62,11 @@ public class PublicController {
         return brandingService.publicBySlug(slug);
     }
 
+    @GetMapping("/tenants/{slug}/branches")
+    public List<com.animalin.branch.BusinessHoursDtos.PublicBranch> branches(@PathVariable String slug) {
+        return businessHoursService.publicBranches(slug);
+    }
+
     @GetMapping("/tenants/{slug}/business-hours")
     public com.animalin.branch.BusinessHoursDtos.HoursResponse publicHours(
             @PathVariable String slug,

@@ -115,6 +115,12 @@ public class PetService {
         pet.setColor(emptyToNull(request.color()));
         pet.setMicrochip(emptyToNull(request.microchip()));
         pet.setStatus("ACTIVE");
+        if (request.branchId() != null) {
+            if (branchRepository.countActive(request.branchId(), tenant.getId()) == 0) {
+                throw ApiException.notFound("Sucursal no encontrada");
+            }
+            pet.setBranchId(request.branchId());
+        }
         if (pet.getWeightKg() != null) {
             petRepository.save(pet);
             logWeight(pet, pet.getWeightKg(), "Registro inicial");
