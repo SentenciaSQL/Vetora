@@ -385,6 +385,11 @@
   },
   "pets": {
     "title": "Pets",
+    "vaccineStatus": {
+      "DUE_SOON": "Due soon",
+      "OVERDUE": "Overdue",
+      "UP_TO_DATE": "Up to date"
+    },
     "subtitle": "Clinic patients",
     "ownerSubtitle": "Your registered pets",
     "new": "New pet",

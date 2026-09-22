@@ -209,7 +209,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                           Text('${i.t('nextIndications')}: ${consultations.first['recommendations'] ?? consultations.first['nextControlAt'] ?? i.t('empty')}'),
                       ]),
                       _list(timeline, (e) => ListTile(title: Text('${e['title']}'), subtitle: Text('${e['type']} · ${formatDate(e['at'])}'))),
-                      _list(vaccines, (v) => ListTile(title: Text('${v['vaccineName']}'), subtitle: Text('${v['status']} · ${formatDate(v['appliedAt'])}'))),
+                      _list(vaccines, (v) => ListTile(title: Text('${v['vaccineName']}'), subtitle: Text('${statusLabel(v['status'])} · ${formatDate(v['appliedAt'])}'))),
                       _list(treatments, (t) => ListTile(title: Text('${t['name']}'), subtitle: Text('${t['status']} · ${t['startDate'] ?? ''}'))),
                       _list(prescriptions, (p) => ListTile(
                         title: Text('${p['notes'] ?? i.t('prescriptions')}'),
