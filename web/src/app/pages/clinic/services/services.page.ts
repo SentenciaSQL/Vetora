@@ -7,7 +7,7 @@ import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { BrandingService } from '../../../core/services/branding.service';
 
-const CATEGORIES = ['CONSULTATION', 'VACCINATION', 'CONTROL', 'SURGERY', 'GROOMING', 'HOSPITALIZATION', 'OTHER'];
+const CATEGORIES = ['CONSULTATION', 'VACCINATION', 'CONTROL', 'SURGERY', 'GROOMING', 'HOSPITALIZATION', 'PREVENTION', 'AESTHETICS', 'LABORATORY', 'OTHER'];
 
 @Component({
   standalone: true,
