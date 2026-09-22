@@ -85,7 +85,13 @@ public class BranchController {
     }
 
     private void apply(Branch branch, BranchRequest request) {
-        branch.setName(request.name());
+        if (request.name() == null || request.name().isBlank()) {
+            throw com.animalin.common.exception.ApiException.badRequest("El nombre de la sucursal es obligatorio");
+        }
+        if (request.email() != null && !request.email().isBlank() && !request.email().contains("@")) {
+            throw com.animalin.common.exception.ApiException.badRequest("El email no es válido");
+        }
+        branch.setName(request.name().trim());
         branch.setAddress(request.address());
         branch.setCity(request.city());
         branch.setCountry(request.country());

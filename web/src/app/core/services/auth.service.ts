@@ -87,6 +87,23 @@ export class AuthService {
     return this.api.patch<UserProfile>('/auth/me', payload).pipe(tap(user => this.applyUser(user)));
   }
 
+  uploadAvatar(file: File) {
+    return this.api.upload<UserProfile>('/auth/me/avatar', file).pipe(tap(user => this.applyUser(user)));
+  }
+
+  clearAvatar() {
+    return this.api.delete<UserProfile>('/auth/me/avatar').pipe(tap(user => this.applyUser(user)));
+  }
+
+  canManageSettings(): boolean {
+    if (this.isSuperAdmin()) {
+      return false;
+    }
+    return this.hasAnyRole('TENANT_OWNER', 'TENANT_ADMIN')
+      || this.hasPermission('BRANDING_UPDATE')
+      || this.hasPermission('SETTINGS_UPDATE');
+  }
+
   switchTenant(tenantSlug: string) {
     return this.api.post<TokenResponse>('/auth/switch-tenant', { tenantSlug }).pipe(
       tap(response => this.store(response, false))

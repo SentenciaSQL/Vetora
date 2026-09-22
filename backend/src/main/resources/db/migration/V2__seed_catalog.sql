@@ -98,4 +98,4 @@ INSERT INTO vaccine_catalog (tenant_id, name_es, name_en, species, default_inter
     (NULL, 'Rabia felina', 'Feline rabies', 'CAT', 365, TRUE);
 
 INSERT INTO platform_settings (support_email, default_locale, default_trial_days, maintenance_mode)
-VALUES ('supportlunaveta@gmail.com', 'es', 14, FALSE);
+VALUES ('soporte@animalin.app', 'es', 14, FALSE);

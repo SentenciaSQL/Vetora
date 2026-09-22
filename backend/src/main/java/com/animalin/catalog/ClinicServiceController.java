@@ -83,8 +83,17 @@ public class ClinicServiceController {
     }
 
     private void apply(ClinicService service, ServiceRequest request) {
-        service.setNameEs(request.nameEs());
-        service.setNameEn(request.nameEn() == null ? request.nameEs() : request.nameEn());
+        if (request.nameEs() == null || request.nameEs().isBlank()) {
+            throw com.animalin.common.exception.ApiException.badRequest("El nombre del servicio es obligatorio");
+        }
+        if (request.durationMin() != null && (request.durationMin() < 5 || request.durationMin() > 480)) {
+            throw com.animalin.common.exception.ApiException.badRequest("La duración debe estar entre 5 y 480 minutos");
+        }
+        if (request.price() != null && request.price().signum() < 0) {
+            throw com.animalin.common.exception.ApiException.badRequest("El precio no puede ser negativo");
+        }
+        service.setNameEs(request.nameEs().trim());
+        service.setNameEn(request.nameEn() == null || request.nameEn().isBlank() ? request.nameEs().trim() : request.nameEn().trim());
         service.setDescriptionEs(request.descriptionEs());
         service.setDescriptionEn(request.descriptionEn());
         service.setDurationMin(request.durationMin() == null ? 30 : request.durationMin());

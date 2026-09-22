@@ -18,9 +18,21 @@ import { ToastService } from '../../../core/services/toast.service';
       <div class="mb-4 text-sm text-slate-500"><a routerLink="/pets" class="hover:text-brand-700">{{ 'nav.pets' | translate }}</a> / {{ p.name }}</div>
       <div class="card">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div class="grid h-20 w-20 place-items-center overflow-hidden rounded-3xl bg-brand-50 text-2xl font-bold text-brand-800">
-            @if (p.photoUrl) { <img [src]="p.photoUrl" [alt]="p.name" class="h-full w-full object-cover" /> }
-            @else { {{ p.name[0] }} }
+          <div class="flex flex-col items-start gap-2">
+            <div class="grid h-20 w-20 place-items-center overflow-hidden rounded-3xl bg-brand-50 text-2xl font-bold text-brand-800">
+              @if (photoPreview() || p.photoUrl) {
+                <img [src]="photoPreview() || p.photoUrl" [alt]="p.name" class="h-full w-full object-cover" />
+              } @else { {{ p.name[0] }} }
+            </div>
+            @if (canEditPhoto) {
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="btn-secondary text-xs" (click)="photoInput.click()">{{ 'profile.changePhoto' | translate }}</button>
+                @if (p.photoUrl || photoPreview()) {
+                  <button type="button" class="btn-secondary text-xs" (click)="removePhoto()">{{ 'profile.removePhoto' | translate }}</button>
+                }
+              </div>
+              <input #photoInput class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onPhoto($event)" />
+            }
           </div>
           <div class="flex-1">
             <h1 class="font-display text-2xl font-semibold">{{ p.name }}</h1>
@@ -115,7 +127,7 @@ import { ToastService } from '../../../core/services/toast.service';
                 <p class="font-medium">{{ v.vaccineName }}</p>
                 <p class="text-sm text-slate-500">{{ v.appliedAt | date }} · {{ v.brand }}</p>
               </div>
-              <span [class]="v.status | statusBadge">{{ v.status }}</span>
+              <span [class]="v.status | statusBadge">{{ ('pets.vaccineStatus.' + v.status) | translate }}</span>
             </div>
           }
         </div>
@@ -298,8 +310,14 @@ export class PetProfilePage implements OnInit {
     { id: 'weight', label: 'pets.tabs.weight' }
   ];
 
+  photoPreview = signal<string | null>(null);
+
   get canWrite() {
     return this.auth.hasPermission('MEDICAL_RECORD_WRITE');
+  }
+
+  get canEditPhoto() {
+    return this.auth.hasPermission('PET_UPDATE') || this.auth.hasRole('PET_OWNER');
   }
 
   ngOnInit() {
@@ -391,6 +409,44 @@ export class PetProfilePage implements OnInit {
   saveSurgery() {
     this.api.post('/surgeries', { petId: this.petId(), name: this.surgery.name, anesthesia: this.surgery.anesthesia }).subscribe({
       next: () => { this.toast.show('common.saved'); this.surgery = { name: '', anesthesia: '' }; this.select('surgeries'); },
+      error: () => this.toast.show('common.error', true)
+    });
+  }
+
+  onPhoto(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    const allowed = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp'
+      || /\.(jpe?g|png|webp)$/i.test(file.name);
+    if (!allowed || file.size > 5 * 1024 * 1024) {
+      this.toast.show('uploads.invalid', true);
+      return;
+    }
+    this.photoPreview.set(URL.createObjectURL(file));
+    this.api.upload<Pet>(`/pets/${this.petId()}/photo`, file).subscribe({
+      next: pet => {
+        this.photoPreview.set(null);
+        this.pet.set(pet);
+        this.toast.show('common.saved');
+      },
+      error: () => {
+        this.photoPreview.set(null);
+        this.toast.show('uploads.invalid', true);
+      }
+    });
+  }
+
+  removePhoto() {
+    this.photoPreview.set(null);
+    this.api.delete<Pet>(`/pets/${this.petId()}/photo`).subscribe({
+      next: pet => {
+        this.pet.set(pet);
+        this.toast.show('common.saved');
+      },
       error: () => this.toast.show('common.error', true)
     });
   }

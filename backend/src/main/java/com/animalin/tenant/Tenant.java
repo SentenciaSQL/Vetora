@@ -44,11 +44,14 @@ public class Tenant extends BaseEntity {
     private String instagram;
     private String facebook;
 
+    @Column(length = 800)
+    private String description;
+
     @Column(nullable = false)
-    private String timezone = "Europe/Madrid";
+    private String timezone = "America/Santo_Domingo";
 
     @Column(nullable = false, length = 8)
-    private String currency = "EUR";
+    private String currency = "DOP";
 
     @Column(name = "default_locale", nullable = false, length = 8)
     private String defaultLocale = "es";
@@ -149,6 +152,12 @@ public class Tenant extends BaseEntity {
     }
     public void setFacebook(String facebook) {
         this.facebook = facebook;
+    }
+    public String getDescription() {
+        return description;
+    }
+    public void setDescription(String description) {
+        this.description = description;
     }
     public String getTimezone() {
         return timezone;

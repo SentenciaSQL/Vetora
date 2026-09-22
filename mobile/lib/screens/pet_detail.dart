@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
@@ -96,14 +95,32 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
     }
   }
 
+  bool get _canEditPhoto => widget.auth.hasPermission('PET_UPDATE') || widget.auth.isOwner;
+
   Future<void> _photo() async {
-    if (!widget.auth.hasPermission('PET_UPDATE') && !widget.auth.isOwner) return;
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1600);
+    if (!_canEditPhoto) return;
+    final picked = await pickProfilePhoto(context);
     if (picked == null) return;
     try {
       final bytes = await picked.readAsBytes();
+      if (!isProfileImage(picked.name, bytes.length)) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('photoInvalid'))));
+        return;
+      }
       await widget.auth.api.upload('/pets/${widget.pet['id']}/photo', bytes, picked.name);
       await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('saved'))));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    if (!_canEditPhoto) return;
+    try {
+      await widget.auth.api.delete('/pets/${widget.pet['id']}/photo');
+      await _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('saved'))));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
     }
@@ -139,14 +156,20 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(children: [
-                        GestureDetector(
-                          onTap: _photo,
-                          child: RemoteCircleAvatar(
-                            url: asString(pet['photoUrl']),
-                            radius: 28,
-                            fallbackText: asString(pet['name'], '?'),
-                          ),
+                      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Column(
+                          children: [
+                            RemoteCircleAvatar(
+                              url: asString(pet['photoUrl']),
+                              radius: 36,
+                              fallbackText: asString(pet['name'], '?'),
+                            ),
+                            if (_canEditPhoto) ...[
+                              TextButton(onPressed: _photo, child: Text(i.t('changePhoto'))),
+                              if (asString(pet['photoUrl']).isNotEmpty)
+                                TextButton(onPressed: _removePhoto, child: Text(i.t('removePhoto'))),
+                            ],
+                          ],
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -209,7 +232,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                           Text('${i.t('nextIndications')}: ${consultations.first['recommendations'] ?? consultations.first['nextControlAt'] ?? i.t('empty')}'),
                       ]),
                       _list(timeline, (e) => ListTile(title: Text('${e['title']}'), subtitle: Text('${e['type']} · ${formatDate(e['at'])}'))),
-                      _list(vaccines, (v) => ListTile(title: Text('${v['vaccineName']}'), subtitle: Text('${v['status']} · ${formatDate(v['appliedAt'])}'))),
+                      _list(vaccines, (v) => ListTile(title: Text('${v['vaccineName']}'), subtitle: Text('${statusLabel(v['status'])} · ${formatDate(v['appliedAt'])}'))),
                       _list(treatments, (t) => ListTile(title: Text('${t['name']}'), subtitle: Text('${t['status']} · ${t['startDate'] ?? ''}'))),
                       _list(prescriptions, (p) => ListTile(
                         title: Text('${p['notes'] ?? i.t('prescriptions')}'),

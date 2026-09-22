@@ -60,6 +60,8 @@ import java.time.temporal.ChronoUnit;
 @Profile("!test")
 public class DemoDataSeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
+    private static final String SAN_MARTIN_OWNER_EMAIL = "propietario.sanmartin@animalin.app";
+    private static final String DEMO_PASSWORD = "Admin123!";
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -118,6 +120,7 @@ public class DemoDataSeeder implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         if (userRepository.findByEmailIgnoreCase("leo.a@example.org").isPresent()) {
+            ensureSanMartinOwner();
             return;
         }
         log.info("Seeding Lunaveta demo data");
@@ -156,7 +159,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         Branch branchA = branch(sanMartin, "San Martín Centro", "Calle de Alcalá 120", "Madrid");
         Branch branchB = branch(huellitas, "Huellitas Colón", "Avenida de Aragón 18", "Valencia");
 
-        Veterinarian vet = veterinarian(sanMartin, vetA, branchA, "Medicina interna");
+        Veterinarian vet = veterinarian(sanMartin, vetA, branchA, "INTERNAL_MEDICINE");
         Owner juan = owner(sanMartin, ownerA, "Juan", "Pérez", "600111222", "juan.owner@animalin.app");
         Owner ana = owner(huellitas, ownerB, "Ana", "Gil", "600555666", "walt.e@example.net");
         Owner diegoA = owner(sanMartin, ownerBoth, "Diego", "Sanchez", "600333478", "xavier.z@example.org");
@@ -253,7 +256,8 @@ public class DemoDataSeeder implements CommandLineRunner {
         prescriptionRepository.save(prescription);
 
         log.info("Demo users ready. Super admin leo.a@example.org / Admin123!");
-        log.info("San Martín tina.r@example.net / Admin123!  Vet emma.t@example.net  Owner juan.owner@animalin.app");
+        ensureSanMartinOwner();
+        log.info("San Martín tina.r@example.net / {}  Vet emma.t@example.net  Owner juan.owner@animalin.app", DEMO_PASSWORD);
         log.info("Huellitas rachel.c@example.org / Admin123!  Owner isolation walt.e@example.net");
     }
 
@@ -266,7 +270,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         user.setEmail(email);
         user.setFirstName(first);
         user.setLastName(last);
-        user.setPasswordHash(passwordEncoder.encode("Admin123!"));
+        user.setPasswordHash(passwordEncoder.encode(DEMO_PASSWORD));
         user.setLocale(locale);
         user.setTheme("system");
         user.setEmailVerified(true);
@@ -285,7 +289,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         tenant.setCity(city);
         tenant.setCountry(country);
         tenant.setTimezone("Europe/Madrid");
-        tenant.setCurrency("EUR");
+        tenant.setCurrency("DOP");
         tenant.setDefaultLocale("es");
         tenant.setStatus(status);
         tenant.setPlan(plan);
@@ -302,6 +306,36 @@ public class DemoDataSeeder implements CommandLineRunner {
         subscription.setCurrentPeriodEnd(Instant.now().plus(30, ChronoUnit.DAYS));
         subscriptionRepository.save(subscription);
         return tenant;
+    }
+
+    private void ensureSanMartinOwner() {
+        Tenant tenant = tenantRepository.findBySlug("san-martin").orElse(null);
+        if (tenant == null) {
+            return;
+        }
+        for (TenantMembership membership : membershipRepository.findByTenantId(tenant.getId())) {
+            if ("TENANT_OWNER".equals(membership.getRole().getCode()) && "ACTIVE".equals(membership.getStatus())) {
+                log.info("San Martín ya tiene TENANT_OWNER: {}", membership.getUser().getEmail());
+                return;
+            }
+        }
+        Role tenantOwner = role("TENANT_OWNER");
+        User owner = userRepository.findByEmailIgnoreCase(SAN_MARTIN_OWNER_EMAIL).orElse(null);
+        boolean created = owner == null;
+        if (owner == null) {
+            owner = user(SAN_MARTIN_OWNER_EMAIL, "Carmen", "Martín", tenantOwner, "es");
+        } else if (owner.getRoles().stream().noneMatch(r -> "TENANT_OWNER".equals(r.getCode()))) {
+            owner.getRoles().add(tenantOwner);
+            userRepository.save(owner);
+        }
+        if (!membershipRepository.existsByTenantIdAndUserId(tenant.getId(), owner.getId())) {
+            membership(tenant, owner, tenantOwner);
+        }
+        if (created) {
+            log.info("San Martín TENANT_OWNER {} / {}", SAN_MARTIN_OWNER_EMAIL, DEMO_PASSWORD);
+        } else {
+            log.info("San Martín TENANT_OWNER asignado a {}", owner.getEmail());
+        }
     }
 
     private void membership(Tenant tenant, User user, Role role) {

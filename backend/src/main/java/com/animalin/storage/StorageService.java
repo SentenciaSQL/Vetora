@@ -16,10 +16,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class StorageService {
+
+    public static final long MAX_IMAGE_BYTES = 5L * 1024 * 1024;
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
 
     private final StoredFileRepository storedFileRepository;
     private final UserRepository userRepository;
@@ -34,6 +38,22 @@ public class StorageService {
         this.petRepository = petRepository;
         this.properties = properties;
         this.planLimitService = planLimitService;
+    }
+
+    public void requireImage(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("Debe adjuntar una imagen");
+        }
+        if (file.getSize() > MAX_IMAGE_BYTES) {
+            throw ApiException.badRequest("La imagen no puede superar 5 MB");
+        }
+        String extension = extensionOf(file);
+        String type = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
+        boolean typeOk = type.isBlank() || type.equals("image/jpeg") || type.equals("image/jpg")
+                || type.equals("image/png") || type.equals("image/webp");
+        if (!IMAGE_EXTENSIONS.contains(extension) || !typeOk) {
+            throw ApiException.badRequest("Use una imagen JPG, PNG o WEBP");
+        }
     }
 
     @Transactional

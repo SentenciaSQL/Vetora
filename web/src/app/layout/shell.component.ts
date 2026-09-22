@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -14,6 +14,10 @@ import { BrandMarkComponent } from '../shared/ui/brand-mark.component';
 import { LanguageSelectorComponent } from '../shared/ui/language-selector.component';
 import { ThemeSelectorComponent } from '../shared/ui/theme-selector.component';
 import { NavIconComponent } from '../shared/ui/nav-icon.component';
+import { RoleLabelPipe } from '../shared/ui/role-label.pipe';
+import { UserAvatarComponent } from '../shared/ui/user-avatar.component';
+import { TranslateService } from '@ngx-translate/core';
+import { notificationTarget, relativeTime } from '../core/notification-link';
 
 interface NavItem {
   path: string;
@@ -27,7 +31,8 @@ interface NavItem {
   standalone: true,
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, FormsModule, TranslatePipe, DatePipe,
-    BrandMarkComponent, LanguageSelectorComponent, ThemeSelectorComponent, NavIconComponent
+    BrandMarkComponent, LanguageSelectorComponent, ThemeSelectorComponent, NavIconComponent,
+    RoleLabelPipe, UserAvatarComponent
   ],
   template: `
     <div class="flex min-h-screen bg-sand-50 dark:bg-slate-950">
@@ -89,13 +94,45 @@ interface NavItem {
               </div>
             }
           </div>
-          <button type="button" class="relative rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:text-slate-100" (click)="loadNotes()">
-            {{ 'nav.notifications' | translate }}
-            @if (inbox.unreadNotifications() > 0) {
-              <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] text-white"
-                    [attr.aria-label]="inbox.unreadNotifications() + ' ' + ('nav.notifications' | translate)">{{ inbox.badge(inbox.unreadNotifications()) }}</span>
+          <div class="relative" data-menu>
+            <button type="button" class="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-100"
+                    (click)="toggleNotes()" [attr.aria-label]="'nav.notifications' | translate" [attr.title]="'nav.notifications' | translate">
+              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M9 17a3 3 0 0 0 6 0" stroke-linecap="round"/>
+              </svg>
+              @if (inbox.unreadNotifications() > 0) {
+                <span class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold text-white"
+                      [attr.aria-label]="inbox.unreadNotifications() + ' ' + ('nav.notifications' | translate)">{{ inbox.badge(inbox.unreadNotifications()) }}</span>
+              }
+            </button>
+            @if (notesOpen()) {
+              <div class="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-white/10 dark:bg-slate-900">
+                <div class="flex items-center justify-between px-4 py-3">
+                  <p class="text-sm font-semibold">{{ 'notifications.title' | translate }}</p>
+                  <button type="button" class="text-xs text-brand-700 dark:text-brand-200" (click)="markAllNotes()">{{ 'notifications.markRead' | translate }}</button>
+                </div>
+                <div class="max-h-80 divide-y divide-slate-100 overflow-y-auto dark:divide-white/10">
+                  @if (!notes().length) {
+                    <p class="px-4 py-6 text-sm text-slate-500">{{ 'notifications.empty' | translate }}</p>
+                  }
+                  @for (n of notes(); track n.id) {
+                    <button type="button" class="flex w-full gap-2 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5" (click)="readNote(n)">
+                      <span class="mt-1 h-2 w-2 shrink-0 rounded-full" [class.bg-brand-600]="!n.readAt" [class.bg-slate-200]="!!n.readAt"></span>
+                      <span class="min-w-0">
+                        <span class="block text-sm font-medium">{{ n.title || n.titleEs }}</span>
+                        @if (n.body) { <span class="block truncate text-xs text-slate-500">{{ n.body }}</span> }
+                        <span class="block text-xs text-slate-400">{{ when(n.createdAt) }}</span>
+                      </span>
+                    </button>
+                  }
+                </div>
+                <a routerLink="/notifications" (click)="notesOpen.set(false)" class="block px-4 py-3 text-center text-sm text-brand-700 dark:text-brand-200">
+                  {{ 'notifications.viewAll' | translate }}
+                </a>
+              </div>
             }
-          </button>
+          </div>
           <app-language-selector />
           <app-theme-selector />
           @if ((auth.user()?.memberships?.length || 0) > 1) {
@@ -105,12 +142,36 @@ interface NavItem {
               }
             </select>
           }
-          <div class="hidden items-center gap-2 sm:flex">
-            <div class="text-right">
-              <p class="text-sm font-medium">{{ auth.user()?.fullName }}</p>
-              <p class="text-xs text-slate-400">{{ auth.user()?.role || auth.user()?.roles?.[0] }}</p>
-            </div>
-            <button type="button" class="btn-secondary" (click)="auth.logout()">{{ 'nav.logout' | translate }}</button>
+          <div class="relative" data-menu>
+            <button type="button" class="flex items-center gap-2 rounded-xl px-1 py-1 hover:bg-slate-50 dark:hover:bg-white/5" (click)="toggleUser()">
+              <app-user-avatar class="h-9 w-9" [url]="auth.user()?.avatarUrl" [name]="auth.user()?.fullName" />
+              <span class="hidden text-left sm:block">
+                <span class="block text-sm font-medium leading-tight">{{ auth.user()?.fullName }}</span>
+                <span class="block text-xs text-slate-400">{{ (auth.user()?.role || auth.user()?.roles?.[0]) | roleLabel }}</span>
+              </span>
+              <span class="hidden text-slate-400 sm:inline" aria-hidden="true">▼</span>
+            </button>
+            @if (userMenuOpen()) {
+              <div class="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-white/10 dark:bg-slate-900">
+                <div class="flex items-center gap-3 px-4 py-3">
+                  <app-user-avatar class="h-10 w-10" [url]="auth.user()?.avatarUrl" [name]="auth.user()?.fullName" />
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium">{{ auth.user()?.fullName }}</p>
+                    <p class="text-xs text-slate-400">{{ (auth.user()?.role || auth.user()?.roles?.[0]) | roleLabel }}</p>
+                    <p class="truncate text-xs text-slate-500">{{ auth.user()?.email }}</p>
+                  </div>
+                </div>
+                <div class="border-t border-slate-100 py-1 dark:border-white/10">
+                  <a routerLink="/profile" class="block px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5" (click)="userMenuOpen.set(false)">{{ 'nav.profile' | translate }}</a>
+                  @if (auth.canManageSettings()) {
+                    <a routerLink="/settings" class="block px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5" (click)="userMenuOpen.set(false)">{{ 'nav.settings' | translate }}</a>
+                  }
+                </div>
+                <div class="border-t border-slate-100 py-1 dark:border-white/10">
+                  <button type="button" class="block w-full px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-white/5" (click)="auth.logout()">{{ 'nav.logout' | translate }}</button>
+                </div>
+              </div>
+            }
           </div>
         </header>
 
@@ -140,16 +201,6 @@ interface NavItem {
           </div>
         }
 
-        @if (notesOpen()) {
-          <div class="border-b border-slate-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-slate-900">
-            @for (n of notes(); track n.id) {
-              <button type="button" class="block w-full py-1 text-left" (click)="readNote(n)">
-                {{ n.title || n.titleEs }}
-              </button>
-            }
-          </div>
-        }
-
         <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
           <router-outlet />
         </main>
@@ -169,8 +220,10 @@ export class ShellComponent implements OnInit {
   query = '';
   results = signal<SearchResult | null>(null);
   notesOpen = signal(false);
+  userMenuOpen = signal(false);
   notes = signal<any[]>([]);
   private search$ = new Subject<string>();
+  private i18n = inject(TranslateService);
 
   nav: NavItem[] = [
     { path: '/dashboard', label: 'nav.dashboard', icon: 'home' },
@@ -250,13 +303,48 @@ export class ShellComponent implements OnInit {
     return !!r && (r.pets.length + r.owners.length + r.veterinarians.length) > 0;
   }
 
-  loadNotes(): void {
-    this.notesOpen.set(!this.notesOpen());
+  @HostListener('document:keydown.escape')
+  closeMenus(): void {
+    this.notesOpen.set(false);
+    this.userMenuOpen.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  closeOnOutside(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('[data-menu]')) {
+      this.notesOpen.set(false);
+      this.userMenuOpen.set(false);
+    }
+  }
+
+  toggleNotes(): void {
+    this.userMenuOpen.set(false);
+    this.notesOpen.update(open => !open);
     if (this.notesOpen()) {
       this.api.get<any>('/notifications', { size: 8 }).subscribe(page => {
         this.notes.set(page.content || page || []);
       });
     }
+  }
+
+  toggleUser(): void {
+    this.notesOpen.set(false);
+    this.userMenuOpen.update(open => !open);
+  }
+
+  when(value?: string): string {
+    return relativeTime(value, (key, params) => this.i18n.instant(key, params));
+  }
+
+  markAllNotes(): void {
+    this.api.post('/notifications/read-all', {}).subscribe({
+      next: () => {
+        this.inbox.refresh();
+        this.notes.update(items => items.map(item => ({ ...item, readAt: item.readAt || new Date().toISOString() })));
+      },
+      error: () => undefined
+    });
   }
 
   readNote(n: any): void {
@@ -265,8 +353,9 @@ export class ShellComponent implements OnInit {
       error: () => undefined
     });
     this.notesOpen.set(false);
-    if ((n.type === 'NEW_MESSAGE' || n.entityType === 'CONVERSATION') && n.entityId) {
-      void this.router.navigate(['/messages'], { queryParams: { conversation: n.entityId } });
+    const target = notificationTarget(n);
+    if (target) {
+      void this.router.navigate(target.commands, { queryParams: target.queryParams });
     }
   }
 

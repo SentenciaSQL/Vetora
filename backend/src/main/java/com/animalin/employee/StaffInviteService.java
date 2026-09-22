@@ -18,9 +18,11 @@ import com.animalin.tenant.TenantMembership;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
 import com.animalin.user.Role;
+import com.animalin.user.RoleCodes;
 import com.animalin.user.RoleRepository;
 import com.animalin.user.User;
 import com.animalin.user.UserRepository;
+import com.animalin.veterinarian.VeterinarySpecialty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +44,7 @@ public class StaffInviteService {
     private final TenantMembershipRepository membershipRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final EmployeeRepository employeeRepository;
+    private final TenantStaffLinker linker;
     private final PasswordEncoder passwordEncoder;
     private final SecureTokenService tokens;
     private final EmailService emailService;
@@ -59,7 +61,7 @@ public class StaffInviteService {
                               TenantMembershipRepository membershipRepository,
                               UserRepository userRepository,
                               RoleRepository roleRepository,
-                              EmployeeRepository employeeRepository,
+                              TenantStaffLinker linker,
                               PasswordEncoder passwordEncoder,
                               SecureTokenService tokens,
                               EmailService emailService,
@@ -75,7 +77,7 @@ public class StaffInviteService {
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
-        this.employeeRepository = employeeRepository;
+        this.linker = linker;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
         this.emailService = emailService;
@@ -112,7 +114,11 @@ public class StaffInviteService {
         if (!INVITABLE_ROLES.contains(roleCode)) {
             throw ApiException.badRequest("Rol de empleado no válido");
         }
-        roleRepository.findByCode(roleCode).orElseThrow(() -> ApiException.notFound("Rol no encontrado"));
+        VeterinarySpecialty.requireForVeterinarian(roleCode, request.specialtyCode(), request.specialtyOther());
+        if (request.branchId() != null) {
+            linker.assertBranch(tenantId, request.branchId());
+        }
+        Role role = roleRepository.findByCode(roleCode).orElseThrow(() -> ApiException.notFound("Rol no encontrado"));
 
         String email = request.email().trim().toLowerCase(Locale.ROOT);
         if (invitationRepository.findPendingByTenantIdAndEmail(tenantId, email).isPresent()) {
@@ -131,6 +137,9 @@ public class StaffInviteService {
         invitation.setFirstName(request.firstName());
         invitation.setLastName(request.lastName());
         invitation.setRoleCode(roleCode);
+        invitation.setSpecialtyCode(VeterinarySpecialty.normalize(request.specialtyCode()));
+        invitation.setSpecialtyOther(VeterinarySpecialty.otherText(request.specialtyCode(), request.specialtyOther()));
+        invitation.setBranchId(request.branchId());
         invitation.setTokenHash(tokens.sha256(raw));
         invitation.setStatus(StaffInvitation.PENDING);
         invitation.setExpiresAt(clock.instant().plus(properties.signupOrDefault().inviteDays(), ChronoUnit.DAYS));
@@ -145,7 +154,7 @@ public class StaffInviteService {
                         email,
                         inviteeName,
                         tenant.getName(),
-                        roleCode,
+                        role.getNameEs(),
                         raw,
                         tenant.getLogoUrl(),
                         inviteDays));
@@ -229,13 +238,19 @@ public class StaffInviteService {
         membership.setStatus("ACTIVE");
         membershipRepository.save(membership);
 
-        if (!employeeRepository.existsByTenantIdAndUserId(tenantId, user.getId())) {
-            Employee employee = new Employee();
-            employee.setTenantId(tenantId);
-            employee.setUser(user);
-            employee.setPosition(invitation.getRoleCode());
-            employee.setHireDate(java.time.LocalDate.now(clock));
-            employeeRepository.save(employee);
+        Long branchId = invitation.getBranchId();
+        if (branchId != null && linkerBranchMissing(tenantId, branchId)) {
+            branchId = null;
+        }
+        linker.ensureEmployee(tenantId, user, invitation.getRoleCode(), branchId, "ACTIVE");
+        if (RoleCodes.VETERINARIAN.equals(invitation.getRoleCode())) {
+            String specialty = VeterinarySpecialty.isCode(invitation.getSpecialtyCode())
+                    ? invitation.getSpecialtyCode()
+                    : VeterinarySpecialty.GENERAL_MEDICINE;
+            linker.ensureVeterinarian(tenantId, user, specialty, invitation.getSpecialtyOther(), branchId, "ACTIVE");
+        }
+        if (branchId != null) {
+            membership.setBranchId(branchId);
         }
 
         invitation.setStatus(StaffInvitation.ACCEPTED);
@@ -244,6 +259,51 @@ public class StaffInviteService {
         auditService.record(tenantId, user.getId(), user.getEmail(),
                 "ACCEPT", "STAFF_INVITATION", invitation.getId(), invitation.getEmail(), StaffInvitation.PENDING, StaffInvitation.ACCEPTED);
         return authService.issueTokens(user, invitation.getTenant(), membershipRepository.findActiveByUserId(user.getId()));
+    }
+
+    @Transactional
+    public SignupDtos.InviteResponse resend(Long id) {
+        accessGuard.requirePermission("STAFF_MANAGE");
+        Long tenantId = accessGuard.requireStaffTenant();
+        StaffInvitation invitation = invitationRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> ApiException.notFound("Invitación no encontrada"));
+        if (StaffInvitation.ACCEPTED.equals(invitation.getStatus()) || StaffInvitation.CANCELED.equals(invitation.getStatus())) {
+            throw ApiException.badRequest("La invitación ya no está pendiente");
+        }
+        boolean alreadyCounted = StaffInvitation.PENDING.equals(invitation.getStatus())
+                && invitation.getExpiresAt().isAfter(clock.instant());
+        if (!alreadyCounted) {
+            planLimitService.assertCanAddStaffUser(tenantId);
+        }
+        String raw = tokens.randomToken();
+        invitation.setTokenHash(tokens.sha256(raw));
+        invitation.setStatus(StaffInvitation.PENDING);
+        invitation.setExpiresAt(clock.instant().plus(properties.signupOrDefault().inviteDays(), ChronoUnit.DAYS));
+        String inviteeName = StringUtils.hasText(invitation.getFirstName()) ? invitation.getFirstName() : invitation.getEmail();
+        String roleLabel = roleRepository.findByCode(invitation.getRoleCode()).map(Role::getNameEs).orElse(invitation.getRoleCode());
+        Tenant tenant = invitation.getTenant();
+        int inviteDays = properties.signupOrDefault().inviteDays();
+        transactionalEmailSender.sendAfterCommit(ResendEmailService.TYPE_STAFF_INVITE, invitation.getEmail(), () ->
+                emailService.sendStaffInvitation(
+                        invitation.getEmail(),
+                        inviteeName,
+                        tenant.getName(),
+                        roleLabel,
+                        raw,
+                        tenant.getLogoUrl(),
+                        inviteDays));
+        auditService.record(tenantId, TenantContext.userId(), TenantContext.get().email(),
+                "RESEND", "STAFF_INVITATION", invitation.getId(), invitation.getEmail(), null, invitation.getRoleCode());
+        return toResponse(invitation);
+    }
+
+    private boolean linkerBranchMissing(Long tenantId, Long branchId) {
+        try {
+            linker.assertBranch(tenantId, branchId);
+            return false;
+        } catch (ApiException ex) {
+            return true;
+        }
     }
 
     private SignupDtos.InviteResponse toResponse(StaffInvitation invitation) {
@@ -255,7 +315,10 @@ public class StaffInviteService {
                 invitation.getExpiresAt(),
                 invitation.getCreatedAt(),
                 invitation.getFirstName(),
-                invitation.getLastName()
+                invitation.getLastName(),
+                invitation.getSpecialtyCode(),
+                invitation.getSpecialtyOther(),
+                invitation.getBranchId()
         );
     }
 }

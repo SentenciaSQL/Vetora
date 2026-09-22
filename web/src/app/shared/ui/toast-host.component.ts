@@ -15,7 +15,7 @@ import { ToastService } from '../../core/services/toast.service';
              [class.bg-rose-600]="toast.error"
              [class.text-white]="toast.error"
              role="status">
-          {{ toast.message | translate }}
+          <p class="text-white">{{ toast.message | translate }}</p>
         </div>
       }
     </div>

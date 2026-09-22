@@ -75,6 +75,7 @@ Contraseña común: **`Admin123!`**
 | Email | Rol | Clínica |
 | --- | --- | --- |
 | `leo.a@example.org` | SUPER_ADMIN | plataforma |
+| `propietario.sanmartin@animalin.app` | TENANT_OWNER | san-martin |
 | `tina.r@example.net` | TENANT_ADMIN | san-martin |
 | `emma.t@example.net` | VETERINARIAN | san-martin |
 | `nathan.k@example.net` | RECEPTIONIST | san-martin |

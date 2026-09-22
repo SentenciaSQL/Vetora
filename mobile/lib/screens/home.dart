@@ -99,7 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: InkWell(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetDetailScreen(auth: widget.auth, pet: asMap(pet)))),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetDetailScreen(auth: widget.auth, pet: asMap(pet)))).then((_) {
+                          if (mounted) _load();
+                        }),
                         child: Chip(
                           avatar: RemoteCircleAvatar(
                             url: asString(pet['photoUrl']),
@@ -125,7 +127,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListTile(
           leading: const Icon(Icons.vaccines_outlined),
           title: Text(i.t('nextVaccine')),
-          subtitle: Text(vaccine['id'] == null ? i.t('empty') : '${vaccine['pet'] ?? ''} · ${vaccine['vaccine'] ?? ''}'),
+          subtitle: Text(vaccine['id'] == null
+              ? i.t('empty')
+              : '${vaccine['pet'] ?? ''} · ${vaccine['vaccine'] ?? ''}${statusLabel(vaccine['status']).isEmpty ? '' : ' · ${statusLabel(vaccine['status'])}'}'),
         ),
       ),
       const SizedBox(height: 8),

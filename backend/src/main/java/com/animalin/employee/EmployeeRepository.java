@@ -16,5 +16,8 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     boolean existsByTenantIdAndUserId(Long tenantId, Long userId);
 
+    @EntityGraph(attributePaths = "user")
+    Optional<Employee> findByTenantIdAndUserId(Long tenantId, Long userId);
+
     java.util.List<Employee> findByUser_Id(Long userId);
 }

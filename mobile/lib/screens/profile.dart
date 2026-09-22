@@ -5,6 +5,7 @@ import '../core/config.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
 import '../core/push.dart';
+import '../core/widgets.dart';
 import 'billing.dart';
 import 'clinics.dart';
 import 'notifications.dart';
@@ -112,6 +113,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
     } finally {
       if (mounted) setState(() => _savingPrefs = false);
+    }
+  }
+
+  Future<void> _changePhoto() async {
+    final picked = await pickProfilePhoto(context);
+    if (picked == null) return;
+    setState(() => saving = true);
+    try {
+      final bytes = await picked.readAsBytes();
+      if (!isProfileImage(picked.name, bytes.length)) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('photoInvalid'))));
+        return;
+      }
+      await widget.auth.uploadAvatar(bytes, picked.name);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('saved'))));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    setState(() => saving = true);
+    try {
+      await widget.auth.clearAvatar();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('saved'))));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+    } finally {
+      if (mounted) setState(() => saving = false);
     }
   }
 
@@ -226,6 +258,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           Text(i.t('profile'), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          Center(
+            child: Column(
+              children: [
+                RemoteCircleAvatar(
+                  url: asString(auth.user?['avatarUrl']),
+                  radius: 40,
+                  fallbackText: asString(auth.user?['fullName'], '?'),
+                ),
+                TextButton(onPressed: saving ? null : _changePhoto, child: Text(i.t('changePhoto'))),
+                if (asString(auth.user?['avatarUrl']).isNotEmpty)
+                  TextButton(onPressed: saving ? null : _removePhoto, child: Text(i.t('removePhoto'))),
+              ],
+            ),
+          ),
           ListTile(title: Text(asString(auth.user?['fullName'])), subtitle: Text('${auth.user?['email'] ?? ''}\n${auth.user?['role'] ?? auth.roles.join(', ')}'), isThreeLine: true),
           ListTile(
             title: Text(i.t('notifications')),
