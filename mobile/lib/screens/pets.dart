@@ -137,7 +137,11 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
   final microchip = TextEditingController();
   final speciesOptions = const ['DOG', 'CAT', 'BIRD', 'RABBIT', 'RODENT', 'REPTILE', 'HORSE', 'OTHER'];
   List clinics = [];
+  List branches = [];
   String? tenantSlug;
+  int? branchId;
+  int _branchRequest = 0;
+  bool loadingBranches = false;
   String species = 'DOG';
   bool loading = false;
   String? error;
@@ -165,13 +169,46 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
         clinics = list;
         if (list.length == 1) tenantSlug = list.first['slug'] as String?;
       });
+      if (tenantSlug != null) await _loadBranches(tenantSlug);
     } catch (e) {
       if (mounted) setState(() => error = userMessage(e));
     }
   }
 
+  Future<void> _loadBranches(String? slug) async {
+    final request = ++_branchRequest;
+    branches = [];
+    branchId = null;
+    loadingBranches = slug != null && slug.isNotEmpty;
+    if (mounted) setState(() {});
+    if (!loadingBranches) return;
+    try {
+      final list = asList(await widget.auth.api.get('/public/tenants/$slug/branches'));
+      if (!mounted || request != _branchRequest) return;
+      setState(() {
+        branches = list;
+        loadingBranches = false;
+        if (list.length == 1) branchId = asInt(list.first['id']);
+      });
+    } catch (e) {
+      if (mounted && request == _branchRequest) {
+        setState(() {
+          loadingBranches = false;
+          error = userMessage(e);
+        });
+      }
+    }
+  }
+
+  String _branchLabel(dynamic branch) {
+    final name = asString(asMap(branch)['name']);
+    final city = asString(asMap(branch)['city']);
+    if (city.isEmpty) return name;
+    return '$name · $city';
+  }
+
   Future<void> _submit() async {
-    if (name.text.trim().isEmpty || tenantSlug == null || tenantSlug!.isEmpty) {
+    if (loadingBranches || name.text.trim().isEmpty || tenantSlug == null || tenantSlug!.isEmpty || (branches.length > 1 && (branchId == null || branchId == 0))) {
       setState(() => error = i.t('requiredFields'));
       return;
     }
@@ -187,6 +224,7 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
         'breed': breed.text.trim(),
         'microchip': microchip.text.trim(),
         'sex': 'UNKNOWN',
+        if (branchId != null && branchId != 0) 'branchId': branchId,
       });
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -211,8 +249,26 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
               for (final clinic in clinics)
                 DropdownMenuItem(value: clinic['slug'] as String, child: Text('${clinic['commercialName'] ?? clinic['name']}')),
             ],
-            onChanged: (value) => setState(() => tenantSlug = value),
+            onChanged: (value) {
+              setState(() => tenantSlug = value);
+              _loadBranches(value);
+            },
           ),
+          if (loadingBranches)
+            Padding(padding: const EdgeInsets.only(top: 12), child: Text(i.t('loading'))),
+          if (branches.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              // ignore: deprecated_member_use
+              value: branches.any((branch) => asInt(asMap(branch)['id']) == branchId) ? branchId : null,
+              decoration: InputDecoration(labelText: i.t('branch')),
+              items: [
+                for (final branch in branches)
+                  DropdownMenuItem(value: asInt(asMap(branch)['id']), child: Text(_branchLabel(branch))),
+              ],
+              onChanged: (value) => setState(() => branchId = value),
+            ),
+          ],
           const SizedBox(height: 12),
           TextField(controller: name, decoration: InputDecoration(labelText: i.t('name'))),
           const SizedBox(height: 12),
@@ -229,7 +285,7 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
           TextField(controller: microchip, decoration: InputDecoration(labelText: i.t('microchip'))),
           if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
           const SizedBox(height: 20),
-          FilledButton(onPressed: loading ? null : _submit, child: Text(loading ? '…' : i.t('save'))),
+          FilledButton(onPressed: loading || loadingBranches ? null : _submit, child: Text(loading || loadingBranches ? '…' : i.t('save'))),
         ],
       ),
     );

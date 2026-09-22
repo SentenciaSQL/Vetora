@@ -73,7 +73,7 @@ public final class AppDtos {
 
     public record OwnerPetRequest(
             String tenantSlug, String name, String species, String breed, String sex,
-            LocalDate birthDate, BigDecimal weightKg, String color, String microchip
+            LocalDate birthDate, BigDecimal weightKg, String color, String microchip, Long branchId
     ) {
     }
 
