@@ -16,7 +16,7 @@ dependencies:
   intl: ^0.20.3
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0
-  flutter_local_notifications: ^19.4.2
+  flutter_local_notifications: ^22.3.1
   package_info_plus: ^10.2.1
   app_badge_plus: ^1.2.3
   url_launcher: ^6.3.1

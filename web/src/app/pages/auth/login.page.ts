@@ -71,7 +71,7 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
           <footer class="mt-8 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500">
             <a class="hover:underline" href="/privacidad">{{ 'accountDeletion.privacy' | translate }}</a>
             <a class="hover:underline" href="/terminos">{{ 'accountDeletion.terms' | translate }}</a>
-            <a class="hover:underline" href="mailto:soporte@animalin.app">{{ 'accountDeletion.contact' | translate }}</a>
+            <a class="hover:underline" href="mailto:supportlunaveta@gmail.com">{{ 'accountDeletion.contact' | translate }}</a>
           </footer>
         </div>
       </section>

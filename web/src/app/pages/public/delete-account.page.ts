@@ -113,14 +113,14 @@ const ES: Copy = {
   keptNote: 'Cuando sea posible, estos registros se anonimizan o se desvinculan de la identidad personal eliminada. Algunos registros clínicos, fiscales, de seguridad y auditoría podrán conservarse durante el periodo requerido por las obligaciones legales aplicables o mientras sean necesarios para proteger la integridad y seguridad del servicio. Cuando sea posible, se conservarán de manera anonimizada.',
   operational: 'Plazos operativos del sistema, distintos de los periodos legales: el enlace de confirmación caduca a las 24 horas y las solicitudes no verificadas se eliminan a los 30 días. Los registros técnicos sin información sensible siguen la política vigente del sistema.',
   ownerTitle: 'Propietarios de una veterinaria',
-  owner: 'Si usted es el único propietario de una veterinaria activa, la cuenta no se elimina de forma automática. Debe transferir la propiedad o cerrar la veterinaria. Si hay una suscripción pendiente, debe resolverla desde la aplicación web antes de completar la eliminación. La aplicación móvil no ofrece comprar, cambiar ni cancelar planes. Escriba a soporte@animalin.app. La solicitud queda registrada.',
+  owner: 'Si usted es el único propietario de una veterinaria activa, la cuenta no se elimina de forma automática. Debe transferir la propiedad o cerrar la veterinaria. Si hay una suscripción pendiente, debe resolverla desde la aplicación web antes de completar la eliminación. La aplicación móvil no ofrece comprar, cambiar ni cancelar planes. Escriba a supportlunaveta@gmail.com. La solicitud queda registrada.',
   updated: 'Última actualización: 21 de septiembre de 2026.',
   appName: 'Aplicación: LunaVeta.',
   privacy: 'Política de privacidad',
   terms: 'Términos y condiciones',
   contact: 'Contacto o soporte',
   genericError: 'No se pudo completar la solicitud. Inténtelo de nuevo.',
-  noscript: 'Puede leer esta página y enviar el formulario sin JavaScript. Para confirmar el enlace recibido por correo, abra esta dirección en un navegador con JavaScript o escriba a soporte@animalin.app desde el correo de la cuenta.'
+  noscript: 'Puede leer esta página y enviar el formulario sin JavaScript. Para confirmar el enlace recibido por correo, abra esta dirección en un navegador con JavaScript o escriba a supportlunaveta@gmail.com desde el correo de la cuenta.'
 };
 
 const EN: Copy = {
@@ -192,14 +192,14 @@ const EN: Copy = {
   keptNote: 'When possible, these records are anonymized or unlinked from the deleted personal identity. Some clinical, tax, security, and audit records may be kept for the period required by applicable legal obligations or while they are needed to protect the integrity and security of the service. When possible, they are kept in anonymized form.',
   operational: 'Operational system periods, separate from legal periods: the confirmation link expires after 24 hours and unverified requests are deleted after 30 days. Technical logs without sensitive information follow the system’s current policy.',
   ownerTitle: 'Clinic owners',
-  owner: 'If you are the only owner of an active clinic, the account is not deleted automatically. Transfer ownership or close the clinic. If a subscription is outstanding, resolve it from the web app before deletion can be completed. The mobile app does not sell, change, or cancel plans. Write to soporte@animalin.app. The request stays on record.',
+  owner: 'If you are the only owner of an active clinic, the account is not deleted automatically. Transfer ownership or close the clinic. If a subscription is outstanding, resolve it from the web app before deletion can be completed. The mobile app does not sell, change, or cancel plans. Write to supportlunaveta@gmail.com. The request stays on record.',
   updated: 'Last updated: 21 September 2026.',
   appName: 'Application: LunaVeta.',
   privacy: 'Privacy policy',
   terms: 'Terms and conditions',
   contact: 'Contact or support',
   genericError: 'The request could not be completed. Try again.',
-  noscript: 'You can read this page and submit the form without JavaScript. To confirm the link sent by email, open this address in a browser with JavaScript or write to soporte@animalin.app from the account email.'
+  noscript: 'You can read this page and submit the form without JavaScript. To confirm the link sent by email, open this address in a browser with JavaScript or write to supportlunaveta@gmail.com from the account email.'
 };
 
 @Component({
@@ -286,7 +286,7 @@ const EN: Copy = {
       <footer class="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm">
         <a class="text-brand-700 hover:underline" href="/privacidad">{{ copy().privacy }}</a>
         <a class="text-brand-700 hover:underline" href="/terminos">{{ copy().terms }}</a>
-        <a class="text-brand-700 hover:underline" href="mailto:soporte@animalin.app">{{ copy().contact }}</a>
+        <a class="text-brand-700 hover:underline" href="mailto:supportlunaveta@gmail.com">{{ copy().contact }}</a>
       </footer>
     </div>
   `

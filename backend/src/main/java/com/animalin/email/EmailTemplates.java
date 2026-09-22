@@ -150,7 +150,7 @@ public class EmailTemplates {
                 greeting(userName),
                 """
                 <p>%s</p>
-                <p>La solicitud quedó registrada. No cancelamos suscripciones de forma automática y la aplicación móvil no ofrece comprar, cambiar ni cancelar planes. Resuelva la propiedad de la veterinaria o la suscripción desde la aplicación web y, si necesita ayuda, escriba a <a href="mailto:soporte@animalin.app">soporte@animalin.app</a>.</p>
+                <p>La solicitud quedó registrada. No cancelamos suscripciones de forma automática y la aplicación móvil no ofrece comprar, cambiar ni cancelar planes. Resuelva la propiedad de la veterinaria o la suscripción desde la aplicación web y, si necesita ayuda, escriba a <a href="mailto:supportlunaveta@gmail.com">supportlunaveta@gmail.com</a>.</p>
                 """.formatted(escape(explanation).replace("%", "%%")),
                 "Ver instrucciones",
                 pageUrl,
