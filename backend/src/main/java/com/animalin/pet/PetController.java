@@ -80,6 +80,11 @@ public class PetController {
         return petService.uploadPhoto(id, file);
     }
 
+    @DeleteMapping("/{id}/photo")
+    public AppDtos.PetResponse deletePhoto(@PathVariable Long id) {
+        return petService.clearPhoto(id);
+    }
+
     @GetMapping("/{id}/weights")
     public List<AppDtos.WeightResponse> weights(@PathVariable Long id) {
         return petService.weights(id);
