@@ -10,9 +10,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -82,63 +86,27 @@ class AuditLog {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }
 
-interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
-    @Query("""
-            select a from AuditLog a
-            where (:tenantId is null or a.tenantId = :tenantId)
-              and (:action is null or a.action = :action)
-              and (:entityType is null or a.entityType = :entityType)
-              and (:userId is null or a.userId = :userId)
-              and (:from is null or a.createdAt >= :from)
-              and (:to is null or a.createdAt < :to)
-              and (
-                    :search is null
-                    or lower(coalesce(a.username, '')) like :search escape '\\'
-                    or lower(coalesce(a.action, '')) like :search escape '\\'
-                    or lower(coalesce(a.entityType, '')) like :search escape '\\'
-                    or lower(coalesce(a.details, '')) like :search escape '\\'
-                    or cast(a.entityId as string) like :search escape '\\'
-                    or exists (
-                        select 1 from User u
-                        where u.id = a.userId
-                          and (
-                            lower(u.email) like :search escape '\\'
-                            or lower(u.firstName) like :search escape '\\'
-                            or lower(u.lastName) like :search escape '\\'
-                            or lower(concat(u.firstName, ' ', u.lastName)) like :search escape '\\'
-                          )
-                    )
-              )
-            """)
-    Page<AuditLog> search(@Param("tenantId") Long tenantId,
-                          @Param("search") String search,
-                          @Param("action") String action,
-                          @Param("entityType") String entityType,
-                          @Param("userId") Long userId,
-                          @Param("from") Instant from,
-                          @Param("to") Instant to,
-                          Pageable pageable);
-
-    @Query("""
-            select distinct a.action from AuditLog a
-            where (:tenantId is null or a.tenantId = :tenantId)
-            order by a.action
-            """)
+interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {
+    @Query("select distinct a.action from AuditLog a where a.tenantId = :tenantId order by a.action")
     List<String> distinctActions(@Param("tenantId") Long tenantId);
 
-    @Query("""
-            select distinct a.entityType from AuditLog a
-            where (:tenantId is null or a.tenantId = :tenantId)
-            order by a.entityType
-            """)
+    @Query("select distinct a.action from AuditLog a order by a.action")
+    List<String> distinctActionsAll();
+
+    @Query("select distinct a.entityType from AuditLog a where a.tenantId = :tenantId order by a.entityType")
     List<String> distinctEntities(@Param("tenantId") Long tenantId);
+
+    @Query("select distinct a.entityType from AuditLog a order by a.entityType")
+    List<String> distinctEntitiesAll();
 
     @Query("""
             select distinct a.userId, a.username from AuditLog a
-            where a.userId is not null
-              and (:tenantId is null or a.tenantId = :tenantId)
+            where a.userId is not null and a.tenantId = :tenantId
             """)
     List<Object[]> distinctUsers(@Param("tenantId") Long tenantId);
+
+    @Query("select distinct a.userId, a.username from AuditLog a where a.userId is not null")
+    List<Object[]> distinctUsersAll();
 }
 
 @Service
@@ -197,23 +165,62 @@ public class AuditService {
     @Transactional(readOnly = true)
     public Page<AuditEntry> search(Long tenantId, String search, String action, String entityType, Long userId,
                                    Instant from, Instant to, Pageable pageable) {
-        Page<AuditLog> page = repository.search(
-                tenantId,
-                like(search),
-                blankToNull(action),
-                blankToNull(entityType),
-                userId,
-                from,
-                to,
+        String term = blankToNull(search);
+        String pattern = like(term);
+        List<Long> matchedUsers = pattern == null ? List.of() : userRepository.findIdsMatching(pattern);
+        Page<AuditLog> page = repository.findAll(
+                specification(tenantId, pattern, matchedUsers, blankToNull(action), blankToNull(entityType), userId, from, to),
                 pageable
         );
         Map<Long, User> users = usersById(page.getContent());
         return page.map(log -> toEntry(log, users.get(log.getUserId())));
     }
 
+    private Specification<AuditLog> specification(Long tenantId, String pattern, List<Long> matchedUsers, String action,
+                                                  String entityType, Long userId, Instant from, Instant to) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (tenantId != null) {
+                predicates.add(cb.equal(root.get("tenantId"), tenantId));
+            }
+            if (action != null) {
+                predicates.add(cb.equal(root.get("action"), action));
+            }
+            if (entityType != null) {
+                predicates.add(cb.equal(root.get("entityType"), entityType));
+            }
+            if (userId != null) {
+                predicates.add(cb.equal(root.get("userId"), userId));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThan(root.get("createdAt"), to));
+            }
+            if (pattern != null) {
+                List<Predicate> matches = new ArrayList<>();
+                matches.add(cb.like(cb.lower(cb.coalesce(root.get("username"), "")), pattern, '\\'));
+                matches.add(cb.like(cb.lower(cb.coalesce(root.get("action"), "")), pattern, '\\'));
+                matches.add(cb.like(cb.lower(cb.coalesce(root.get("entityType"), "")), pattern, '\\'));
+                matches.add(cb.like(cb.lower(cb.coalesce(root.get("details"), "")), pattern, '\\'));
+                matches.add(cb.like(root.get("entityId").as(String.class), pattern, '\\'));
+                if (!matchedUsers.isEmpty()) {
+                    matches.add(root.get("userId").in(matchedUsers));
+                }
+                predicates.add(cb.or(matches.toArray(Predicate[]::new)));
+            }
+            if (predicates.isEmpty()) {
+                return cb.conjunction();
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+    }
+
     @Transactional(readOnly = true)
     public AuditFilterOptions filters(Long tenantId) {
-        List<AuditUserOption> users = repository.distinctUsers(tenantId).stream()
+        List<Object[]> rawUsers = tenantId == null ? repository.distinctUsersAll() : repository.distinctUsers(tenantId);
+        List<AuditUserOption> users = rawUsers.stream()
                 .map(row -> {
                     Long id = (Long) row[0];
                     String email = row[1] == null ? null : row[1].toString();
@@ -234,8 +241,8 @@ public class AuditService {
                     .toList();
         }
         return new AuditFilterOptions(
-                repository.distinctActions(tenantId),
-                repository.distinctEntities(tenantId),
+                tenantId == null ? repository.distinctActionsAll() : repository.distinctActions(tenantId),
+                tenantId == null ? repository.distinctEntitiesAll() : repository.distinctEntities(tenantId),
                 users
         );
     }

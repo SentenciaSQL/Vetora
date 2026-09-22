@@ -41,32 +41,32 @@ interface AuditFilters {
     <h1 class="font-display text-2xl font-semibold">{{ 'nav.audit' | translate }}</h1>
     <p class="mt-1 text-sm text-slate-500">{{ (admin() ? 'audit.adminSubtitle' : 'audit.subtitle') | translate }}</p>
 
-    <div class="mt-6 space-y-3">
+    <div class="mt-4 flex flex-wrap items-center gap-2">
       <label class="sr-only" for="audit-search">{{ 'audit.search' | translate }}</label>
-      <input id="audit-search" class="input" [ngModel]="query" (ngModelChange)="onQuery($event)" [placeholder]="'audit.searchPlaceholder' | translate" />
-      <div class="flex flex-wrap gap-2">
-        <select class="input w-auto" [ngModel]="action" (ngModelChange)="setAction($event)">
-          <option value="">{{ 'audit.allActions' | translate }}</option>
-          @for (item of filters().actions; track item) {
-            <option [value]="item">{{ actionLabel(item) }}</option>
-          }
-        </select>
-        <select class="input w-auto" [ngModel]="entity" (ngModelChange)="setEntity($event)">
-          <option value="">{{ 'audit.allEntities' | translate }}</option>
-          @for (item of filters().entities; track item) {
-            <option [value]="item">{{ entityLabel(item) }}</option>
-          }
-        </select>
-        <select class="input w-auto" [ngModel]="userId" (ngModelChange)="setUser($event)">
-          <option value="">{{ 'audit.allUsers' | translate }}</option>
-          @for (item of filters().users; track item.id) {
-            <option [value]="item.id">{{ item.name || item.email }}</option>
-          }
-        </select>
-        <input class="input w-auto" type="date" [ngModel]="from" (ngModelChange)="setFrom($event)" [attr.aria-label]="'audit.from' | translate" />
-        <input class="input w-auto" type="date" [ngModel]="to" (ngModelChange)="setTo($event)" [attr.aria-label]="'audit.to' | translate" />
-        <button type="button" class="btn-secondary" (click)="clear()">{{ 'audit.clear' | translate }}</button>
-      </div>
+      <input id="audit-search" class="input h-9 min-w-48 flex-1 py-1.5" [ngModel]="query" (ngModelChange)="onQuery($event)" [placeholder]="'audit.searchPlaceholder' | translate" />
+      <select class="h-9 max-w-36 rounded-xl border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950" [ngModel]="action" (ngModelChange)="setAction($event)" [attr.aria-label]="'audit.action' | translate">
+        <option value="">{{ 'audit.allActions' | translate }}</option>
+        @for (item of filters().actions; track item) {
+          <option [value]="item">{{ actionLabel(item) }}</option>
+        }
+      </select>
+      <select class="h-9 max-w-36 rounded-xl border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950" [ngModel]="entity" (ngModelChange)="setEntity($event)" [attr.aria-label]="'audit.entity' | translate">
+        <option value="">{{ 'audit.allEntities' | translate }}</option>
+        @for (item of filters().entities; track item) {
+          <option [value]="item">{{ entityLabel(item) }}</option>
+        }
+      </select>
+      <select class="h-9 max-w-40 rounded-xl border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950" [ngModel]="userId" (ngModelChange)="setUser($event)" [attr.aria-label]="'audit.user' | translate">
+        <option value="">{{ 'audit.allUsers' | translate }}</option>
+        @for (item of filters().users; track item.id) {
+          <option [value]="item.id">{{ item.name || item.email }}</option>
+        }
+      </select>
+      <input class="h-9 w-36 rounded-xl border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950" type="date" [ngModel]="from" (ngModelChange)="setFrom($event)" [attr.aria-label]="'audit.from' | translate" />
+      <input class="h-9 w-36 rounded-xl border border-slate-200 bg-white px-2 text-xs dark:border-slate-700 dark:bg-slate-950" type="date" [ngModel]="to" (ngModelChange)="setTo($event)" [attr.aria-label]="'audit.to' | translate" />
+      @if (hasCriteria()) {
+        <button type="button" class="btn-secondary h-9 px-3 py-0 text-xs" (click)="clear()">{{ 'audit.clear' | translate }}</button>
+      }
     </div>
 
     @if (loading()) {

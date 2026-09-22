@@ -2,6 +2,7 @@ package com.animalin.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -44,4 +45,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countOtherEnabledSuperAdmins(Long userId);
     long countByCreatedAtGreaterThanEqualAndCreatedAtLessThanAndDeletedFalse(Instant from, Instant to);
     long countByLastLoginAtGreaterThanEqualAndLastLoginAtLessThanAndDeletedFalse(Instant from, Instant to);
+
+    @Query("""
+            select u.id from User u
+            where u.deleted = false
+              and (
+                    lower(u.email) like :q escape '\\'
+                    or lower(u.firstName) like :q escape '\\'
+                    or lower(u.lastName) like :q escape '\\'
+                    or lower(concat(u.firstName, ' ', u.lastName)) like :q escape '\\'
+              )
+            """)
+    java.util.List<Long> findIdsMatching(@Param("q") String q);
 }
