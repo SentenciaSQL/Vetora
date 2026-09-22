@@ -29,6 +29,8 @@ Release:
 flutter build apk --release \
   --dart-define=API_URL=https://vetora-production-4eac.up.railway.app \
   --dart-define=WEB_URL=https://lunaveta.com
+  
+ flutter build appbundle --release --dart-define=API_URL=https://vetora-production-4eac.up.railway.app/api/v1 --dart-define=WEB_URL=https://lunaveta.com
 ```
 
 La pantalla de facturación abre `https://lunaveta.com/billing` en el navegador externo, sin tokens en la URL.
