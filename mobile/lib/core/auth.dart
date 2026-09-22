@@ -142,7 +142,20 @@ class AuthStore extends ChangeNotifier {
 
   Future<void> updateProfile(Map<String, dynamic> payload) async {
     final data = await api.patch('/auth/me', payload);
-    user = asMap(data);
+    await applyProfile(asMap(data));
+  }
+
+  Future<void> uploadAvatar(List<int> bytes, String filename) async {
+    await applyProfile(asMap(await api.upload('/auth/me/avatar', bytes, filename)));
+  }
+
+  Future<void> clearAvatar() async {
+    await applyProfile(asMap(await api.delete('/auth/me/avatar')));
+  }
+
+  Future<void> applyProfile(Map<String, dynamic> data) async {
+    if (data.isEmpty) return;
+    user = data;
     await _storage.write(key: 'user', value: jsonEncode(user));
     notifyListeners();
   }

@@ -109,7 +109,9 @@ class _PetsScreenState extends State<PetsScreen> {
                               ),
                               title: Text(asString(pet['name'])),
                               subtitle: Text('${pet['breed'] ?? pet['species'] ?? ''} · ${pet['tenantName'] ?? pet['ownerName'] ?? ''}'),
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetDetailScreen(auth: widget.auth, pet: asMap(pet)))),
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetDetailScreen(auth: widget.auth, pet: asMap(pet)))).then((_) {
+                                if (mounted) _load();
+                              }),
                             ),
                           ),
                       ],
