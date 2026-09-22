@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'l10n.dart';
 
 class StatusView extends StatelessWidget {
@@ -65,6 +66,39 @@ class RemoteImage extends StatelessWidget {
       errorBuilder: (_, __, ___) => fallback ?? const SizedBox.shrink(),
     );
   }
+}
+
+Future<XFile?> pickProfilePhoto(BuildContext context) {
+  final i = I18n.instance;
+  return showModalBottomSheet<ImageSource>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: Text(i.t('photoGallery')),
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: Text(i.t('photoCamera')),
+            onTap: () => Navigator.pop(ctx, ImageSource.camera),
+          ),
+        ],
+      ),
+    ),
+  ).then((source) {
+    if (source == null) return null;
+    return ImagePicker().pickImage(source: source, maxWidth: 1600, imageQuality: 85);
+  });
+}
+
+bool isProfileImage(String name, int size) {
+  final lower = name.toLowerCase();
+  final allowed = lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp');
+  return allowed && size > 0 && size <= 5 * 1024 * 1024;
 }
 
 class RemoteCircleAvatar extends StatelessWidget {

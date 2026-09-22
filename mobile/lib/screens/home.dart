@@ -99,7 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: InkWell(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetDetailScreen(auth: widget.auth, pet: asMap(pet)))),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetDetailScreen(auth: widget.auth, pet: asMap(pet)))).then((_) {
+                          if (mounted) _load();
+                        }),
                         child: Chip(
                           avatar: RemoteCircleAvatar(
                             url: asString(pet['photoUrl']),

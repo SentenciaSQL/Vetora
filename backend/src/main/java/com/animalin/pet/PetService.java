@@ -156,9 +156,20 @@ public class PetService {
         if (!accessGuard.isOwnerContext()) {
             accessGuard.requirePermission("PET_UPDATE");
         }
+        storageService.requireImage(file);
         StoredFile stored = storageService.store(file, "PHOTO", "PET", pet.getId(), true,
                 "tenants/" + pet.getTenantId() + "/pets/" + pet.getId());
         pet.setPhotoUrl(storageService.publicUrl(stored));
+        return toDto(pet);
+    }
+
+    @Transactional
+    public AppDtos.PetResponse clearPhoto(Long id) {
+        Pet pet = accessGuard.requirePet(id);
+        if (!accessGuard.isOwnerContext()) {
+            accessGuard.requirePermission("PET_UPDATE");
+        }
+        pet.setPhotoUrl(null);
         return toDto(pet);
     }
 
