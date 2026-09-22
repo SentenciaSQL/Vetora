@@ -48,6 +48,11 @@ public class NotificationController {
         notificationService.markRead(id);
     }
 
+    @PostMapping("/read-all")
+    public void readAll() {
+        notificationService.markAllRead();
+    }
+
     @PostMapping("/push-token")
     public void pushToken(@RequestBody Map<String, String> body) {
         notificationService.registerPushToken(body == null ? null : body.get("token"),

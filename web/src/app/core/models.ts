@@ -29,6 +29,7 @@ export interface UserProfile {
   accessGranted?: boolean;
   checkoutPending?: boolean;
   memberships: TenantSummary[];
+  avatarUrl?: string | null;
 }
 
 export interface TokenResponse {
@@ -72,6 +73,7 @@ export interface Branding {
   timezone?: string;
   currency?: string;
   primaryLanguage?: string;
+  description?: string;
 }
 
 export interface PageResponse<T> {

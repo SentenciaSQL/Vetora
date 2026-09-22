@@ -249,7 +249,7 @@ public class ClinicSignupService {
         tenant.setCity(request.city());
         tenant.setCountry(country);
         tenant.setTimezone(timezone);
-        tenant.setCurrency(DEFAULT_CURRENCY);
+        tenant.setCurrency("DOP");
         tenant.setDefaultLocale("es");
         tenant.setStatus(SubscriptionStatuses.PENDING_PAYMENT);
         tenant.setPlan(plan);

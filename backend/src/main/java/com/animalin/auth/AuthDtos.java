@@ -95,7 +95,8 @@ public final class AuthDtos {
             boolean onboardingComplete,
             boolean accessGranted,
             boolean checkoutPending,
-            java.util.List<TenantSummary> memberships
+            java.util.List<TenantSummary> memberships,
+            String avatarUrl
     ) {
     }
 

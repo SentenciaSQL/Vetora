@@ -7,6 +7,7 @@ import com.animalin.signup.SignupDtos;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -129,5 +131,15 @@ public class AuthController {
     public AuthDtos.UserProfile updateMe(@Valid @RequestBody ProfileUpdateRequest request) {
         TenantContext.get();
         return authService.updateMe(request.firstName(), request.lastName(), request.phone(), request.locale(), request.theme());
+    }
+
+    @PostMapping("/me/avatar")
+    public AuthDtos.UserProfile uploadAvatar(@RequestParam("file") MultipartFile file) {
+        return authService.updateAvatar(file);
+    }
+
+    @DeleteMapping("/me/avatar")
+    public AuthDtos.UserProfile deleteAvatar() {
+        return authService.clearAvatar();
     }
 }

@@ -32,4 +32,13 @@ public interface AppNotificationRepository extends JpaRepository<AppNotification
                          @Param("entityType") String entityType,
                          @Param("entityId") Long entityId,
                          @Param("at") Instant at);
+
+    @Modifying
+    @Query("""
+            update AppNotification n
+            set n.readAt = :at
+            where n.userId = :userId
+              and n.readAt is null
+            """)
+    int markAllRead(@Param("userId") Long userId, @Param("at") Instant at);
 }

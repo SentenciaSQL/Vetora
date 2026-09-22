@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MoneyPipe } from '../../../shared/ui/money.pipe';
 import { ApiService } from '../../../core/services/api.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -10,7 +11,7 @@ const CATEGORIES = ['CONSULTATION', 'VACCINATION', 'CONTROL', 'SURGERY', 'GROOMI
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe],
+  imports: [ReactiveFormsModule, TranslatePipe, MoneyPipe],
   template: `
     <div class="flex items-center justify-between gap-3">
       <h1 class="font-display text-2xl font-semibold">{{ 'services.title' | translate }}</h1>
@@ -36,7 +37,7 @@ const CATEGORIES = ['CONSULTATION', 'VACCINATION', 'CONTROL', 'SURGERY', 'GROOMI
             <tr class="border-t border-slate-100 dark:border-white/5">
               <td class="px-4 py-3 font-medium">{{ displayName(s) }}</td>
               <td class="px-4 py-3 text-slate-500">{{ s.durationMin }} min</td>
-              <td class="px-4 py-3">{{ s.price }} {{ currency() }}</td>
+              <td class="px-4 py-3">{{ s.price | money:currency() }}</td>
               <td class="px-4 py-3">{{ categoryLabel(s.category) }}</td>
               @if (auth.hasPermission('SERVICE_MANAGE')) {
                 <td class="px-4 py-3 text-right">
@@ -143,7 +144,7 @@ export class ServicesPage implements OnInit {
   }
 
   currency(): string {
-    return (this.branding.branding()?.currency || 'USD').toUpperCase();
+    return (this.branding.branding()?.currency || 'DOP').toUpperCase();
   }
 
   displayName(service: { nameEs?: string; nameEn?: string }): string {

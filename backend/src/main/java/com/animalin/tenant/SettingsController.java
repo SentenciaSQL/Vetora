@@ -2,7 +2,9 @@ package com.animalin.tenant;
 
 import com.animalin.dto.AppDtos;
 import com.animalin.auth.AuthService;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,6 +41,12 @@ public class SettingsController {
                                          @RequestParam(defaultValue = "light") String variant) {
         authService.requireActiveSession();
         return brandingService.uploadLogo(file, variant);
+    }
+
+    @DeleteMapping("/branding/logo/{variant}")
+    public AppDtos.BrandingResponse deleteLogo(@PathVariable String variant) {
+        authService.requireActiveSession();
+        return brandingService.deleteLogo(variant);
     }
 
     @GetMapping
