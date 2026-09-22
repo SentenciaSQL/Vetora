@@ -190,10 +190,10 @@ class PushService {
     final channel = soundEnabled ? _messagesChannel : _silentChannel;
     final id = messageId.isEmpty ? DateTime.now().millisecondsSinceEpoch.remainder(100000) : messageId.hashCode & 0x7fffffff;
     await _localNotifications.show(
-      id,
-      title,
-      body,
-      NotificationDetails(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           channel.id,
           channel.name,
@@ -223,7 +223,7 @@ class PushService {
       requestSoundPermission: false,
     );
     await _localNotifications.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      settings: const InitializationSettings(android: android, iOS: ios),
       onDidReceiveNotificationResponse: (response) {
         NotificationRouter.instance.acceptPayload(response.payload);
       },
