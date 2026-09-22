@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eliminar cuenta y datos | LunaVeta</title>
+  <meta name="description" content="Consulta cómo solicitar la eliminación de tu cuenta de LunaVeta y conoce qué datos se eliminarán o podrán conservarse.">
+  <meta name="referrer" content="no-referrer">
+  <link rel="canonical" href="https://lunaveta.com/eliminar-cuenta">
+  <link rel="icon" type="image/png" href="/assets/branding/logo.png">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Manrope, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      line-height: 1.6;
+    }
+    a { color: #0f766e; }
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid #0f766e;
+      outline-offset: 2px;
+    }
+    main { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+    header p { margin: 0; font-weight: 800; letter-spacing: .02em; color: #115e59; }
+    h1 { font-size: 1.85rem; line-height: 1.25; margin: .4rem 0 1rem; }
+    h2 { font-size: 1.2rem; margin: 2rem 0 .5rem; }
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      padding: 1rem 1.1rem;
+    }
+    label { display: block; font-weight: 600; margin-top: .85rem; }
+    input, textarea {
+      width: 100%;
+      margin-top: .35rem;
+      padding: .7rem .8rem;
+      font: inherit;
+      font-size: 1rem;
+      border: 1px solid #cbd5e1;
+      border-radius: .75rem;
+      background: #fff;
+    }
+    .check { display: flex; gap: .6rem; align-items: flex-start; margin-top: 1rem; font-weight: 500; }
+    .check input { width: 1.15rem; height: 1.15rem; margin-top: .2rem; }
+    button {
+      margin-top: 1rem;
+      border: 0;
+      border-radius: .8rem;
+      background: #0f766e;
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      padding: .75rem 1rem;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: default; }
+    .status { margin-top: 1rem; padding: .75rem .9rem; border-radius: .75rem; background: #f0fdfa; }
+    .status[data-kind="error"] { background: #fff1f2; color: #9f1239; }
+    footer { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: .75rem 1rem; font-size: .95rem; }
+    .muted { color: #475569; font-size: .95rem; }
+    ul { padding-left: 1.2rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p>LunaVeta</p>
+      <h1>Eliminación de cuenta y datos de LunaVeta</h1>
+    </header>
+    <p>Los usuarios de LunaVeta pueden solicitar en cualquier momento la eliminación de su cuenta y de los datos personales asociados.</p>
+    <p>Puede iniciar la solicitud desde la aplicación, en Perfil &gt; Seguridad y privacidad &gt; Eliminar mi cuenta, o utilizar el formulario disponible en esta página.</p>
+    <p>Para proteger su cuenta, enviaremos un enlace de confirmación al correo electrónico registrado. La solicitud no será procesada hasta que se verifique dicho correo.</p>
+    <p>Al completarse el proceso, eliminaremos o anonimizaremos la información personal que ya no sea necesaria, incluyendo los datos del perfil, credenciales, sesiones, dispositivos y preferencias.</p>
+    <p>Algunos registros clínicos, fiscales, de seguridad y auditoría podrán conservarse durante el periodo requerido por las obligaciones legales aplicables o mientras sean necesarios para proteger la integridad y seguridad del servicio. Cuando sea posible, se conservarán de manera anonimizada.</p>
+    <p>Si usted es el único propietario de una veterinaria activa o mantiene una suscripción pendiente, es posible que deba transferir la propiedad, cerrar la veterinaria o resolver la suscripción antes de completar la eliminación.</p>
+
+    <h2>Eliminar la cuenta desde la aplicación</h2>
+    <ol>
+      <li>Inicie sesión en LunaVeta.</li>
+      <li>Abra la sección Perfil.</li>
+      <li>Seleccione Seguridad y privacidad.</li>
+      <li>Presione Eliminar mi cuenta.</li>
+      <li>Lea las consecuencias de la eliminación.</li>
+      <li>Escriba su contraseña actual.</li>
+      <li>Escriba la palabra ELIMINAR.</li>
+      <li>Confirme la solicitud.</li>
+      <li>Al completarse la eliminación, todas las sesiones serán cerradas.</li>
+    </ol>
+
+    <h2>Solicitar la eliminación desde la web</h2>
+    <p>Este formulario no elimina la cuenta de inmediato. Si existe una cuenta con el correo indicado, enviaremos un enlace de un solo uso para confirmar la solicitud. El enlace caduca a las 24 horas. Ese plazo es operativo del sistema y no es un periodo legal.</p>
+    <form id="deletion-form" class="card" method="post" action="https://vetora-production-4eac.up.railway.app/api/v1/public/account-deletion-requests">
+      <label for="email">Correo electrónico asociado a la cuenta</label>
+      <input id="email" name="email" type="email" autocomplete="email" maxlength="180" required>
+      <label for="reason">Motivo de la solicitud <span class="muted">(opcional)</span></label>
+      <textarea id="reason" name="reason" maxlength="500" rows="4"></textarea>
+      <label class="check" for="confirmation">
+        <input id="confirmation" name="confirmation" type="checkbox" value="true" required>
+        <span>Confirmo que deseo eliminar la cuenta y los datos asociados.</span>
+      </label>
+      <button type="submit">Enviar solicitud</button>
+      <p id="form-status" class="status" role="status" hidden></p>
+    </form>
+    <p class="muted">La respuesta no indica si el correo está registrado.</p>
+
+    <section id="confirm-section" hidden>
+      <h2>Confirmar la solicitud</h2>
+      <p>Abrió un enlace de confirmación. Pulse el botón para verificar el correo y continuar. El enlace es de un solo uso.</p>
+      <form id="confirm-form" method="post" action="https://vetora-production-4eac.up.railway.app/api/v1/public/account-deletion-requests/confirm">
+        <input id="token" name="token" type="hidden">
+        <button type="submit">Confirmar la eliminación de mi cuenta</button>
+        <p id="confirm-status" class="status" role="status" hidden></p>
+      </form>
+    </section>
+    <noscript>
+      <p>Puede leer esta página y enviar el formulario sin JavaScript. Para confirmar el enlace recibido por correo, abra esta dirección en un navegador con JavaScript o escriba a soporte@animalin.app desde el correo de la cuenta.</p>
+    </noscript>
+
+    <h2>Datos que se eliminarán o anonimizarán</h2>
+    <p>Una vez aprobada y procesada la solicitud, se eliminarán o anonimizarán, según corresponda:</p>
+    <ul>
+      <li>Nombre y apellidos.</li>
+      <li>Correo electrónico.</li>
+      <li>Número de teléfono.</li>
+      <li>Fotografía de perfil.</li>
+      <li>Dirección personal, si existe.</li>
+      <li>Credenciales de acceso.</li>
+      <li>Tokens de sesión y recuperación.</li>
+      <li>Tokens de notificaciones push.</li>
+      <li>Preferencias personales.</li>
+      <li>Identificadores de dispositivos.</li>
+      <li>Información del perfil que no sea necesaria conservar.</li>
+      <li>Datos de marketing y comunicaciones opcionales.</li>
+      <li>Datos personales contenidos en conversaciones, cuando puedan eliminarse o anonimizarse sin afectar obligaciones clínicas o legales.</li>
+    </ul>
+    <p>La eliminación física inmediata de todos los registros no se promete cuando el sistema debe conservar algunos por obligaciones clínicas, financieras, de seguridad o de integridad referencial.</p>
+
+    <h2>Datos que pueden conservarse</h2>
+    <p>Algunos datos pueden conservarse de manera limitada cuando sea necesario:</p>
+    <ul>
+      <li>Historiales clínicos de mascotas.</li>
+      <li>Diagnósticos y tratamientos.</li>
+      <li>Vacunas.</li>
+      <li>Recetas.</li>
+      <li>Resultados de laboratorio.</li>
+      <li>Citas asociadas a registros clínicos.</li>
+      <li>Facturas, pagos y transacciones.</li>
+      <li>Información necesaria para obligaciones fiscales.</li>
+      <li>Registros de auditoría y seguridad.</li>
+      <li>Evidencia de consentimientos.</li>
+      <li>Información necesaria para resolver disputas o prevenir fraude.</li>
+    </ul>
+    <p>Cuando sea posible, estos registros se anonimizan o se desvinculan de la identidad personal eliminada.</p>
+    <p>Algunos registros clínicos, fiscales, de seguridad y auditoría podrán conservarse durante el periodo requerido por las obligaciones legales aplicables o mientras sean necesarios para proteger la integridad y seguridad del servicio. Cuando sea posible, se conservarán de manera anonimizada.</p>
+    <p class="muted">Plazos operativos del sistema, distintos de los periodos legales: el enlace de confirmación caduca a las 24 horas y las solicitudes no verificadas se eliminan a los 30 días. Los registros técnicos sin información sensible siguen la política vigente del sistema.</p>
+
+    <h2>Propietarios de una veterinaria</h2>
+    <p>Si usted es el único propietario de una veterinaria activa, la cuenta no se elimina de forma automática. Debe transferir la propiedad o cerrar la veterinaria. Si hay una suscripción pendiente, debe resolverla desde la aplicación web antes de completar la eliminación. La aplicación móvil no ofrece comprar, cambiar ni cancelar planes. Escriba a <a href="mailto:soporte@animalin.app">soporte@animalin.app</a>. La solicitud queda registrada.</p>
+
+    <p>Última actualización: 21 de septiembre de 2026.</p>
+    <p>Aplicación: LunaVeta.</p>
+    <footer>
+      <a href="/privacidad">Política de privacidad</a>
+      <a href="/terminos">Términos y condiciones</a>
+      <a href="mailto:soporte@animalin.app">Contacto o soporte</a>
+    </footer>
+
+    <details>
+      <summary>English</summary>
+      <h2>Account and data deletion for LunaVeta</h2>
+      <p>LunaVeta users can request deletion of their account and associated personal data at any time.</p>
+      <p>Start from the app at Profile &gt; Security and privacy &gt; Delete my account, or use the form on this page.</p>
+      <p>To protect the account, we email a one-time confirmation link to the registered address. The request is not processed until that email is verified. The link expires after 24 hours. Unverified requests are deleted after 30 days. These are operational periods, not legal retention periods.</p>
+      <p>When the process is complete, we delete or anonymize personal information that is no longer needed, including profile data, credentials, sessions, devices, and preferences.</p>
+      <p>Some clinical, tax, security, and audit records may be kept for the period required by applicable legal obligations or while they are needed to protect the integrity and security of the service. When possible, they are kept in anonymized form.</p>
+      <p>If you are the only owner of an active clinic or have an outstanding subscription, you may need to transfer ownership, close the clinic, or resolve the subscription before deletion can be completed. Contact soporte@animalin.app. The mobile app does not sell, change, or cancel plans.</p>
+      <p>Application name: LunaVeta. Last updated: 21 September 2026.</p>
+    </details>
+  </main>
+  <script>
+    (function () {
+      var form = document.getElementById('deletion-form');
+      var status = document.getElementById('form-status');
+      var params = new URLSearchParams(window.location.search);
+      var token = params.get('token');
+      var confirmSection = document.getElementById('confirm-section');
+      var confirmForm = document.getElementById('confirm-form');
+      var confirmStatus = document.getElementById('confirm-status');
+      if (token && confirmSection && confirmForm) {
+        document.getElementById('token').value = token;
+        confirmSection.hidden = false;
+      }
+      function show(node, message, error) {
+        node.hidden = false;
+        node.dataset.kind = error ? 'error' : 'ok';
+        node.textContent = message;
+      }
+      async function send(event, target, node, body) {
+        if (!window.fetch) return;
+        event.preventDefault();
+        target.querySelector('button').disabled = true;
+        try {
+          var response = await fetch(target.action, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          var payload = {};
+          try { payload = await response.json(); } catch (ignore) { payload = {}; }
+          var fallback = response.ok
+            ? 'Si existe una cuenta asociada a este correo, recibirá las instrucciones para confirmar la solicitud de eliminación.'
+            : 'No se pudo completar la solicitud. Inténtelo de nuevo.';
+          show(node, payload.message || fallback, !response.ok);
+        } catch (ignore) {
+          show(node, 'No se pudo completar la solicitud. Inténtelo de nuevo.', true);
+        } finally {
+          target.querySelector('button').disabled = false;
+        }
+      }
+      form.addEventListener('submit', function (event) {
+        var data = new FormData(form);
+        var reason = String(data.get('reason') || '').trim();
+        send(event, form, status, {
+          email: String(data.get('email') || '').trim(),
+          reason: reason || null,
+          confirmation: data.get('confirmation') === 'true'
+        });
+      });
+      if (confirmForm) {
+        confirmForm.addEventListener('submit', function (event) {
+          send(event, confirmForm, confirmStatus, { token: document.getElementById('token').value });
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

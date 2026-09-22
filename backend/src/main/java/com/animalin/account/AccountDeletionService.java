@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -110,14 +111,47 @@ public class AccountDeletionService {
             throw ApiException.badRequest(messages.get("account.deletion.badPassword"));
         }
 
-        Set<String> roles = TenantContext.get().roles();
-        if (roles.contains("SUPER_ADMIN")) {
-            throw ApiException.forbidden(messages.get("account.deletion.superAdmin"));
+        Optional<DeletionBlock> block = findBlock(user);
+        if (block.isPresent()) {
+            throwBlock(block.get());
         }
+        Instant now = anonymizeAccount(user);
+        return new AccountDtos.DeletionResponse(messages.get("account.deletion.success"), now);
+    }
 
+    public Optional<DeletionBlock> findBlock(User user) {
+        if (isSuperAdmin(user)) {
+            return Optional.of(new DeletionBlock("SUPER_ADMIN", messages.get("account.deletion.superAdmin"), null));
+        }
+        for (TenantMembership membership : membershipRepository.findByUser_Id(user.getId())) {
+            if (!"ACTIVE".equals(membership.getStatus()) || membership.getTenant() == null) {
+                continue;
+            }
+            Tenant tenant = membership.getTenant();
+            if (tenant.isDeleted()) {
+                continue;
+            }
+            String role = membership.getRole() == null ? "" : membership.getRole().getCode();
+            if ("TENANT_OWNER".equals(role)) {
+                long others = membershipRepository.countOtherActiveByRole(tenant.getId(), "TENANT_OWNER", user.getId());
+                if (others == 0) {
+                    return Optional.of(new DeletionBlock("SOLE_OWNER", messages.get("account.deletion.soleOwner"), tenant.getName()));
+                }
+            }
+            if (BILLING_ROLES.contains(role) && hasBlockingSubscription(tenant.getId())) {
+                return Optional.of(new DeletionBlock(
+                        "ACTIVE_SUBSCRIPTION", messages.get("account.deletion.activeSubscription"), tenant.getName()));
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Transactional
+    public Instant anonymizeAccount(User user) {
+        if (user.isAccountDeleted()) {
+            throw ApiException.conflict(messages.get("account.deletion.alreadyDeleted"));
+        }
         List<TenantMembership> memberships = membershipRepository.findByUser_Id(user.getId());
-        assertCanLeaveClinics(user, memberships);
-
         Instant now = clock.instant();
         anonymizeOwners(user);
         deactivateStaff(user, memberships);
@@ -133,6 +167,11 @@ public class AccountDeletionService {
         user.setPhone(null);
         user.setDocumentId(null);
         user.setAvatarUrl(null);
+        user.setLocale("es");
+        user.setTheme("system");
+        user.setMessagePushEnabled(false);
+        user.setMessagePreviewEnabled(false);
+        user.setMessageSoundEnabled(false);
         user.setEmail("deleted." + user.getId() + "." + now.toEpochMilli() + "@deleted.lunaveta.invalid");
         user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
         user.setEnabled(false);
@@ -143,34 +182,26 @@ public class AccountDeletionService {
         userRepository.save(user);
 
         auditService.record(null, user.getId(), user.getEmail(), "ACCOUNT_DELETION", "USER", user.getId(),
-                "Self-service account deactivation and anonymization", null, null);
-        return new AccountDtos.DeletionResponse(messages.get("account.deletion.success"), now);
+                "Account deactivation and anonymization", null, null);
+        return now;
     }
 
-    private void assertCanLeaveClinics(User user, List<TenantMembership> memberships) {
-        for (TenantMembership membership : memberships) {
-            if (!"ACTIVE".equals(membership.getStatus()) || membership.getTenant() == null) {
-                continue;
-            }
-            Tenant tenant = membership.getTenant();
-            if (tenant.isDeleted()) {
-                continue;
-            }
-            String role = membership.getRole() == null ? "" : membership.getRole().getCode();
-            if ("TENANT_OWNER".equals(role)) {
-                long others = membershipRepository.countOtherActiveByRole(tenant.getId(), "TENANT_OWNER", user.getId());
-                if (others == 0) {
-                    throw new ApiException(org.springframework.http.HttpStatus.CONFLICT, "SOLE_OWNER",
-                            messages.get("account.deletion.soleOwner"),
-                            Map.of("tenantName", tenant.getName()));
-                }
-            }
-            if (BILLING_ROLES.contains(role) && hasBlockingSubscription(tenant.getId())) {
-                throw new ApiException(org.springframework.http.HttpStatus.CONFLICT, "ACTIVE_SUBSCRIPTION",
-                        messages.get("account.deletion.activeSubscription"),
-                        Map.of("tenantName", tenant.getName()));
-            }
+    private void throwBlock(DeletionBlock block) {
+        if ("SUPER_ADMIN".equals(block.code())) {
+            throw ApiException.forbidden(block.message());
         }
+        Map<String, Object> details = block.tenantName() == null || block.tenantName().isBlank()
+                ? Map.of()
+                : Map.of("tenantName", block.tenantName());
+        throw new ApiException(org.springframework.http.HttpStatus.CONFLICT, block.code(), block.message(), details);
+    }
+
+    private boolean isSuperAdmin(User user) {
+        if (user.getRoles() != null && user.getRoles().stream().anyMatch(role -> "SUPER_ADMIN".equals(role.getCode()))) {
+            return true;
+        }
+        var principal = TenantContext.getOrNull();
+        return principal != null && user.getId().equals(principal.userId()) && principal.roles().contains("SUPER_ADMIN");
     }
 
     private boolean hasBlockingSubscription(Long tenantId) {
@@ -217,6 +248,9 @@ public class AccountDeletionService {
             return new Window(existing.startedAt, existing.count + 1);
         });
         return window.count > 5;
+    }
+
+    public record DeletionBlock(String code, String message, String tenantName) {
     }
 
     private record Window(long startedAt, int count) {

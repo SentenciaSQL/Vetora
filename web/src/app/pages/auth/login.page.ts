@@ -67,6 +67,12 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
             <a routerLink="/register" class="text-brand-700 hover:underline">{{ 'auth.register' | translate }}</a>
           </div>
           <a routerLink="/register-clinic" class="mt-3 block text-sm font-medium text-brand-700 hover:underline">{{ 'signup.clinicCta' | translate }}</a>
+          <a routerLink="/eliminar-cuenta" class="mt-3 block text-sm font-medium text-brand-700 hover:underline">{{ 'auth.deleteAccountLink' | translate }}</a>
+          <footer class="mt-8 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500">
+            <a class="hover:underline" href="/privacidad">{{ 'accountDeletion.privacy' | translate }}</a>
+            <a class="hover:underline" href="/terminos">{{ 'accountDeletion.terms' | translate }}</a>
+            <a class="hover:underline" href="mailto:soporte@animalin.app">{{ 'accountDeletion.contact' | translate }}</a>
+          </footer>
         </div>
       </section>
     </div>
