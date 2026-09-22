@@ -127,6 +127,57 @@ public class EmailTemplates {
         );
     }
 
+    public String accountDeletionVerification(String userName, String actionUrl, int expirationHours) {
+        return layout(
+                "Confirma la eliminación de tu cuenta de " + BRAND,
+                greeting(userName),
+                """
+                <p>Recibimos una solicitud para eliminar tu cuenta de <strong>%s</strong> y los datos personales asociados.</p>
+                <p>La solicitud no se procesará hasta que confirmes este correo. Si no iniciaste la solicitud, ignora este mensaje.</p>
+                """.formatted(BRAND),
+                "Confirmar eliminación",
+                actionUrl,
+                expirationHours,
+                null,
+                null,
+                true
+        );
+    }
+
+    public String accountDeletionBlocked(String userName, String explanation, String pageUrl) {
+        return layout(
+                "No pudimos eliminar tu cuenta de " + BRAND,
+                greeting(userName),
+                """
+                <p>%s</p>
+                <p>La solicitud quedó registrada. No cancelamos suscripciones de forma automática y la aplicación móvil no ofrece comprar, cambiar ni cancelar planes. Resuelva la propiedad de la veterinaria o la suscripción desde la aplicación web y, si necesita ayuda, escriba a <a href="mailto:soporte@animalin.app">soporte@animalin.app</a>.</p>
+                """.formatted(escape(explanation).replace("%", "%%")),
+                "Ver instrucciones",
+                pageUrl,
+                0,
+                null,
+                null,
+                false
+        );
+    }
+
+    public String accountDeletionCompleted(String userName) {
+        return layout(
+                "Tu cuenta de " + BRAND + " fue eliminada",
+                greeting(userName),
+                """
+                <p>Completamos la eliminación de tu cuenta de <strong>%s</strong>. Cerramos las sesiones y eliminamos o anonimizamos los datos personales que ya no son necesarios, incluidos el perfil, las credenciales, los dispositivos y las preferencias.</p>
+                <p>Algunos registros clínicos, fiscales, de seguridad y auditoría podrán conservarse durante el periodo requerido por las obligaciones legales aplicables o mientras sean necesarios para proteger la integridad y seguridad del servicio. Cuando sea posible, se conservarán de manera anonimizada.</p>
+                """.formatted(BRAND),
+                "",
+                "",
+                0,
+                null,
+                null,
+                false
+        );
+    }
+
     private String layout(
             String title,
             String greeting,

@@ -24,6 +24,12 @@ public interface EmailService {
             String logoUrl
     );
 
+    void sendAccountDeletionVerification(String recipient, String userName, String token, int expirationHours);
+
+    void sendAccountDeletionBlocked(String recipient, String userName, String explanation, String pageUrl);
+
+    void sendAccountDeletionCompleted(String recipient, String userName);
+
     default void sendEmailVerification(
             String recipient,
             String userName,

@@ -37,6 +37,7 @@
     "email": "Email",
     "password": "Password",
     "forgot": "Forgot your password?",
+    "deleteAccountLink": "How do I delete my account?",
     "submit": "Sign in",
     "welcome": "Welcome back",
     "subtitle": "Access your clinic workspace",
@@ -622,5 +623,10 @@
       "CANCELED": "Canceled",
       "PAUSED": "Paused"
     }
+  },
+  "accountDeletion": {
+    "privacy": "Privacy policy",
+    "terms": "Terms and conditions",
+    "contact": "Contact or support"
   }
 }

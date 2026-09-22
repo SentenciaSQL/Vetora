@@ -99,6 +99,12 @@ public class PublicRateLimitFilter extends OncePerRequestFilter {
         if (path.equals("/api/v1/account/deletion")) {
             return new Limit("account-deletion", 5, Duration.ofHours(1));
         }
+        if (path.equals("/api/v1/public/account-deletion-requests")) {
+            return new Limit("public-account-deletion", 5, Duration.ofHours(1));
+        }
+        if (path.equals("/api/v1/public/account-deletion-requests/confirm")) {
+            return new Limit("public-account-deletion-confirm", 20, Duration.ofHours(1));
+        }
         return null;
     }
 

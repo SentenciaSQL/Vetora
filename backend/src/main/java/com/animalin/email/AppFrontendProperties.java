@@ -26,6 +26,10 @@ public record AppFrontendProperties(String frontendUrl) {
         return frontendBaseUrl() + "/accept-invite?token=" + encode(token);
     }
 
+    public String accountDeletionConfirmUrl(String token) {
+        return frontendBaseUrl() + "/eliminar-cuenta?token=" + encode(token);
+    }
+
     private static String encode(String token) {
         return URLEncoder.encode(token == null ? "" : token, StandardCharsets.UTF_8);
     }

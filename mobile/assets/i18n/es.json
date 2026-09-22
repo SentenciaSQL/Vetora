@@ -8,6 +8,8 @@
   "firstName": "Nombre",
   "lastName": "Apellidos",
   "forgot": "¿Olvidó su contraseña?",
+  "deleteAccountLink": "¿Cómo eliminar mi cuenta?",
+  "deleteAccountLinkError": "No se pudo abrir la página para eliminar la cuenta. Inténtelo de nuevo.",
   "forgotSent": "Si el email existe, enviaremos instrucciones",
   "home": "Inicio",
   "pets": "Mascotas",

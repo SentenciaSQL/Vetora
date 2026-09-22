@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/auth.dart';
+import '../core/config.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
 
@@ -24,6 +26,19 @@ class _LoginScreenState extends State<LoginScreen> {
   bool sent = false;
 
   I18n get i => I18n.instance;
+
+  Future<void> _openAccountDeletion() async {
+    final uri = Uri.parse('${AppConfig.webUrl}/eliminar-cuenta');
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(i.t('deleteAccountLinkError'))));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(i.t('deleteAccountLinkError'))));
+    }
+  }
 
   @override
   void dispose() {
@@ -135,6 +150,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () => setState(() => register = !register),
                 child: Text(register ? i.t('login') : i.t('register')),
               ),
+            TextButton(
+              onPressed: _openAccountDeletion,
+              child: Text(i.t('deleteAccountLink')),
+            ),
           ],
         ),
       ),

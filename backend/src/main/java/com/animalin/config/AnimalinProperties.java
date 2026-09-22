@@ -12,7 +12,8 @@ public record AnimalinProperties(
         Cors cors,
         Fcm fcm,
         Clinic clinic,
-        Signup signup
+        Signup signup,
+        AccountDeletion accountDeletion
 ) {
     public record Jwt(String secret, long accessTokenMinutes, Long refreshTokenHours, Long refreshTokenDays) {
         public long accessMinutes() {
@@ -95,6 +96,21 @@ public record AnimalinProperties(
                 publicAppUrl = "http://localhost:4200";
             }
         }
+    }
+
+    public record AccountDeletion(int tokenHours, int unverifiedRetentionDays) {
+        public AccountDeletion {
+            if (tokenHours <= 0) {
+                tokenHours = 24;
+            }
+            if (unverifiedRetentionDays <= 0) {
+                unverifiedRetentionDays = 30;
+            }
+        }
+    }
+
+    public AccountDeletion accountDeletionOrDefault() {
+        return accountDeletion == null ? new AccountDeletion(24, 30) : accountDeletion;
     }
 
     public Signup signupOrDefault() {

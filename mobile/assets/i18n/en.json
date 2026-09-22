@@ -8,6 +8,8 @@
   "firstName": "First name",
   "lastName": "Last name",
   "forgot": "Forgot your password?",
+  "deleteAccountLink": "How do I delete my account?",
+  "deleteAccountLinkError": "The account deletion page could not be opened. Try again.",
   "forgotSent": "If the email exists, we will send instructions",
   "home": "Home",
   "pets": "Pets",
