@@ -121,7 +121,9 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/v1/files/")
                 || path.startsWith("/api/v1/devices")
                 || path.startsWith("/api/v1/notifications/push-token")
-                || "/api/v1/notifications/preferences".equals(path);
+                || "/api/v1/notifications/preferences".equals(path)
+                || "/api/v1/settings/branding/logo".equals(path)
+                || path.startsWith("/api/v1/settings/branding/logo/");
     }
 
     private boolean blocks(SubscriptionAccessView subscription) {

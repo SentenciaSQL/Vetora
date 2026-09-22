@@ -54,7 +54,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         void router.navigate(['/verify-email']);
         return throwError(() => error);
       }
-      if (error.status === 403 && body?.code === 'TENANT_SUBSCRIPTION_SUSPENDED' && !router.url.startsWith('/billing')) {
+      const onboarding = router.url.startsWith('/billing')
+        || router.url.startsWith('/register-clinic')
+        || router.url.startsWith('/signup');
+      if (error.status === 403 && body?.code === 'TENANT_SUBSCRIPTION_SUSPENDED' && !onboarding) {
         void router.navigate(['/billing']);
         return throwError(() => error);
       }
