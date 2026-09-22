@@ -14,11 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class BrandingService {
+
+    private static final Set<String> CURRENCIES = Set.of("DOP", "USD", "EUR");
 
     private final TenantRepository tenantRepository;
     private final TenantSettingsRepository settingsRepository;
@@ -99,9 +103,10 @@ public class BrandingService {
         if (request.website() != null) tenant.setWebsite(request.website());
         if (request.instagram() != null) tenant.setInstagram(request.instagram());
         if (request.facebook() != null) tenant.setFacebook(request.facebook());
+        if (request.description() != null) tenant.setDescription(request.description());
         if (request.timezone() != null) tenant.setTimezone(request.timezone());
-        if (request.currency() != null) tenant.setCurrency(request.currency());
-        if (request.defaultLocale() != null) tenant.setDefaultLocale(request.defaultLocale());
+        if (request.currency() != null) tenant.setCurrency(normalizeCurrency(request.currency()));
+        if (request.defaultLocale() != null) tenant.setDefaultLocale(normalizeLocale(request.defaultLocale()));
         return toDto(tenant);
     }
 
@@ -142,6 +147,7 @@ public class BrandingService {
     @Transactional
     public AppDtos.BrandingResponse uploadLogo(MultipartFile file, String variant) {
         accessGuard.requirePermission("BRANDING_UPDATE");
+        storageService.requireImage(file);
         Tenant tenant = tenantRepository.findById(accessGuard.requireStaffTenant())
                 .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         StoredFile stored = storageService.store(file, "BRANDING", "TENANT", tenant.getId(), true,
@@ -160,6 +166,42 @@ public class BrandingService {
         }
         auditService.recordChange("BRANDING", "TENANT", tenant.getId(), "logo:" + variant, previous, url);
         return toDto(tenant);
+    }
+
+    @Transactional
+    public AppDtos.BrandingResponse deleteLogo(String variant) {
+        accessGuard.requirePermission("BRANDING_UPDATE");
+        Tenant tenant = tenantRepository.findById(accessGuard.requireStaffTenant())
+                .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
+        String previous;
+        if ("dark".equals(variant)) {
+            previous = tenant.getDarkLogoUrl();
+            tenant.setDarkLogoUrl(null);
+        } else if ("icon".equals(variant)) {
+            previous = tenant.getIconUrl();
+            tenant.setIconUrl(null);
+        } else {
+            previous = tenant.getLogoUrl();
+            tenant.setLogoUrl(null);
+        }
+        auditService.recordChange("BRANDING", "TENANT", tenant.getId(), "logo:" + variant, previous, null);
+        return toDto(tenant);
+    }
+
+    private String normalizeCurrency(String value) {
+        String code = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (!CURRENCIES.contains(code)) {
+            throw ApiException.badRequest("La moneda debe ser DOP, USD o EUR");
+        }
+        return code;
+    }
+
+    private String normalizeLocale(String value) {
+        String code = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        if (!code.equals("es") && !code.equals("en")) {
+            throw ApiException.badRequest("El idioma debe ser es o en");
+        }
+        return code;
     }
 
     public AppDtos.PublicClinicResponse toPublicClinic(Tenant tenant) {
@@ -184,14 +226,14 @@ public class BrandingService {
                 tenant.getLogoUrl(), tenant.getDarkLogoUrl(), tenant.getIconUrl(),
                 tenant.getEmail(), tenant.getPhone(), tenant.getAddress(), tenant.getCity(),
                 tenant.getCountry(), tenant.getWebsite(), tenant.getInstagram(), tenant.getFacebook(),
-                tenant.getTimezone(), tenant.getCurrency(), tenant.getDefaultLocale()
+                tenant.getTimezone(), tenant.getCurrency(), tenant.getDefaultLocale(), tenant.getDescription()
         );
     }
 
     public record BrandingUpdateRequest(
             String name, String commercialName, String email, String phone, String address, String city,
             String country, String website, String instagram, String facebook, String timezone,
-            String currency, String defaultLocale
+            String currency, String defaultLocale, String description
     ) {
     }
 

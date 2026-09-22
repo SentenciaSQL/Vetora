@@ -285,7 +285,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         tenant.setCity(city);
         tenant.setCountry(country);
         tenant.setTimezone("Europe/Madrid");
-        tenant.setCurrency("EUR");
+        tenant.setCurrency("DOP");
         tenant.setDefaultLocale("es");
         tenant.setStatus(status);
         tenant.setPlan(plan);

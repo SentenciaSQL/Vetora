@@ -45,7 +45,8 @@ public final class AppDtos {
             String facebook,
             String timezone,
             String currency,
-            String primaryLanguage
+            String primaryLanguage,
+            String description
     ) {
     }
 

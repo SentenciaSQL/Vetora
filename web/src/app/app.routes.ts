@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, medicalWriteGuard, staffGuard, superAdminGuard, billingAccessGuard, clinicSignupGuard, onboardingGuard } from './core/guards/auth.guard';
+import { auditGuard, authGuard, guestGuard, medicalWriteGuard, settingsGuard, staffGuard, superAdminGuard, billingAccessGuard, clinicSignupGuard, onboardingGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -66,9 +66,10 @@ export const routes: Routes = [
       { path: 'consultations/new', canActivate: [staffGuard, medicalWriteGuard], loadComponent: () => import('./pages/clinic/consultations/consultation.page').then(m => m.ConsultationPage) },
       { path: 'messages', loadComponent: () => import('./pages/clinic/messages/messages.page').then(m => m.MessagesPage) },
       { path: 'reports', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/reports/reports.page').then(m => m.ReportsPage) },
-      { path: 'settings', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/settings/settings.page').then(m => m.SettingsPage) },
+      { path: 'settings', canActivate: [settingsGuard], loadComponent: () => import('./pages/clinic/settings/settings.page').then(m => m.SettingsPage) },
+      { path: 'notifications', loadComponent: () => import('./pages/clinic/notifications/notifications.page').then(m => m.NotificationsPage) },
       { path: 'billing', canActivate: [billingAccessGuard], loadComponent: () => import('./pages/clinic/billing/billing.page').then(m => m.BillingPage) },
-      { path: 'audit', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/audit/audit.page').then(m => m.ClinicAuditPage) },
+      { path: 'audit', canActivate: [auditGuard], loadComponent: () => import('./pages/clinic/audit/audit.page').then(m => m.ClinicAuditPage) },
       { path: 'team', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/team/team.page').then(m => m.TeamPage) },
       { path: 'branches', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/branches/branches.page').then(m => m.BranchesPage) },
       { path: 'services', canActivate: [staffGuard], loadComponent: () => import('./pages/clinic/services/services.page').then(m => m.ServicesPage) },

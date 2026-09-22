@@ -107,12 +107,17 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public long unreadCount() {
-        return notificationRepository.countByUserIdAndReadAtIsNullAndTypeNot(TenantContext.userId(), "NEW_MESSAGE");
+        return notificationRepository.countByUserIdAndReadAtIsNull(TenantContext.userId());
     }
 
     @Transactional
     public void markRead(Long id) {
         notificationRepository.findByIdAndUserId(id, TenantContext.userId()).ifPresent(n -> n.setReadAt(Instant.now()));
+    }
+
+    @Transactional
+    public void markAllRead() {
+        notificationRepository.markAllRead(TenantContext.userId(), Instant.now());
     }
 
     @Transactional(readOnly = true)

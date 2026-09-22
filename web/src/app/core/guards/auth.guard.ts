@@ -102,6 +102,26 @@ export const medicalWriteGuard: CanActivateFn = () => {
   return auth.hasPermission('MEDICAL_RECORD_WRITE') || auth.isSuperAdmin() || router.createUrlTree([auth.homePath()]);
 };
 
+export const settingsGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
+  const router = inject(Router);
+  if (!session.ensureActive()) {
+    return false;
+  }
+  return auth.canManageSettings() || router.createUrlTree([auth.homePath()]);
+};
+
+export const auditGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
+  const router = inject(Router);
+  if (!session.ensureActive()) {
+    return false;
+  }
+  return auth.hasPermission('STAFF_MANAGE') || auth.isSuperAdmin() || router.createUrlTree([auth.homePath()]);
+};
+
 export const billingAccessGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const session = inject(SessionInactivityService);

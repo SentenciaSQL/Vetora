@@ -12,6 +12,8 @@ import com.animalin.security.JwtService;
 import com.animalin.security.TenantContext;
 import com.animalin.signup.ClinicSignup;
 import com.animalin.signup.ClinicSignupRepository;
+import com.animalin.storage.StorageService;
+import com.animalin.storage.StoredFile;
 import com.animalin.tenant.Subscription;
 import com.animalin.tenant.SubscriptionRepository;
 import com.animalin.tenant.Tenant;
@@ -28,6 +30,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -58,8 +61,9 @@ public class AuthService {
     private final EmailVerificationIssuer verificationIssuer;
     private final SecureTokenService tokens;
     private final Clock clock;
+    private final StorageService storageService;
 
-    public AuthService(UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, RefreshTokenRepository refreshTokenRepository, PasswordResetTokenRepository passwordResetTokenRepository, ClinicSignupRepository signupRepository, SubscriptionRepository subscriptionRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AnimalinProperties properties, AuditService auditService, EmailService emailService, TransactionalEmailSender transactionalEmailSender, EmailVerificationIssuer verificationIssuer, SecureTokenService tokens, Clock clock) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, RefreshTokenRepository refreshTokenRepository, PasswordResetTokenRepository passwordResetTokenRepository, ClinicSignupRepository signupRepository, SubscriptionRepository subscriptionRepository, PasswordEncoder passwordEncoder, JwtService jwtService, AnimalinProperties properties, AuditService auditService, EmailService emailService, TransactionalEmailSender transactionalEmailSender, EmailVerificationIssuer verificationIssuer, SecureTokenService tokens, Clock clock, StorageService storageService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.tenantRepository = tenantRepository;
@@ -77,6 +81,7 @@ public class AuthService {
         this.verificationIssuer = verificationIssuer;
         this.tokens = tokens;
         this.clock = clock;
+        this.storageService = storageService;
     }
 
 
@@ -358,6 +363,27 @@ public class AuthService {
         return toProfile(user, tenant, memberships);
     }
 
+    @Transactional
+    public AuthDtos.UserProfile updateAvatar(MultipartFile file) {
+        requireActiveSession();
+        storageService.requireImage(file);
+        User user = userRepository.findById(TenantContext.userId())
+                .orElseThrow(() -> ApiException.notFound("Usuario no encontrado"));
+        StoredFile stored = storageService.store(file, "AVATAR", "USER", user.getId(), true,
+                "users/" + user.getId() + "/avatar");
+        user.setAvatarUrl(storageService.publicUrl(stored));
+        return me();
+    }
+
+    @Transactional
+    public AuthDtos.UserProfile clearAvatar() {
+        requireActiveSession();
+        User user = userRepository.findById(TenantContext.userId())
+                .orElseThrow(() -> ApiException.notFound("Usuario no encontrado"));
+        user.setAvatarUrl(null);
+        return me();
+    }
+
     private boolean inactive(Instant lastActivity) {
         if (lastActivity == null) {
             return true;
@@ -508,7 +534,8 @@ public class AuthService {
                 effectiveTenant == null ? null : effectiveTenant.getSlug(),
                 effectiveTenant == null ? null : effectiveTenant.getStatus(),
                 role, roles, permissions, user.isEmailVerified(),
-                signupStatus, onboardingComplete, accessGranted, checkoutPending, summaries
+                signupStatus, onboardingComplete, accessGranted, checkoutPending, summaries,
+                user.getAvatarUrl()
         );
     }
 

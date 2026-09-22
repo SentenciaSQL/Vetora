@@ -118,7 +118,7 @@ public class AdminService {
         tenant.setCity(request.city());
         tenant.setCountry(request.country());
         tenant.setTimezone(StringUtils.hasText(request.timezone()) ? request.timezone() : ClinicSignupService.DEFAULT_TIMEZONE);
-        tenant.setCurrency(StringUtils.hasText(request.currency()) ? request.currency() : "USD");
+        tenant.setCurrency(StringUtils.hasText(request.currency()) ? request.currency().trim().toUpperCase() : "DOP");
         tenant.setDefaultLocale(StringUtils.hasText(request.locale()) ? request.locale() : "es");
         tenant.setPlan(plan);
         SubscriptionCycle cycle = SubscriptionCycle.parse(request.billingCycle());
