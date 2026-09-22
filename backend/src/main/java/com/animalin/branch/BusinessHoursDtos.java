@@ -66,6 +66,9 @@ public final class BusinessHoursDtos {
     ) {
     }
 
+    public record PublicBranch(Long id, String name, String address, String city) {
+    }
+
     public record AvailabilityStatusResponse(
             boolean open,
             String timezone,

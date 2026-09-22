@@ -175,6 +175,14 @@ public class BusinessHoursService {
     }
 
     @Transactional(readOnly = true)
+    public List<BusinessHoursDtos.PublicBranch> publicBranches(String slug) {
+        Tenant tenant = publicTenant(slug);
+        return branchRepository.findPublicByTenantId(tenant.getId()).stream()
+                .map(row -> new BusinessHoursDtos.PublicBranch(row.getId(), row.getName(), row.getAddress(), row.getCity()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public BusinessHoursDtos.HoursResponse publicHours(String slug, Long branchId) {
         Tenant tenant = publicTenant(slug);
         Branch branch = resolveBranch(tenant.getId(), branchId, true);
