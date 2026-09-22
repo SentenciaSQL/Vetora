@@ -22,6 +22,9 @@ public class Veterinarian extends TenantEntity {
 
     private String specialty;
 
+    @Column(name = "specialty_other", length = 160)
+    private String specialtyOther;
+
     @Column(name = "license_number")
     private String licenseNumber;
 
@@ -50,6 +53,12 @@ public class Veterinarian extends TenantEntity {
     }
     public void setSpecialty(String specialty) {
         this.specialty = specialty;
+    }
+    public String getSpecialtyOther() {
+        return specialtyOther;
+    }
+    public void setSpecialtyOther(String specialtyOther) {
+        this.specialtyOther = specialtyOther;
     }
     public String getLicenseNumber() {
         return licenseNumber;

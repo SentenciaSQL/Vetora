@@ -16,6 +16,34 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
             """)
     Optional<TenantMembership> findByTenantIdAndUserIdAndStatus(Long tenantId, Long userId, String status);
     boolean existsByTenantIdAndUserId(Long tenantId, Long userId);
+
+    @Query("""
+            select m from TenantMembership m
+            join fetch m.user
+            join fetch m.role
+            join fetch m.tenant
+            where m.tenant.id = :tenantId and m.user.id = :userId
+            """)
+    Optional<TenantMembership> findByTenantIdAndUserId(Long tenantId, Long userId);
+
+    @Query("""
+            select m from TenantMembership m
+            join fetch m.user
+            join fetch m.role
+            join fetch m.tenant
+            where m.id = :id and m.tenant.id = :tenantId
+            """)
+    Optional<TenantMembership> findDetailedByIdAndTenantId(Long id, Long tenantId);
+
+    @Query("""
+            select m from TenantMembership m
+            join fetch m.tenant
+            join fetch m.role
+            join fetch m.user
+            where m.user.id = :userId
+            order by m.id desc
+            """)
+    List<TenantMembership> findDetailedByUserId(Long userId);
     long countByTenantIdAndStatus(Long tenantId, String status);
     @Query("""
             select m from TenantMembership m

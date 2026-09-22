@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface BranchRepository extends JpaRepository<Branch, Long> {
     Page<Branch> findByTenantId(Long tenantId, Pageable pageable);
+    List<Branch> findAllByTenantId(Long tenantId);
     List<Branch> findByTenantIdAndActiveTrue(Long tenantId);
     Optional<Branch> findByIdAndTenantId(Long id, Long tenantId);
     long countByTenantId(Long tenantId);

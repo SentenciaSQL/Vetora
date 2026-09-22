@@ -123,7 +123,10 @@ public final class SignupDtos {
             @Email @NotBlank String email,
             @NotBlank String role,
             @Size(max = 80) String firstName,
-            @Size(max = 120) String lastName
+            @Size(max = 120) String lastName,
+            String specialtyCode,
+            String specialtyOther,
+            Long branchId
     ) {
     }
 
@@ -135,7 +138,10 @@ public final class SignupDtos {
             Instant expiresAt,
             Instant createdAt,
             String firstName,
-            String lastName
+            String lastName,
+            String specialtyCode,
+            String specialtyOther,
+            Long branchId
     ) {
     }
 

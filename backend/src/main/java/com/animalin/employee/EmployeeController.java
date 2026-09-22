@@ -46,12 +46,14 @@ public class EmployeeController {
     private final PlanLimitService planLimitService;
     private final StaffInviteService staffInviteService;
     private final AuthService authService;
+    private final TeamMemberService teamMemberService;
 
     public EmployeeController(EmployeeRepository employeeRepository, UserRepository userRepository,
                               RoleRepository roleRepository, TenantRepository tenantRepository,
                               TenantMembershipRepository membershipRepository, PasswordEncoder passwordEncoder,
                               AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService,
-                              StaffInviteService staffInviteService, AuthService authService) {
+                              StaffInviteService staffInviteService, AuthService authService,
+                              TeamMemberService teamMemberService) {
         this.employeeRepository = employeeRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -63,6 +65,7 @@ public class EmployeeController {
         this.planLimitService = planLimitService;
         this.staffInviteService = staffInviteService;
         this.authService = authService;
+        this.teamMemberService = teamMemberService;
     }
 
     @GetMapping("/invites")
@@ -82,6 +85,35 @@ public class EmployeeController {
     public void cancelInvite(@PathVariable Long id) {
         authService.requireActiveSession();
         staffInviteService.cancel(id);
+    }
+
+    @PostMapping("/invites/{id}/resend")
+    public SignupDtos.InviteResponse resendInvite(@PathVariable Long id) {
+        authService.requireActiveSession();
+        return staffInviteService.resend(id);
+    }
+
+    @GetMapping("/members")
+    public List<Map<String, Object>> members() {
+        return teamMemberService.list();
+    }
+
+    @GetMapping("/members/{id}")
+    public Map<String, Object> member(@PathVariable Long id) {
+        return teamMemberService.get(id);
+    }
+
+    @PostMapping("/members")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> addMember(@RequestBody TeamMemberService.MemberRequest request) {
+        authService.requireActiveSession();
+        return teamMemberService.add(request);
+    }
+
+    @PutMapping("/members/{id}")
+    public Map<String, Object> updateMember(@PathVariable Long id, @RequestBody TeamMemberService.MemberRequest request) {
+        authService.requireActiveSession();
+        return teamMemberService.update(id, request);
     }
 
     @GetMapping

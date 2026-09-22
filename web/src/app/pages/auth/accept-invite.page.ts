@@ -17,10 +17,18 @@ import { InvitePreview } from '../../core/models';
           <p class="mt-4 text-sm text-rose-600">{{ 'signup.inviteInvalid' | translate }}</p>
         } @else {
           <form class="mt-6 space-y-3" [formGroup]="form" (ngSubmit)="submit()">
-            <input class="input" formControlName="firstName" [placeholder]="'auth.firstName' | translate" />
-            <input class="input" formControlName="lastName" [placeholder]="'auth.lastName' | translate" />
-            <input class="input" type="password" formControlName="password" [placeholder]="'auth.password' | translate" />
-            <input class="input" type="password" formControlName="confirmPassword" [placeholder]="'signup.confirmPassword' | translate" />
+            <label class="block text-sm font-medium">{{ 'auth.firstName' | translate }}
+              <input class="input mt-1" formControlName="firstName" [placeholder]="'team.firstNamePlaceholder' | translate" />
+            </label>
+            <label class="block text-sm font-medium">{{ 'auth.lastName' | translate }}
+              <input class="input mt-1" formControlName="lastName" [placeholder]="'team.lastNamePlaceholder' | translate" />
+            </label>
+            <label class="block text-sm font-medium">{{ 'auth.password' | translate }}
+              <input class="input mt-1" type="password" formControlName="password" />
+            </label>
+            <label class="block text-sm font-medium">{{ 'signup.confirmPassword' | translate }}
+              <input class="input mt-1" type="password" formControlName="confirmPassword" />
+            </label>
             @if (error()) { <p class="text-sm text-rose-600">{{ error() }}</p> }
             <button class="btn-primary w-full" [disabled]="busy()">{{ 'signup.acceptInvite' | translate }}</button>
           </form>
