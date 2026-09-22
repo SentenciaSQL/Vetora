@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Lunaveta", "tagline": "Multi-tenant veterinary platform" },
+  "app": { "name": "Lunaveta", "tagline": "Veterinary platform" },
   "common": {
     "search": "Search",
     "save": "Save",
