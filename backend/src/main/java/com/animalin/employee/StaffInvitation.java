@@ -49,6 +49,15 @@ public class StaffInvitation {
     @Column(name = "role_code", nullable = false, length = 40)
     private String roleCode;
 
+    @Column(name = "specialty_code", length = 40)
+    private String specialtyCode;
+
+    @Column(name = "specialty_other", length = 160)
+    private String specialtyOther;
+
+    @Column(name = "branch_id")
+    private Long branchId;
+
     @Column(name = "token_hash", nullable = false, unique = true, length = 128)
     private String tokenHash;
 
@@ -123,6 +132,24 @@ public class StaffInvitation {
     }
     public void setRoleCode(String roleCode) {
         this.roleCode = roleCode;
+    }
+    public String getSpecialtyCode() {
+        return specialtyCode;
+    }
+    public void setSpecialtyCode(String specialtyCode) {
+        this.specialtyCode = specialtyCode;
+    }
+    public String getSpecialtyOther() {
+        return specialtyOther;
+    }
+    public void setSpecialtyOther(String specialtyOther) {
+        this.specialtyOther = specialtyOther;
+    }
+    public Long getBranchId() {
+        return branchId;
+    }
+    public void setBranchId(Long branchId) {
+        this.branchId = branchId;
     }
     public String getTokenHash() {
         return tokenHash;

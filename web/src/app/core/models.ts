@@ -270,6 +270,53 @@ export interface StaffInvite {
   createdAt?: string;
   firstName?: string;
   lastName?: string;
+  specialtyCode?: string | null;
+  specialtyOther?: string | null;
+  branchId?: number | null;
+}
+
+export interface TeamMember {
+  membershipId: number;
+  userId: number;
+  employeeId?: number | null;
+  veterinarianId?: number | null;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  role: string;
+  status: string;
+  branchId?: number | null;
+  branchName?: string | null;
+  specialtyCode?: string | null;
+  specialty?: string | null;
+  specialtyOther?: string | null;
+  owner?: boolean;
+}
+
+export interface UserMembershipSummary {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  role: string;
+  status: string;
+  branchId?: number | null;
+}
+
+export interface PlatformUser {
+  id: number;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  enabled: boolean;
+  status: string;
+  locale?: string;
+  emailVerified?: boolean;
+  roles: string[];
+  memberships: UserMembershipSummary[];
 }
 
 export interface InvitePreview {

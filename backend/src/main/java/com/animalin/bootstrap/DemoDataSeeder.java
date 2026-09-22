@@ -156,7 +156,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         Branch branchA = branch(sanMartin, "San Martín Centro", "Calle de Alcalá 120", "Madrid");
         Branch branchB = branch(huellitas, "Huellitas Colón", "Avenida de Aragón 18", "Valencia");
 
-        Veterinarian vet = veterinarian(sanMartin, vetA, branchA, "Medicina interna");
+        Veterinarian vet = veterinarian(sanMartin, vetA, branchA, "INTERNAL_MEDICINE");
         Owner juan = owner(sanMartin, ownerA, "Juan", "Pérez", "600111222", "juan.owner@animalin.app");
         Owner ana = owner(huellitas, ownerB, "Ana", "Gil", "600555666", "walt.e@example.net");
         Owner diegoA = owner(sanMartin, ownerBoth, "Diego", "Sanchez", "600333478", "xavier.z@example.org");

@@ -30,15 +30,18 @@ public class AdminController {
     private final AdminDashboardService adminDashboardService;
     private final PlanCatalogService planCatalogService;
     private final AuthService authService;
+    private final AdminUserService adminUserService;
 
     public AdminController(AdminService adminService,
                            AdminDashboardService adminDashboardService,
                            PlanCatalogService planCatalogService,
-                           AuthService authService) {
+                           AuthService authService,
+                           AdminUserService adminUserService) {
         this.adminService = adminService;
         this.adminDashboardService = adminDashboardService;
         this.planCatalogService = planCatalogService;
         this.authService = authService;
+        this.adminUserService = adminUserService;
     }
 
     @GetMapping("/metrics")
@@ -152,7 +155,33 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    public List<Map<String, Object>> users() {
-        return adminService.users();
+    public List<Map<String, Object>> users(@RequestParam(required = false) String q,
+                                           @RequestParam(required = false) String role) {
+        return adminUserService.list(q, role);
+    }
+
+    @GetMapping("/users/{id}")
+    public Map<String, Object> user(@PathVariable Long id) {
+        return adminUserService.get(id);
+    }
+
+    @PostMapping("/users")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> createUser(@RequestBody AdminUserService.UserWriteRequest request) {
+        authService.requireActiveSession();
+        return adminUserService.create(request);
+    }
+
+    @PutMapping("/users/{id}")
+    public Map<String, Object> updateUser(@PathVariable Long id, @RequestBody AdminUserService.UserWriteRequest request) {
+        authService.requireActiveSession();
+        return adminUserService.update(id, request);
+    }
+
+    @PostMapping("/users/{id}/status")
+    public Map<String, Object> userStatus(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        authService.requireActiveSession();
+        boolean enabled = body.get("enabled") == null || Boolean.TRUE.equals(body.get("enabled"));
+        return adminUserService.setEnabled(id, enabled);
     }
 }

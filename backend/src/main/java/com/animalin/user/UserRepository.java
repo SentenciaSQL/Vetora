@@ -24,6 +24,24 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """)
     Optional<User> findByIdWithRoles(Long id);
     long countByDeletedFalse();
+
+    @Query("""
+            select distinct u from User u
+            left join fetch u.roles
+            where u.deleted = false
+            order by u.firstName asc, u.lastName asc
+            """)
+    java.util.List<User> findAllWithRoles();
+
+    @Query("""
+            select count(u) from User u
+            join u.roles r
+            where r.code = 'SUPER_ADMIN'
+              and u.enabled = true
+              and u.deleted = false
+              and u.id <> :userId
+            """)
+    long countOtherEnabledSuperAdmins(Long userId);
     long countByCreatedAtGreaterThanEqualAndCreatedAtLessThanAndDeletedFalse(Instant from, Instant to);
     long countByLastLoginAtGreaterThanEqualAndLastLoginAtLessThanAndDeletedFalse(Instant from, Instant to);
 }
