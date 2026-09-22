@@ -691,6 +691,9 @@
       "SURGERY": "Cirugía",
       "GROOMING": "Peluquería",
       "HOSPITALIZATION": "Hospitalización",
+      "PREVENTION": "Prevención",
+      "AESTHETICS": "Estética",
+      "LABORATORY": "Laboratorio",
       "OTHER": "Otro"
     }
   },
