@@ -7,15 +7,19 @@ import { ThemeService } from '../../core/services/theme.service';
   standalone: true,
   template: `
     <div class="flex min-w-0 items-center gap-3" [class.justify-center]="centered()">
-      @if (logo()) {
-        <img [src]="logo()!" [alt]="branding.displayName()" class="h-9 w-9 rounded-xl object-cover" (error)="failed.set(true)" />
-      } @else {
+      @if (square()) {
+        <img [src]="square()!" [alt]="wordmark() ? '' : branding.displayName()" class="h-9 w-9 shrink-0 rounded-xl object-contain" (error)="squareFailed.set(square())" />
+      } @else if (!wordmark()) {
         <span class="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-brand-700" aria-hidden="true">
           <img src="/assets/branding/logo.png" alt="" class="h-9 w-9 object-cover" />
         </span>
       }
       @if (showName()) {
-        <span class="truncate font-display text-base font-semibold">{{ branding.displayName() }}</span>
+        @if (wordmark()) {
+          <img [src]="wordmark()!" [alt]="branding.displayName()" class="h-8 max-w-[9rem] object-contain object-left" (error)="wordmarkFailed.set(wordmark())" />
+        } @else {
+          <span class="truncate font-display text-base font-semibold">{{ branding.displayName() }}</span>
+        }
       }
     </div>
   `
@@ -25,13 +29,31 @@ export class BrandMarkComponent {
   private theme = inject(ThemeService);
   showName = input(true);
   centered = input(false);
-  failed = signal(false);
+  preferDark = input(false);
+  squareFailed = signal<string | null>(null);
+  wordmarkFailed = signal<string | null>(null);
 
-  logo = computed(() => {
-    if (this.failed()) {
+  private useDark = computed(() => this.preferDark() || this.theme.dark());
+
+  wordmark = computed(() => {
+    if (!this.showName()) {
       return null;
     }
-    const dark = this.theme.mode() === 'dark' || document.documentElement.classList.contains('dark');
-    return this.branding.logoUrl(dark);
+    const src = this.branding.wordmarkUrl(this.useDark());
+    if (!src || this.wordmarkFailed() === src) {
+      return null;
+    }
+    return src;
+  });
+
+  square = computed(() => {
+    const icon = this.branding.branding()?.iconUrl || null;
+    const word = this.branding.wordmarkUrl(this.useDark());
+    const showingWord = !!this.wordmark();
+    const src = showingWord ? icon : (icon || word || '/assets/branding/logo.png');
+    if (!src || this.squareFailed() === src) {
+      return null;
+    }
+    return src;
   });
 }

@@ -16,7 +16,8 @@ const MAX_BYTES = 5 * 1024 * 1024;
            [class.border-brand-500]="dragging()"
            (dragover)="onDrag($event, true)" (dragleave)="onDrag($event, false)" (drop)="onDrop($event)">
         @if (src()) {
-          <img [src]="src()!" [alt]="label()" class="mb-3 h-24 w-24 rounded-xl border border-slate-200 object-contain bg-white dark:border-slate-700" />
+          <img [src]="src()!" [alt]="label()" class="mb-3 h-24 w-24 rounded-xl border border-slate-200 object-contain dark:border-slate-700"
+               [class.bg-white]="!previewDark()" [class.bg-slate-900]="previewDark()" />
         }
         <p class="text-sm text-slate-600 dark:text-slate-300">{{ 'uploads.drop' | translate }}</p>
         <p class="my-1 text-xs text-slate-400">{{ 'uploads.or' | translate }}</p>
@@ -41,6 +42,7 @@ export class ImageUploadComponent {
   label = input('');
   hint = input('');
   src = input<string | null | undefined>(null);
+  previewDark = input(false);
   disabled = input(false);
   selected = output<File>();
   cleared = output<void>();

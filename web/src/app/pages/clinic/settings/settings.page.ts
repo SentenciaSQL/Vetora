@@ -1,8 +1,8 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
-import { forkJoin, Observable, of } from 'rxjs';
-import { switchMap } from 'rxjs/operators';
+import { concat, forkJoin, Observable, of } from 'rxjs';
+import { last, switchMap } from 'rxjs/operators';
 import { ApiService } from '../../../core/services/api.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { BrandingService } from '../../../core/services/branding.service';
@@ -88,9 +88,9 @@ interface LogoStage {
         </div>
         @if (auth.hasPermission('BRANDING_UPDATE')) {
           <div class="grid gap-4 lg:grid-cols-3">
-            <app-image-upload [label]="'settings.logo' | translate" [src]="imageUrl('light')" (selected)="stage('light', $event)" (cleared)="clearImage('light')" />
-            <app-image-upload [label]="'settings.logoDark' | translate" [src]="imageUrl('dark')" (selected)="stage('dark', $event)" (cleared)="clearImage('dark')" />
-            <app-image-upload [label]="'settings.icon' | translate" [src]="imageUrl('icon')" (selected)="stage('icon', $event)" (cleared)="clearImage('icon')" />
+            <app-image-upload [label]="'settings.logo' | translate" [hint]="'settings.logoHint' | translate" [src]="imageUrl('light')" (selected)="stage('light', $event)" (cleared)="clearImage('light')" />
+            <app-image-upload [label]="'settings.logoDark' | translate" [hint]="'settings.logoDarkHint' | translate" [previewDark]="true" [src]="imageUrl('dark')" (selected)="stage('dark', $event)" (cleared)="clearImage('dark')" />
+            <app-image-upload [label]="'settings.icon' | translate" [hint]="'settings.iconHint' | translate" [src]="imageUrl('icon')" (selected)="stage('icon', $event)" (cleared)="clearImage('icon')" />
           </div>
         }
       </section>
@@ -308,9 +308,12 @@ export class SettingsPage implements OnInit {
       }
     }
     if (!tasks.length) {
-      return of(this.brand());
+      return this.api.get<Branding>('/settings/branding');
     }
-    return forkJoin(tasks).pipe(switchMap(results => of(results[results.length - 1])));
+    return concat(...tasks).pipe(
+      last(),
+      switchMap(() => this.api.get<Branding>('/settings/branding'))
+    );
   }
 
   private ensureCurrency(value?: string | null): void {

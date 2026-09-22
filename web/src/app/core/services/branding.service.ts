@@ -35,14 +35,18 @@ export class BrandingService {
     return brand?.commercialName || brand?.name || 'Lunaveta';
   }
 
-  logoUrl(dark: boolean): string | null {
+  wordmarkUrl(dark: boolean): string | null {
     const brand = this.branding();
     if (!brand) {
-      return '/assets/branding/logo.png';
+      return null;
     }
     if (dark && brand.darkLogoUrl) {
       return brand.darkLogoUrl;
     }
-    return brand.logoUrl || brand.iconUrl || '/assets/branding/logo.png';
+    return brand.logoUrl || null;
+  }
+
+  logoUrl(dark: boolean): string | null {
+    return this.wordmarkUrl(dark) || this.branding()?.iconUrl || '/assets/branding/logo.png';
   }
 }

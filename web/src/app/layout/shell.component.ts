@@ -69,6 +69,7 @@ interface NavItem {
       <div class="flex min-w-0 flex-1 flex-col">
         <header class="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200/80 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-slate-900/80">
           <button type="button" class="rounded-xl p-2 lg:hidden" (click)="mobileOpen.set(!mobileOpen())" aria-label="Menu">☰</button>
+          <div class="lg:hidden"><app-brand-mark [showName]="false" /></div>
           <div class="relative min-w-0 flex-1">
             <label class="sr-only" for="global-search">{{ 'common.search' | translate }}</label>
             <input id="global-search" class="input" [(ngModel)]="query" (ngModelChange)="onQuery($event)"

@@ -148,16 +148,17 @@ public class BrandingService {
     public AppDtos.BrandingResponse uploadLogo(MultipartFile file, String variant) {
         accessGuard.requirePermission("BRANDING_UPDATE");
         storageService.requireImage(file);
-        Tenant tenant = tenantRepository.findById(accessGuard.requireStaffTenant())
+        Tenant tenant = tenantRepository.findByIdForUpdate(accessGuard.requireStaffTenant())
                 .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         StoredFile stored = storageService.store(file, "BRANDING", "TENANT", tenant.getId(), true,
                 "tenants/" + tenant.getId() + "/branding");
         String url = storageService.publicUrl(stored);
         String previous;
-        if ("dark".equals(variant)) {
+        String normalized = normalizeVariant(variant);
+        if ("dark".equals(normalized)) {
             previous = tenant.getDarkLogoUrl();
             tenant.setDarkLogoUrl(url);
-        } else if ("icon".equals(variant)) {
+        } else if ("icon".equals(normalized)) {
             previous = tenant.getIconUrl();
             tenant.setIconUrl(url);
         } else {
@@ -171,13 +172,14 @@ public class BrandingService {
     @Transactional
     public AppDtos.BrandingResponse deleteLogo(String variant) {
         accessGuard.requirePermission("BRANDING_UPDATE");
-        Tenant tenant = tenantRepository.findById(accessGuard.requireStaffTenant())
+        Tenant tenant = tenantRepository.findByIdForUpdate(accessGuard.requireStaffTenant())
                 .orElseThrow(() -> ApiException.notFound("Veterinaria no encontrada"));
         String previous;
-        if ("dark".equals(variant)) {
+        String normalized = normalizeVariant(variant);
+        if ("dark".equals(normalized)) {
             previous = tenant.getDarkLogoUrl();
             tenant.setDarkLogoUrl(null);
-        } else if ("icon".equals(variant)) {
+        } else if ("icon".equals(normalized)) {
             previous = tenant.getIconUrl();
             tenant.setIconUrl(null);
         } else {
@@ -186,6 +188,14 @@ public class BrandingService {
         }
         auditService.recordChange("BRANDING", "TENANT", tenant.getId(), "logo:" + variant, previous, null);
         return toDto(tenant);
+    }
+
+    private String normalizeVariant(String value) {
+        String variant = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        if (variant.equals("dark") || variant.equals("icon") || variant.equals("light")) {
+            return variant;
+        }
+        return "light";
     }
 
     private String normalizeCurrency(String value) {
