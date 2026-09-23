@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Lunaveta", "tagline": "Veterinary platform" },
+  "app": { "name": "Lunaveta", "tagline": "Veterinary platform", "developedBy": "Developed by" },
   "common": {
     "search": "Search",
     "save": "Save",
