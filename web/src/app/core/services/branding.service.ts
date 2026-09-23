@@ -14,15 +14,15 @@ export class BrandingService {
       this.branding.set({
         name: 'Lunaveta',
         commercialName: 'Lunaveta',
-        logoUrl: '/assets/branding/logo.png',
-        iconUrl: '/assets/branding/logo.png',
+        logoUrl: '/assets/branding/logo.svg',
+        iconUrl: '/assets/branding/logo.svg',
         primaryLanguage: 'es'
       });
       return;
     }
     this.api.get<Branding>('/settings/branding').subscribe({
       next: value => this.branding.set(value),
-      error: () => this.branding.set({ name: 'Lunaveta', commercialName: 'Lunaveta', logoUrl: '/assets/branding/logo.png' })
+      error: () => this.branding.set({ name: 'Lunaveta', commercialName: 'Lunaveta', logoUrl: '/assets/branding/logo.svg' })
     });
   }
 
@@ -47,6 +47,6 @@ export class BrandingService {
   }
 
   logoUrl(dark: boolean): string | null {
-    return this.wordmarkUrl(dark) || this.branding()?.iconUrl || '/assets/branding/logo.png';
+    return this.wordmarkUrl(dark) || this.branding()?.iconUrl || '/assets/branding/logo.svg';
   }
 }
