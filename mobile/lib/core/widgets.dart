@@ -112,8 +112,12 @@ class RemoteCircleAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = (url ?? '').trim();
-    final fallback = fallbackText != null && fallbackText!.isNotEmpty
-        ? Text(fallbackText!.substring(0, 1).toUpperCase())
+    final rawFallback = (fallbackText ?? '').trim();
+    final shown = rawFallback.isEmpty
+        ? ''
+        : (rawFallback.length <= 2 ? rawFallback.toUpperCase() : rawFallback.substring(0, 1).toUpperCase());
+    final fallback = shown.isNotEmpty
+        ? Text(shown)
         : Icon(fallbackIcon ?? Icons.local_hospital_outlined);
     if (imageUrl.isEmpty) {
       return CircleAvatar(radius: radius, child: fallback);

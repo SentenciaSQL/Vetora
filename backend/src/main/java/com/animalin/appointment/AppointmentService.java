@@ -176,6 +176,10 @@ public class AppointmentService {
                 : accessGuard.requireStaffTenant();
         Veterinarian vet = veterinarianRepository.findByIdAndTenantId(veterinarianId, tenantId)
                 .orElseThrow(() -> ApiException.notFound("Veterinario no encontrado"));
+        if (branchId != null) {
+            businessHoursService.requireBranchForAppointments(tenantId, branchId);
+            requireBookable(tenantId, vet.getId(), branchId);
+        }
         int duration = settingsRepository.findByTenantId(tenantId).map(TenantSettings::getDefaultAppointmentMin).orElse(30);
         if (serviceId != null) {
             duration = clinicServiceRepository.findByIdAndTenantId(serviceId, tenantId).map(ClinicService::getDurationMin).orElse(duration);
@@ -248,26 +252,36 @@ public class AppointmentService {
             }
         }
         Instant end = request.startAt().plusSeconds(duration * 60L);
-        Branch branch = businessHoursService.requireBranchForAppointments(tenantId, request.branchId() != null
-                ? request.branchId() : appointment.getBranchId());
-        if (branch != null) {
-            businessHoursService.assertWithinHours(branch, request.startAt(), end);
-        }
+        Long branchId = request.branchId() != null ? request.branchId() : appointment.getBranchId();
+        Branch branch = businessHoursService.requireBranchForAppointments(tenantId, branchId);
         if (request.veterinarianId() != null) {
+            if (branchId == null) {
+                throw ApiException.badRequest("La sucursal es obligatoria para asignar un veterinario");
+            }
             Veterinarian vet = veterinarianRepository.findByIdAndTenantId(request.veterinarianId(), tenantId)
                     .orElseThrow(() -> ApiException.notFound("Veterinario no encontrado"));
+            requireBookable(tenantId, vet.getId(), branchId);
             appointment.setVeterinarian(vet);
             long overlaps = appointmentRepository.countOverlaps(tenantId, vet.getId(), request.startAt(), end, ignoreId);
             if (overlaps > 0) {
                 throw ApiException.conflict("El veterinario ya tiene una cita en ese horario");
             }
         }
+        if (branch != null) {
+            businessHoursService.assertWithinHours(branch, request.startAt(), end);
+        }
         appointment.setStartAt(request.startAt());
         appointment.setEndAt(end);
         appointment.setDurationMin(duration);
-        appointment.setBranchId(request.branchId());
+        appointment.setBranchId(branchId);
         appointment.setReason(request.reason());
         appointment.setNotes(request.notes());
+    }
+
+    private void requireBookable(Long tenantId, Long veterinarianId, Long branchId) {
+        if (veterinarianRepository.findBookableByTenantBranchAndId(tenantId, branchId, veterinarianId).isEmpty()) {
+            throw ApiException.badRequest("El veterinario no está asignado a esta sucursal");
+        }
     }
 
     private Appointment requireAppointment(Long id) {
@@ -308,19 +322,22 @@ public class AppointmentService {
             serviceName = "en".equalsIgnoreCase(TenantContext.get().locale())
                     ? appointment.getService().getNameEn() : appointment.getService().getNameEs();
         }
+        Veterinarian veterinarian = appointment.getVeterinarian();
         return new AppDtos.AppointmentResponse(
                 appointment.getId(),
                 appointment.getPet().getId(), appointment.getPet().getName(),
                 appointment.getOwner().getId(), appointment.getOwner().fullName(),
-                appointment.getVeterinarian() == null ? null : appointment.getVeterinarian().getId(),
-                appointment.getVeterinarian() == null ? null : appointment.getVeterinarian().getUser().fullName(),
+                veterinarian == null ? null : veterinarian.getId(),
+                veterinarian == null ? null : veterinarian.getUser().fullName(),
                 appointment.getService() == null ? null : appointment.getService().getId(),
                 serviceName,
                 appointment.getBranchId(), appointment.getStartAt(), appointment.getEndAt(),
                 appointment.getDurationMin(), appointment.getReason(), appointment.getNotes(),
                 appointment.getStatus(), appointment.getTenantId(),
                 tenant == null ? null : tenant.getName(),
-                tenant == null ? null : tenant.getLogoUrl()
+                tenant == null ? null : tenant.getLogoUrl(),
+                veterinarian == null ? null : veterinarian.getSpecialty(),
+                veterinarian == null ? null : veterinarian.getSpecialtyOther()
         );
     }
 }
