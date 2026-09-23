@@ -307,6 +307,7 @@ public class AdminUserService {
         row.put("emailVerified", user.isEmailVerified());
         row.put("roles", user.getRoles().stream().map(Role::getCode).sorted().toList());
         row.put("memberships", memberships.stream().map(this::membership).toList());
+        row.put("avatarUrl", user.getAvatarUrl());
         return row;
     }
 

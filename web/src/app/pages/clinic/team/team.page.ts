@@ -11,10 +11,11 @@ import { BillingService } from '../../../core/services/billing.service';
 import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 import { SignupService } from '../../../core/services/signup.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { UserAvatarComponent } from '../../../shared/ui/user-avatar.component';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe, RouterLink, DatePipe],
+  imports: [ReactiveFormsModule, TranslatePipe, RouterLink, DatePipe, UserAvatarComponent],
   template: `
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
@@ -72,9 +73,7 @@ import { ToastService } from '../../../core/services/toast.service';
     <div class="mt-3 space-y-3">
       @for (member of filtered(); track member.membershipId) {
         <article class="card flex items-start gap-4">
-          <div class="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-50 text-sm font-semibold text-brand-800 dark:bg-brand-500/15 dark:text-brand-100">
-            {{ initials(member) }}
-          </div>
+          <app-user-avatar class="h-12 w-12" [url]="member.avatarUrl" [name]="member.fullName" />
           <div class="min-w-0 flex-1">
             <p class="font-semibold">{{ member.fullName }}</p>
             <p class="text-sm text-slate-500">{{ memberLine(member) }}</p>
@@ -228,7 +227,10 @@ import { ToastService } from '../../../core/services/toast.service';
       <div class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" (click)="detail.set(null)">
         <div class="card w-full max-w-lg space-y-2" (click)="$event.stopPropagation()">
           <h2 class="font-display text-lg font-semibold">{{ 'team.memberDetail' | translate }}</h2>
-          <p class="font-medium">{{ member.fullName }}</p>
+          <div class="flex items-center gap-3">
+            <app-user-avatar class="h-12 w-12" [url]="member.avatarUrl" [name]="member.fullName" />
+            <p class="font-medium">{{ member.fullName }}</p>
+          </div>
           <p class="text-sm text-slate-500">{{ member.email }}</p>
           <p class="text-sm">{{ 'team.role' | translate }}: {{ labelRole(member.role) }}</p>
           @if (member.role === 'VETERINARIAN') {
@@ -338,15 +340,6 @@ export class TeamPage implements OnInit {
       return specialty ? `${role} · ${specialty}` : role;
     }
     return role;
-  }
-
-  initials(member: TeamMember): string {
-    return `${member.firstName || ''} ${member.lastName || ''}`
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(part => part.charAt(0).toUpperCase())
-      .join('') || '?';
   }
 
   inviteName(invite: StaffInvite): string {

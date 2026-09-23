@@ -655,6 +655,16 @@
     "password": "La contraseña debe tener al menos 8 caracteres",
     "min": "El valor es demasiado bajo"
   },
+  "countries": {
+    "DO": "República Dominicana",
+    "US": "Estados Unidos",
+    "MX": "México",
+    "ES": "España",
+    "CO": "Colombia",
+    "AR": "Argentina",
+    "CL": "Chile",
+    "PE": "Perú"
+  },
   "branches": {
     "title": "Sucursales",
     "new": "Nueva sucursal",

@@ -295,6 +295,7 @@ export interface TeamMember {
   specialty?: string | null;
   specialtyOther?: string | null;
   owner?: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface UserMembershipSummary {
@@ -319,6 +320,7 @@ export interface PlatformUser {
   emailVerified?: boolean;
   roles: string[];
   memberships: UserMembershipSummary[];
+  avatarUrl?: string | null;
 }
 
 export interface InvitePreview {

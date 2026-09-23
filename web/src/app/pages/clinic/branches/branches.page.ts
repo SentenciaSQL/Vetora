@@ -4,6 +4,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../../core/services/api.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, isCountryCode } from '../../../core/countries';
 
 const TIMEZONES = [
   'America/Santo_Domingo',
@@ -66,7 +67,17 @@ const TIMEZONES = [
           </div>
           <div>
             <label class="block text-sm font-medium" for="branch-country">{{ 'branches.country' | translate }}</label>
-            <input id="branch-country" class="input mt-1" formControlName="country" />
+            <select id="branch-country" class="input mt-1" formControlName="country">
+              @for (code of countryChoices(); track code) {
+                <option [value]="code">
+                  @if (isCountry(code)) {
+                    {{ 'countries.' + code | translate }}
+                  } @else {
+                    {{ code }}
+                  }
+                </option>
+              }
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium" for="branch-phone">{{ 'branches.phone' | translate }}</label>
@@ -110,11 +121,12 @@ export class BranchesPage implements OnInit {
   submitted = false;
   editingId: number | null = null;
   timezones = TIMEZONES;
+  isCountry = isCountryCode;
   form = this.fb.group({
     name: ['', Validators.required],
     address: [''],
     city: [''],
-    country: ['ES'],
+    country: [DEFAULT_COUNTRY_CODE],
     phone: [''],
     email: ['', Validators.email],
     timezone: ['America/Santo_Domingo'],
@@ -129,7 +141,7 @@ export class BranchesPage implements OnInit {
     this.editingId = null;
     this.submitted = false;
     this.form.reset({
-      name: '', address: '', city: '', country: 'ES', phone: '', email: '',
+      name: '', address: '', city: '', country: DEFAULT_COUNTRY_CODE, phone: '', email: '',
       timezone: 'America/Santo_Domingo', active: true
     });
     this.open = true;
@@ -142,13 +154,25 @@ export class BranchesPage implements OnInit {
       name: branch.name || '',
       address: branch.address || '',
       city: branch.city || '',
-      country: branch.country || '',
+      country: (branch.country || '').trim(),
       phone: branch.phone || '',
       email: branch.email || '',
       timezone: branch.timezone || 'America/Santo_Domingo',
       active: branch.active !== false
     });
     this.open = true;
+  }
+
+  countryChoices(): string[] {
+    const current = (this.form.controls.country.value || '').trim();
+    const codes: string[] = [...COUNTRY_CODES];
+    if (!current) {
+      return ['', ...codes];
+    }
+    if (!isCountryCode(current)) {
+      return [current, ...codes];
+    }
+    return codes;
   }
 
   showError(name: 'name' | 'email'): boolean {

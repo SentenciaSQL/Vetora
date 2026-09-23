@@ -241,13 +241,12 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          DropdownButtonFormField<String>(
-            // ignore: deprecated_member_use
+          AppDropdownField<String>(
             value: tenantSlug,
-            decoration: InputDecoration(labelText: i.t('clinic')),
-            items: [
+            label: i.t('clinic'),
+            options: [
               for (final clinic in clinics)
-                DropdownMenuItem(value: clinic['slug'] as String, child: Text('${clinic['commercialName'] ?? clinic['name']}')),
+                LabeledOption(clinic['slug'] as String, '${clinic['commercialName'] ?? clinic['name']}'),
             ],
             onChanged: (value) {
               setState(() => tenantSlug = value);
@@ -258,13 +257,12 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
             Padding(padding: const EdgeInsets.only(top: 12), child: Text(i.t('loading'))),
           if (branches.isNotEmpty) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              // ignore: deprecated_member_use
+            AppDropdownField<int>(
               value: branches.any((branch) => asInt(asMap(branch)['id']) == branchId) ? branchId : null,
-              decoration: InputDecoration(labelText: i.t('branch')),
-              items: [
+              label: i.t('branch'),
+              options: [
                 for (final branch in branches)
-                  DropdownMenuItem(value: asInt(asMap(branch)['id']), child: Text(_branchLabel(branch))),
+                  LabeledOption(asInt(asMap(branch)['id']), _branchLabel(branch)),
               ],
               onChanged: (value) => setState(() => branchId = value),
             ),
@@ -272,11 +270,10 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
           const SizedBox(height: 12),
           TextField(controller: name, decoration: InputDecoration(labelText: i.t('name'))),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            // ignore: deprecated_member_use
+          AppDropdownField<String>(
             value: species,
-            decoration: InputDecoration(labelText: i.t('species')),
-            items: [for (final code in speciesOptions) DropdownMenuItem(value: code, child: Text(i.t('species_$code')))],
+            label: i.t('species'),
+            options: [for (final code in speciesOptions) LabeledOption(code, i.t('species_$code'))],
             onChanged: (value) => setState(() => species = value ?? 'DOG'),
           ),
           const SizedBox(height: 12),
