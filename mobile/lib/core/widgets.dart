@@ -137,6 +137,53 @@ class RemoteCircleAvatar extends StatelessWidget {
   }
 }
 
+class LabeledOption<T> {
+  const LabeledOption(this.value, this.label);
+
+  final T value;
+  final String label;
+}
+
+/// Full-width dropdown whose selected value ellipsizes and whose menu items wrap.
+class AppDropdownField<T> extends StatelessWidget {
+  const AppDropdownField({
+    super.key,
+    required this.value,
+    required this.label,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final T? value;
+  final String label;
+  final List<LabeledOption<T>> options;
+  final ValueChanged<T?>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = options.any((option) => option.value == value) ? value : null;
+    return DropdownButtonFormField<T>(
+      // ignore: deprecated_member_use
+      value: selected,
+      isExpanded: true,
+      itemHeight: null,
+      decoration: InputDecoration(labelText: label),
+      items: [
+        for (final option in options)
+          DropdownMenuItem<T>(
+            value: option.value,
+            child: Text(option.label, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      selectedItemBuilder: (context) => [
+        for (final option in options)
+          Text(option.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
 class CountBadge extends StatelessWidget {
   const CountBadge({super.key, required this.count, this.label});
   final int count;

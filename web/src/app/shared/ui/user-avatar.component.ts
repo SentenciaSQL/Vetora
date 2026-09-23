@@ -1,11 +1,11 @@
-import { Component, input } from '@angular/core';
+import { Component, input, linkedSignal } from '@angular/core';
 
 @Component({
   selector: 'app-user-avatar',
   standalone: true,
   template: `
-    @if (url()) {
-      <img [src]="url()!" [alt]="name() || ''" class="h-full w-full object-cover" />
+    @if (showImage()) {
+      <img [src]="url()!" [alt]="name() || ''" class="h-full w-full object-cover" (error)="failed.set(true)" />
     } @else {
       <span class="text-xs font-semibold tracking-wide">{{ letters() }}</span>
     }
@@ -17,6 +17,14 @@ import { Component, input } from '@angular/core';
 export class UserAvatarComponent {
   url = input<string | null | undefined>(null);
   name = input<string | null | undefined>('');
+  failed = linkedSignal(() => {
+    this.url();
+    return false;
+  });
+
+  showImage(): boolean {
+    return !!this.url() && !this.failed();
+  }
 
   letters(): string {
     const parts = (this.name() || '').trim().split(/\s+/).filter(Boolean);

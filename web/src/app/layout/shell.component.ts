@@ -38,12 +38,18 @@ interface NavItem {
     <div class="flex min-h-screen bg-sand-50 dark:bg-slate-950">
       <aside class="sticky top-0 hidden h-screen shrink-0 flex-col border-r border-slate-200/80 bg-white/90 backdrop-blur dark:border-white/10 dark:bg-slate-900/90 lg:flex"
              [class.w-64]="!collapsed()" [class.w-[4.5rem]]="collapsed()">
-        <div class="flex items-center justify-between px-4 py-5">
-          <app-brand-mark [showName]="!collapsed()" />
-          <button type="button" class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" (click)="collapsed.set(!collapsed())"
-                  [attr.aria-label]="(collapsed() ? 'shell.expand' : 'shell.collapse') | translate">
-            ☰
-          </button>
+        <div class="flex min-w-0 items-center gap-2 px-4 py-5" [class.justify-center]="collapsed()" [class.px-2]="collapsed()">
+          @if (collapsed()) {
+            <button type="button" class="rounded-xl" (click)="collapsed.set(false)" [attr.aria-label]="'shell.expand' | translate">
+              <app-brand-mark [showName]="false" />
+            </button>
+          } @else {
+            <app-brand-mark class="min-w-0 flex-1" [showName]="true" />
+            <button type="button" class="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" (click)="collapsed.set(true)"
+                    [attr.aria-label]="'shell.collapse' | translate">
+              ☰
+            </button>
+          }
         </div>
         <nav class="flex-1 space-y-1 px-3">
           @for (item of visibleNav(); track item.path) {

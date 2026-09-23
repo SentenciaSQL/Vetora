@@ -361,11 +361,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(children: [
-                  DropdownButtonFormField<int>(
-                    decoration: InputDecoration(labelText: i.t('pets')),
-                    items: [
+                  AppDropdownField<int>(
+                    value: petId,
+                    label: i.t('pets'),
+                    options: [
                       for (final p in pets)
-                        DropdownMenuItem(value: asInt(p['id']), child: Text('${p['name']} · ${p['tenantName'] ?? ''}')),
+                        LabeledOption(asInt(p['id']), '${p['name']} · ${p['tenantName'] ?? ''}'),
                     ],
                     onChanged: (v) => petId = v,
                   ),

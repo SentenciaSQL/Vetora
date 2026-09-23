@@ -6,10 +6,11 @@ import { ToastService } from '../../core/services/toast.service';
 import { PlatformUser } from '../../core/models';
 import { PLATFORM_ROLES, VETERINARY_SPECIALTIES, roleLabel, specialtyLabel } from '../../core/team-labels';
 import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
+import { UserAvatarComponent } from '../../shared/ui/user-avatar.component';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe, StatusBadgePipe],
+  imports: [ReactiveFormsModule, TranslatePipe, StatusBadgePipe, UserAvatarComponent],
   template: `
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
@@ -50,7 +51,12 @@ import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
         <tbody>
           @for (u of filtered(); track u.id) {
             <tr class="border-t border-slate-100 dark:border-white/5">
-              <td class="px-4 py-3 font-medium">{{ u.fullName }}</td>
+              <td class="px-4 py-3 font-medium">
+                <span class="inline-flex min-w-0 items-center gap-2">
+                  <app-user-avatar class="h-8 w-8" [url]="u.avatarUrl" [name]="u.fullName" />
+                  <span class="truncate">{{ u.fullName }}</span>
+                </span>
+              </td>
               <td class="px-4 py-3">{{ u.email }}</td>
               <td class="px-4 py-3">{{ rolesOf(u) }}</td>
               <td class="px-4 py-3">{{ clinicsOf(u) }}</td>
@@ -174,7 +180,10 @@ import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
       <div class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" (click)="detail.set(null)">
         <div class="card max-h-[90vh] w-full max-w-lg space-y-3 overflow-y-auto" (click)="$event.stopPropagation()">
           <h2 class="font-display text-lg font-semibold">{{ 'admin.userDetail' | translate }}</h2>
-          <p class="font-medium">{{ user.fullName }}</p>
+          <div class="flex items-center gap-3">
+            <app-user-avatar class="h-12 w-12" [url]="user.avatarUrl" [name]="user.fullName" />
+            <p class="font-medium">{{ user.fullName }}</p>
+          </div>
           <p class="text-sm text-slate-500">{{ user.email }}</p>
           @if (user.phone) { <p class="text-sm">{{ user.phone }}</p> }
           <p class="text-sm">{{ 'admin.accountStatus' | translate }}: {{ (user.enabled ? 'admin.active' : 'admin.inactive') | translate }}</p>

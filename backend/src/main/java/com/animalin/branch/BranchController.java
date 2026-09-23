@@ -4,6 +4,7 @@ import com.animalin.audit.AuditService;
 import com.animalin.plan.PlanLimitService;
 import com.animalin.security.AccessGuard;
 import com.animalin.security.TenantContext;
+import com.animalin.signup.ClinicSignupService;
 import com.animalin.tenant.TenantMembershipRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/v1/branches")
@@ -62,7 +64,7 @@ public class BranchController {
         planLimitService.assertCanAddBranch(tenantId);
         Branch branch = new Branch();
         branch.setTenantId(tenantId);
-        apply(branch, request);
+        apply(branch, request, true);
         if (branch.getTimezone() == null || branch.getTimezone().isBlank()) {
             branch.setTimezone("America/Santo_Domingo");
         }
@@ -80,11 +82,11 @@ public class BranchController {
         if (Boolean.TRUE.equals(request.active()) && !branch.isActive()) {
             planLimitService.assertCanAddBranch(branch.getTenantId());
         }
-        apply(branch, request);
+        apply(branch, request, false);
         return branch;
     }
 
-    private void apply(Branch branch, BranchRequest request) {
+    private void apply(Branch branch, BranchRequest request, boolean creating) {
         if (request.name() == null || request.name().isBlank()) {
             throw com.animalin.common.exception.ApiException.badRequest("El nombre de la sucursal es obligatorio");
         }
@@ -94,7 +96,14 @@ public class BranchController {
         branch.setName(request.name().trim());
         branch.setAddress(request.address());
         branch.setCity(request.city());
-        branch.setCountry(request.country());
+        String country = countryCode(request.country());
+        if (country == null) {
+            if (creating) {
+                branch.setCountry(ClinicSignupService.DEFAULT_COUNTRY);
+            }
+        } else {
+            branch.setCountry(country);
+        }
         branch.setPhone(request.phone());
         branch.setEmail(request.email());
         if (request.timezone() != null) {
@@ -103,6 +112,17 @@ public class BranchController {
         if (request.active() != null) {
             branch.setActive(request.active());
         }
+    }
+
+    private String countryCode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String value = raw.trim();
+        if (value.length() == 2) {
+            return value.toUpperCase(Locale.ROOT);
+        }
+        return value;
     }
 
     public record BranchRequest(String name, String address, String city, String country, String phone, String email,

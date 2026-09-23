@@ -340,6 +340,7 @@ public class TeamMemberService {
         map.put("specialty", storedSpecialty);
         map.put("specialtyOther", vet == null ? null : vet.getSpecialtyOther());
         map.put("owner", RoleCodes.TENANT_OWNER.equals(membership.getRole().getCode()));
+        map.put("avatarUrl", user.getAvatarUrl());
         return map;
     }
 
