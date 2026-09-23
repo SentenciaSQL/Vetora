@@ -3,6 +3,9 @@ package com.animalin.tenant;
 import com.animalin.user.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +48,16 @@ public interface TenantMembershipRepository extends JpaRepository<TenantMembersh
             """)
     List<TenantMembership> findDetailedByUserId(Long userId);
     long countByTenantIdAndStatus(Long tenantId, String status);
+
+    @Query("""
+            select count(m) from TenantMembership m
+            where m.tenant.id = :tenantId
+              and m.status = :status
+              and m.role.code in :roleCodes
+            """)
+    long countByTenantIdAndStatusAndRoleCodeIn(@Param("tenantId") Long tenantId,
+                                                @Param("status") String status,
+                                                @Param("roleCodes") Collection<String> roleCodes);
     @Query("""
             select m from TenantMembership m
             join fetch m.tenant
