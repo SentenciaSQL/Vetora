@@ -194,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
       for (final item in agenda)
         ListTile(
           title: Text('${item['pet']} · ${item['owner']}'),
-          subtitle: Text('${formatDate(item['startAt'])} · ${item['status']}'),
+          subtitle: Text([formatDate(item['startAt']), statusLabel(item['status'])].where((part) => part.isNotEmpty).join(' · ')),
         ),
       const SizedBox(height: 8),
       if (!widget.auth.clinicalLocked &&

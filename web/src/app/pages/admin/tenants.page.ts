@@ -5,10 +5,11 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
 import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
+import { StatusLabelPipe } from '../../shared/ui/status-label.pipe';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, FormsModule, TranslatePipe, StatusBadgePipe],
+  imports: [ReactiveFormsModule, FormsModule, TranslatePipe, StatusBadgePipe, StatusLabelPipe],
   template: `
     <div class="flex items-center justify-between">
       <h1 class="font-display text-2xl font-semibold">{{ 'nav.tenants' | translate }}</h1>
@@ -18,7 +19,7 @@ import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
       <label class="text-sm">{{ 'common.status' | translate }}
         <select class="input mt-1" [(ngModel)]="statusFilter" (ngModelChange)="load()">
           <option value="">{{ 'common.all' | translate }}</option>
-          @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+          @for (s of statuses; track s) { <option [value]="s">{{ s | statusLabel }}</option> }
         </select>
       </label>
     </div>
@@ -45,7 +46,7 @@ import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
                   <option value="PREMIUM">PREMIUM</option>
                 </select>
               </td>
-              <td class="px-4 py-3"><span [class]="t.status | statusBadge">{{ t.status }}</span></td>
+              <td class="px-4 py-3"><span [class]="t.status | statusBadge">{{ t.status | statusLabel }}</span></td>
               <td class="px-4 py-3 text-right">
                 @if (t.status !== 'ACTIVE') {
                   <button class="btn-secondary text-xs" (click)="status(t.id, 'ACTIVE')">{{ 'admin.activate' | translate }}</button>

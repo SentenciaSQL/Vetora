@@ -7,6 +7,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 import { apiErrorMessage } from '../../../core/http-error';
+import { StatusLabelPipe } from '../../../shared/ui/status-label.pipe';
 
 interface Interval {
   open: string;
@@ -70,7 +71,7 @@ const TIMEZONES = [
 @Component({
   selector: 'app-business-hours-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule, TranslatePipe, StatusLabelPipe],
   template: `
     <section class="card mt-6 max-w-3xl space-y-4">
       <div>
@@ -202,7 +203,7 @@ const TIMEZONES = [
           <p class="text-sm text-slate-500">{{ 'hours.affectedBody' | translate }}</p>
           <ul class="max-h-48 space-y-1 overflow-auto text-sm">
             @for (item of affected(); track item.id) {
-              <li>{{ item.startAt | date:'short' }} · {{ item.petName }} · {{ item.status }}</li>
+              <li>{{ item.startAt | date:'short' }} · {{ item.petName }} · {{ item.status | statusLabel }}</li>
             }
           </ul>
           <div class="flex justify-end gap-2">

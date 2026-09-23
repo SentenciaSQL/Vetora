@@ -15,7 +15,7 @@ class StatusView extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget content;
     if (loading) {
-      content = const Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator());
+      content = const Padding(padding: EdgeInsets.all(32), child: AppLoadingIndicator(size: 36));
     } else if (error != null && error!.isNotEmpty) {
       content = Padding(
         padding: const EdgeInsets.all(24),
@@ -41,6 +41,41 @@ class StatusView extends StatelessWidget {
       }
       return content;
     });
+  }
+}
+
+class AppLoadingIndicator extends StatelessWidget {
+  const AppLoadingIndicator({super.key, this.size = 24, this.strokeWidth = 2.5, this.color});
+
+  final double size;
+  final double strokeWidth;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: CircularProgressIndicator(strokeWidth: strokeWidth, color: color),
+    );
+  }
+}
+
+class ButtonLabel extends StatelessWidget {
+  const ButtonLabel({super.key, required this.label, this.loading = false, this.color});
+
+  final String label;
+  final bool loading;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Opacity(opacity: loading ? 0 : 1, child: Text(label)),
+        if (loading) AppLoadingIndicator(size: 20, strokeWidth: 2.2, color: color),
+      ],
+    );
   }
 }
 

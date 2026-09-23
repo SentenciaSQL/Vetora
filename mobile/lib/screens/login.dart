@@ -4,6 +4,7 @@ import '../core/auth.dart';
 import '../core/config.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/widgets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.auth});
@@ -24,6 +25,13 @@ class _LoginScreenState extends State<LoginScreen> {
   bool register = false;
   bool forgot = false;
   bool sent = false;
+  bool _biometricPrompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePromptBiometric());
+  }
 
   I18n get i => I18n.instance;
 
@@ -87,6 +95,25 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _maybePromptBiometric() async {
+    if (!mounted || _biometricPrompted || register || forgot || !widget.auth.biometricUnlockAvailable) return;
+    _biometricPrompted = true;
+    await _biometric();
+  }
+
+  Future<void> _biometric() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    final key = await widget.auth.unlockWithBiometrics();
+    if (!mounted) return;
+    setState(() {
+      loading = false;
+      if (key != null) error = i.t(key);
+    });
+  }
+
   String get _submitLabel {
     if (forgot && token.text.trim().isNotEmpty) return i.t('resetSubmit');
     if (forgot) return i.t('forgot');
@@ -134,8 +161,28 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 20),
             FilledButton(
               onPressed: loading ? null : submit,
-              child: Text(_submitLabel),
+              child: ButtonLabel(label: _submitLabel, loading: loading, color: Theme.of(context).colorScheme.onPrimary),
             ),
+            if (widget.auth.biometricUnlockAvailable && !register && !forgot) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text(i.t('or'))),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: loading ? null : _biometric,
+                icon: const Icon(Icons.fingerprint),
+                label: ButtonLabel(
+                  label: i.t('biometricLogin'),
+                  loading: loading,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
             TextButton(
               onPressed: () => setState(() {
                 forgot = !forgot;
