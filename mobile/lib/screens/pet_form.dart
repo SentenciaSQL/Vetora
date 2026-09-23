@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/widgets.dart';
 
 class PetFormScreen extends StatefulWidget {
   const PetFormScreen({super.key, required this.auth, this.pet, this.ownerId});
@@ -127,25 +128,23 @@ class _PetFormScreenState extends State<PetFormScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          DropdownButtonFormField<int>(
-            // ignore: deprecated_member_use
+          AppDropdownField<int>(
             value: owners.any((owner) => asInt(owner['id']) == selectedOwner) ? selectedOwner : null,
-            decoration: InputDecoration(labelText: i.t('owners')),
-            items: [
+            label: i.t('owners'),
+            options: [
               for (final owner in owners)
-                DropdownMenuItem(value: asInt(owner['id']), child: Text(asString(owner['fullName']))),
+                LabeledOption(asInt(owner['id']), asString(owner['fullName'])),
             ],
             onChanged: widget.pet == null ? (value) => setState(() => selectedOwner = value) : null,
           ),
           if (branches.isNotEmpty) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              // ignore: deprecated_member_use
+            AppDropdownField<int>(
               value: branches.any((branch) => asInt(asMap(branch)['id']) == branchId) ? branchId : null,
-              decoration: InputDecoration(labelText: i.t('branch')),
-              items: [
+              label: i.t('branch'),
+              options: [
                 for (final branch in branches)
-                  DropdownMenuItem(value: asInt(asMap(branch)['id']), child: Text(_branchLabel(branch))),
+                  LabeledOption(asInt(asMap(branch)['id']), _branchLabel(branch)),
               ],
               onChanged: (value) => setState(() => branchId = value),
             ),
@@ -153,24 +152,22 @@ class _PetFormScreenState extends State<PetFormScreen> {
           const SizedBox(height: 12),
           TextField(controller: name, decoration: InputDecoration(labelText: i.t('name'))),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            // ignore: deprecated_member_use
+          AppDropdownField<String>(
             value: species,
-            decoration: InputDecoration(labelText: i.t('species')),
-            items: [
+            label: i.t('species'),
+            options: [
               for (final code in const ['DOG', 'CAT', 'BIRD', 'RABBIT', 'RODENT', 'REPTILE', 'HORSE', 'OTHER'])
-                DropdownMenuItem(value: code, child: Text(i.t('species_$code'))),
+                LabeledOption(code, i.t('species_$code')),
             ],
             onChanged: (value) => setState(() => species = value ?? 'DOG'),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            // ignore: deprecated_member_use
+          AppDropdownField<String>(
             value: sex,
-            decoration: InputDecoration(labelText: i.t('sex')),
-            items: [
+            label: i.t('sex'),
+            options: [
               for (final code in const ['FEMALE', 'MALE', 'UNKNOWN'])
-                DropdownMenuItem(value: code, child: Text(i.t('sex_$code'))),
+                LabeledOption(code, i.t('sex_$code')),
             ],
             onChanged: (value) => setState(() => sex = value ?? 'UNKNOWN'),
           ),

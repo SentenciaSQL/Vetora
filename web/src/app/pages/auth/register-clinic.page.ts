@@ -10,6 +10,7 @@ import { ApiService } from '../../core/services/api.service';
 import { BrandingService } from '../../core/services/branding.service';
 import { ImageUploadComponent } from '../../shared/ui/image-upload.component';
 import { Branding, PublicPlan, SignupConfig } from '../../core/models';
+import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE } from '../../core/countries';
 import { BillingCycle } from '../../core/services/billing.service';
 import {
   cycleAvailable,
@@ -89,8 +90,8 @@ function matchPassword(group: AbstractControl): ValidationErrors | null {
             }
           </div>
           <select class="input" formControlName="country">
-            @for (country of countries; track country.code) {
-              <option [value]="country.code">{{ country.label }}</option>
+            @for (code of countries; track code) {
+              <option [value]="code">{{ 'countries.' + code | translate }}</option>
             }
           </select>
           <select class="input" formControlName="timezone">
@@ -211,16 +212,7 @@ export class RegisterClinicPage implements OnInit {
   readonly isPopularPlan = isPopularPlan;
   readonly showsFreeTrial = showsFreeTrial;
 
-  countries = [
-    { code: 'DO', label: 'República Dominicana' },
-    { code: 'US', label: 'Estados Unidos' },
-    { code: 'MX', label: 'México' },
-    { code: 'ES', label: 'España' },
-    { code: 'CO', label: 'Colombia' },
-    { code: 'AR', label: 'Argentina' },
-    { code: 'CL', label: 'Chile' },
-    { code: 'PE', label: 'Perú' }
-  ];
+  countries = COUNTRY_CODES;
   timezones = ['America/Santo_Domingo', 'America/New_York', 'America/Mexico_City', 'America/Bogota', 'Europe/Madrid'];
 
   account = this.fb.group({
@@ -236,7 +228,7 @@ export class RegisterClinicPage implements OnInit {
   clinic = this.fb.group({
     name: ['', Validators.required],
     slug: ['', [Validators.required, Validators.pattern(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)]],
-    country: ['DO', Validators.required],
+    country: [DEFAULT_COUNTRY_CODE as string, Validators.required],
     timezone: ['America/Santo_Domingo', Validators.required],
     phone: [''],
     address: ['']
@@ -246,7 +238,7 @@ export class RegisterClinicPage implements OnInit {
     this.signup.config().subscribe(config => {
       this.config.set(config);
       this.clinic.patchValue({
-        country: config.defaultCountry || 'DO',
+        country: config.defaultCountry || DEFAULT_COUNTRY_CODE,
         timezone: config.defaultTimezone || 'America/Santo_Domingo'
       });
       void this.paddle.ensure({

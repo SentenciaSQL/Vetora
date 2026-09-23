@@ -655,6 +655,16 @@
     "password": "The password must be at least 8 characters",
     "min": "The value is too low"
   },
+  "countries": {
+    "DO": "Dominican Republic",
+    "US": "United States",
+    "MX": "Mexico",
+    "ES": "Spain",
+    "CO": "Colombia",
+    "AR": "Argentina",
+    "CL": "Chile",
+    "PE": "Peru"
+  },
   "branches": {
     "title": "Branches",
     "new": "New branch",
