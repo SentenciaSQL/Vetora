@@ -148,6 +148,8 @@ export interface Appointment {
   tenantId?: number;
   tenantName?: string;
   tenantLogoUrl?: string;
+  veterinarianSpecialty?: string | null;
+  veterinarianSpecialtyOther?: string | null;
 }
 
 export interface TimelineEvent {
@@ -163,7 +165,7 @@ export interface TimelineEvent {
 export interface SearchResult {
   pets: { id: number; name: string; species: string; owner: string }[];
   owners: { id: number; name: string; email: string; phone: string }[];
-  veterinarians: { id: number; name: string; specialty: string }[];
+  veterinarians: { id: number; name: string; specialty: string; specialtyOther?: string }[];
 }
 
 export interface PlanLimits {

@@ -2,7 +2,8 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { specialtyLabel } from '../../../core/team-labels';
 import { ApiService } from '../../../core/services/api.service';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
@@ -247,7 +248,7 @@ import { ToastService } from '../../../core/services/toast.service';
         <div class="mt-4 space-y-2">
           @for (a of appointments(); track a.id) {
             <div class="card flex items-center justify-between">
-              <p>{{ a.startAt | date:'short' }} · {{ a.serviceName }} · {{ a.veterinarianName }}</p>
+              <p>{{ a.startAt | date:'short' }} · {{ a.serviceName }} · {{ a.veterinarianName }}@if (appointmentSpecialty(a)) { · {{ appointmentSpecialty(a) }} }</p>
               <span [class]="a.status | statusBadge">{{ a.status }}</span>
             </div>
           }
@@ -275,6 +276,7 @@ export class PetProfilePage implements OnInit {
   private route = inject(ActivatedRoute);
   private toast = inject(ToastService);
   auth = inject(AuthService);
+  private i18n = inject(TranslateService);
   pet = signal<Pet | null>(null);
   timeline = signal<TimelineEvent[]>([]);
   consultations = signal<any[]>([]);
@@ -286,6 +288,10 @@ export class PetProfilePage implements OnInit {
   surgeries = signal<any[]>([]);
   documents = signal<any[]>([]);
   appointments = signal<Appointment[]>([]);
+
+  appointmentSpecialty(appointment: Appointment): string {
+    return specialtyLabel(this.i18n, appointment.veterinarianSpecialty, appointment.veterinarianSpecialtyOther, appointment.veterinarianSpecialty);
+  }
   weights = signal<any[]>([]);
   tab = 'summary';
   vaccine = { name: '', brand: '', appliedAt: '' };
