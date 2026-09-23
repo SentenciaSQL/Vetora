@@ -1,5 +1,5 @@
 {
-  "app": { "name": "Lunaveta", "tagline": "Plataforma veterinaria" },
+  "app": { "name": "Lunaveta", "tagline": "Plataforma veterinaria", "developedBy": "Desarrollado por" },
   "common": {
     "search": "Buscar",
     "save": "Guardar",
