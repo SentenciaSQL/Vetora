@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/specialty.dart';
 import '../core/widgets.dart';
 import 'book.dart';
 
@@ -197,7 +198,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                             child: ListTile(
                               leading: RemoteCircleAvatar(url: asString(a['tenantLogoUrl'])),
                               title: Text('${a['petName'] ?? a['pet'] ?? ''} · ${a['serviceName'] ?? ''}'),
-                              subtitle: Text('${formatDate(a['startAt'])}\n${a['tenantName'] ?? a['owner'] ?? ''} · ${a['veterinarianName'] ?? a['veterinarian'] ?? ''} · ${a['status']}'),
+                              subtitle: Text([
+                                formatDate(a['startAt']),
+                                [
+                                  a['tenantName'] ?? a['owner'] ?? '',
+                                  a['veterinarianName'] ?? a['veterinarian'] ?? '',
+                                  specialtyLabel(a['veterinarianSpecialty'], other: a['veterinarianSpecialtyOther']),
+                                  a['status'] ?? '',
+                                ].where((part) => '$part'.trim().isNotEmpty).join(' · '),
+                              ].join('\n')),
                               isThreeLine: true,
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AppointmentDetailScreen(auth: widget.auth, appointment: asMap(a)))).then((changed) {
                                 if (changed == true) _load();
@@ -315,7 +324,13 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                 ListTile(title: Text(i.t('pets')), subtitle: Text('${item['petName'] ?? '—'}')),
                 ListTile(title: Text(i.t('clinic')), subtitle: Text('${item['tenantName'] ?? '—'}')),
                 ListTile(title: Text(i.t('service')), subtitle: Text('${item['serviceName'] ?? '—'}')),
-                ListTile(title: Text(i.t('vet')), subtitle: Text('${item['veterinarianName'] ?? '—'}')),
+                ListTile(
+                  title: Text(i.t('vet')),
+                  subtitle: Text([
+                    asString(item['veterinarianName'], '—'),
+                    specialtyLabel(item['veterinarianSpecialty'], other: item['veterinarianSpecialtyOther']),
+                  ].where((line) => line.isNotEmpty).join('\n')),
+                ),
                 ListTile(title: Text(i.t('date')), subtitle: Text(formatDate(item['startAt']))),
                 ListTile(title: Text(i.t('subscriptionStatus')), subtitle: Text(i.t('status_${item['status']}') == 'status_${item['status']}' ? '${item['status']}' : i.t('status_${item['status']}'))),
                 if (asString(item['reason']).isNotEmpty) ListTile(title: Text(i.t('reason')), subtitle: Text('${item['reason']}')),

@@ -49,7 +49,11 @@ public class SearchService {
         List<Map<String, Object>> vets = veterinarianRepository.findByTenantId(tenantId, page).stream()
                 .filter(v -> v.getUser().fullName().toLowerCase().contains(q.toLowerCase())
                         || v.getUser().getEmail().toLowerCase().contains(q.toLowerCase()))
-                .map(v -> Map.<String, Object>of("id", v.getId(), "name", v.getUser().fullName(), "specialty", v.getSpecialty() == null ? "" : v.getSpecialty()))
+                .map(v -> Map.<String, Object>of(
+                        "id", v.getId(),
+                        "name", v.getUser().fullName(),
+                        "specialty", v.getSpecialty() == null ? "" : v.getSpecialty(),
+                        "specialtyOther", v.getSpecialtyOther() == null ? "" : v.getSpecialtyOther()))
                 .toList();
         return Map.of("pets", pets, "owners", owners, "veterinarians", vets);
     }

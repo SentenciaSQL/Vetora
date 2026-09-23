@@ -1,6 +1,7 @@
 package com.animalin.veterinarian;
 
 import com.animalin.audit.AuditService;
+import com.animalin.branch.BranchRepository;
 import com.animalin.common.exception.ApiException;
 import com.animalin.pet.PetRepository;
 import com.animalin.plan.PlanLimitService;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,8 +45,9 @@ public class VeterinarianController {
     private final AuditService auditService;
     private final PlanLimitService planLimitService;
     private final PetRepository petRepository;
+    private final BranchRepository branchRepository;
 
-    public VeterinarianController(VeterinarianRepository veterinarianRepository, VeterinarianScheduleRepository scheduleRepository, UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, PasswordEncoder passwordEncoder, AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService, PetRepository petRepository) {
+    public VeterinarianController(VeterinarianRepository veterinarianRepository, VeterinarianScheduleRepository scheduleRepository, UserRepository userRepository, RoleRepository roleRepository, TenantRepository tenantRepository, TenantMembershipRepository membershipRepository, PasswordEncoder passwordEncoder, AccessGuard accessGuard, AuditService auditService, PlanLimitService planLimitService, PetRepository petRepository, BranchRepository branchRepository) {
         this.veterinarianRepository = veterinarianRepository;
         this.scheduleRepository = scheduleRepository;
         this.userRepository = userRepository;
@@ -56,31 +59,39 @@ public class VeterinarianController {
         this.auditService = auditService;
         this.planLimitService = planLimitService;
         this.petRepository = petRepository;
+        this.branchRepository = branchRepository;
     }
 
     @GetMapping
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> list() {
+    public List<Map<String, Object>> list(@RequestParam(required = false) Long branchId) {
+        if (branchId != null) {
+            Long tenantId = accessGuard.isOwnerContext()
+                    ? tenantOfAuthorizedBranch(branchId)
+                    : accessGuard.requireStaffTenant();
+            requireBranch(tenantId, branchId);
+            return bookable(tenantId, branchId);
+        }
         if (accessGuard.isOwnerContext()) {
             return ownerTenantIds().stream()
                     .flatMap(tenantId -> veterinarianRepository.findByTenantIdAndStatus(tenantId, "ACTIVE").stream())
-                    .map(this::toMap)
+                    .map(vet -> toMap(vet, null))
                     .toList();
         }
         return veterinarianRepository.findByTenantIdAndStatus(accessGuard.requireStaffTenant(), "ACTIVE")
-                .stream().map(this::toMap).toList();
+                .stream().map(vet -> toMap(vet, null)).toList();
     }
 
     @GetMapping("/tenant/{tenantId}")
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> byTenant(@PathVariable Long tenantId) {
-        if (accessGuard.isOwnerContext()) {
-            if (!membershipRepository.existsByTenantIdAndUserId(tenantId, com.animalin.security.TenantContext.userId())) {
-                throw ApiException.notFound("Veterinario no encontrado");
-            }
-            return veterinarianRepository.findByTenantIdAndStatus(tenantId, "ACTIVE").stream().map(this::toMap).toList();
+    public List<Map<String, Object>> byTenant(@PathVariable Long tenantId, @RequestParam(required = false) Long branchId) {
+        Long authorizedTenant = authorizedTenant(tenantId);
+        if (branchId != null) {
+            requireBranch(authorizedTenant, branchId);
+            return bookable(authorizedTenant, branchId);
         }
-        return veterinarianRepository.findByTenantIdAndStatus(accessGuard.requireStaffTenant(), "ACTIVE").stream().map(this::toMap).toList();
+        return veterinarianRepository.findByTenantIdAndStatus(authorizedTenant, "ACTIVE").stream()
+                .map(vet -> toMap(vet, null)).toList();
     }
 
     @PostMapping
@@ -128,7 +139,7 @@ public class VeterinarianController {
             scheduleRepository.save(schedule);
         }
         auditService.record("CREATE", "VETERINARIAN", vet.getId(), user.fullName());
-        return toMap(vet);
+        return toMap(vet, request.branchId());
     }
 
     @PutMapping("/{id}")
@@ -145,7 +156,7 @@ public class VeterinarianController {
         if (request.bio() != null) vet.setBio(request.bio());
         if (request.branchId() != null) vet.setBranchId(request.branchId());
         if (request.status() != null) vet.setStatus(request.status());
-        return toMap(vet);
+        return toMap(vet, vet.getBranchId());
     }
 
     private List<Long> ownerTenantIds() {
@@ -157,7 +168,37 @@ public class VeterinarianController {
         return List.copyOf(ids);
     }
 
-    private Map<String, Object> toMap(Veterinarian vet) {
+    private Long authorizedTenant(Long tenantId) {
+        if (accessGuard.isOwnerContext()) {
+            if (!ownerTenantIds().contains(tenantId)) {
+                throw ApiException.notFound("Sucursal no encontrada");
+            }
+            return tenantId;
+        }
+        return accessGuard.requireStaffTenant();
+    }
+
+    private Long tenantOfAuthorizedBranch(Long branchId) {
+        for (Long tenantId : ownerTenantIds()) {
+            if (branchRepository.findByIdAndTenantId(branchId, tenantId).isPresent()) {
+                return tenantId;
+            }
+        }
+        throw ApiException.notFound("Sucursal no encontrada");
+    }
+
+    private void requireBranch(Long tenantId, Long branchId) {
+        branchRepository.findByIdAndTenantId(branchId, tenantId)
+                .orElseThrow(() -> ApiException.notFound("Sucursal no encontrada"));
+    }
+
+    private List<Map<String, Object>> bookable(Long tenantId, Long branchId) {
+        return veterinarianRepository.findBookableByTenantAndBranch(tenantId, branchId).stream()
+                .map(vet -> toMap(vet, branchId))
+                .toList();
+    }
+
+    private Map<String, Object> toMap(Veterinarian vet, Long assignedBranchId) {
         Map<String, Object> map = new java.util.LinkedHashMap<>();
         map.put("id", vet.getId());
         map.put("userId", vet.getUser().getId());
@@ -166,10 +207,12 @@ public class VeterinarianController {
         map.put("fullName", vet.getUser().fullName());
         map.put("email", vet.getUser().getEmail());
         map.put("specialty", vet.getSpecialty() == null ? "" : vet.getSpecialty());
+        map.put("specialtyOther", vet.getSpecialtyOther() == null ? "" : vet.getSpecialtyOther());
         map.put("licenseNumber", vet.getLicenseNumber() == null ? "" : vet.getLicenseNumber());
         map.put("photoUrl", vet.getPhotoUrl() == null ? "" : vet.getPhotoUrl());
         map.put("status", vet.getStatus());
         map.put("tenantId", vet.getTenantId());
+        map.put("branchId", assignedBranchId != null ? assignedBranchId : vet.getBranchId());
         return map;
     }
 

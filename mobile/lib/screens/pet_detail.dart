@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/specialty.dart';
 import '../core/widgets.dart';
 import 'book.dart';
 import 'pet_form.dart';
@@ -241,7 +242,12 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                       _list(documents, (d) => ListTile(title: Text('${d['title']}'), subtitle: Text('${d['category'] ?? ''} · ${formatDate(d['createdAt'])}'))),
                       _list(appointments, (a) => ListTile(
                         title: Text('${a['serviceName'] ?? ''} · ${a['status']}'),
-                        subtitle: Text('${formatDate(a['startAt'])}\n${a['tenantName'] ?? ''} · ${a['veterinarianName'] ?? ''}'),
+                        subtitle: Text([
+                          formatDate(a['startAt']),
+                          [a['tenantName'] ?? '', a['veterinarianName'] ?? '', specialtyLabel(a['veterinarianSpecialty'], other: a['veterinarianSpecialtyOther'])]
+                              .where((part) => '$part'.trim().isNotEmpty)
+                              .join(' · '),
+                        ].join('\n')),
                         isThreeLine: true,
                       )),
                       _list(

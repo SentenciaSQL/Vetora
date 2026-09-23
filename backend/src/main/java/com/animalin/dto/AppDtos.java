@@ -96,7 +96,7 @@ public final class AppDtos {
             Long id, Long petId, String petName, Long ownerId, String ownerName, Long veterinarianId,
             String veterinarianName, Long serviceId, String serviceName, Long branchId, Instant startAt,
             Instant endAt, int durationMin, String reason, String notes, String status, Long tenantId,
-            String tenantName, String tenantLogoUrl
+            String tenantName, String tenantLogoUrl, String veterinarianSpecialty, String veterinarianSpecialtyOther
     ) {
     }
 

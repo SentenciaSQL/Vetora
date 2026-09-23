@@ -6,7 +6,9 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { TranslateService } from '@ngx-translate/core';
 import { Appointment, PageResponse, Pet } from '../../../core/models';
+import { specialtyLabel } from '../../../core/team-labels';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 
@@ -72,7 +74,7 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
         <div class="card flex flex-wrap items-center justify-between gap-3">
           <div>
             <p class="font-semibold">{{ a.petName }} · {{ a.ownerName }}</p>
-            <p class="text-sm text-slate-500">{{ a.startAt | date:'short' }} · {{ a.serviceName }} · {{ a.veterinarianName }}</p>
+            <p class="text-sm text-slate-500">{{ a.startAt | date:'short' }} · {{ a.serviceName }} · {{ a.veterinarianName }}@if (appointmentSpecialty(a)) { · {{ appointmentSpecialty(a) }} }</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <span [class]="a.status | statusBadge">{{ a.status }}</span>
@@ -116,10 +118,23 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
                 <option [value]="p.id">{{ p.name }}{{ p.tenantName ? ' · ' + p.tenantName : '' }}</option>
               }
             </select>
+            @if (branches().length) {
+              <label class="block text-sm font-medium">{{ 'nav.branches' | translate }}</label>
+              <select class="input" formControlName="branchId" (change)="onBranchChange()">
+                <option value="">{{ 'calendar.chooseBranch' | translate }}</option>
+                @for (b of branches(); track b.id) { <option [value]="b.id">{{ b.name }}</option> }
+              </select>
+            }
             <label class="block text-sm font-medium">{{ 'nav.team' | translate }}</label>
-            <select class="input" formControlName="veterinarianId">
-              <option value="">{{ 'calendar.chooseVet' | translate }}</option>
-              @for (v of visibleVets(); track v.id) { <option [value]="v.id">{{ v.fullName }}</option> }
+            @if (loadingVeterinarians()) {
+              <p class="text-sm text-slate-500">{{ 'calendar.loadingVets' | translate }}</p>
+            }
+            @if (!loadingVeterinarians() && selectedBranchId() && visibleVets().length === 0) {
+              <p class="text-sm text-slate-500">{{ 'calendar.noVets' | translate }}</p>
+            }
+            <select class="input" formControlName="veterinarianId" [attr.disabled]="loadingVeterinarians() || !selectedBranchId() ? true : null">
+              <option value="">{{ (auth.isStaff() ? 'calendar.chooseVet' : 'calendar.chooseVetRequired') | translate }}</option>
+              @for (v of visibleVets(); track v.id) { <option [value]="v.id">{{ v.fullName }}@if (vetSpecialty(v)) { · {{ vetSpecialty(v) }} }</option> }
             </select>
             <label class="block text-sm font-medium">{{ 'nav.services' | translate }}</label>
             <select class="input" formControlName="serviceId">
@@ -134,7 +149,7 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
             }
             <div class="flex justify-end gap-2">
               <button type="button" class="btn-secondary" (click)="open=false">{{ 'common.cancel' | translate }}</button>
-              <button class="btn-primary" [disabled]="form.invalid || saving()">{{ auth.isStaff() ? ('common.save' | translate) : ('calendar.request' | translate) }}</button>
+              <button class="btn-primary" [disabled]="form.invalid || saving() || loadingVeterinarians() || vetRequiredMissing()">{{ auth.isStaff() ? ('common.save' | translate) : ('calendar.request' | translate) }}</button>
             </div>
           }
         </form>
@@ -148,20 +163,27 @@ export class CalendarPage implements OnInit {
   private route = inject(ActivatedRoute);
   auth = inject(AuthService);
   private fb = inject(FormBuilder);
+  private i18n = inject(TranslateService);
   items = signal<Appointment[]>([]);
   pets = signal<Pet[]>([]);
+  branches = signal<{ id: number; name: string }[]>([]);
   vets = signal<any[]>([]);
   services = signal<any[]>([]);
   open = false;
   saving = signal(false);
+  loadingVeterinarians = signal(false);
   formError = signal('');
   selectedTenantId = signal<number | null>(null);
+  selectedBranchId = signal<number | null>(null);
   view = signal<'day' | 'week' | 'month'>('week');
   anchor = signal(new Date());
   selected = signal<Appointment | null>(null);
   hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+  private vetRequest = 0;
+  private branchRequest = 0;
   form = this.fb.group({
     petId: ['', Validators.required],
+    branchId: [''],
     veterinarianId: [''],
     serviceId: [''],
     startAt: ['', Validators.required],
@@ -169,11 +191,11 @@ export class CalendarPage implements OnInit {
   });
 
   visibleVets = computed(() => {
-    const tenantId = this.selectedTenantId();
-    if (!tenantId) {
-      return this.vets();
+    const branchId = this.selectedBranchId();
+    if (!branchId) {
+      return [];
     }
-    return this.vets().filter((vet: any) => !vet.tenantId || vet.tenantId === tenantId);
+    return this.vets().filter((vet: any) => !vet.branchId || Number(vet.branchId) === branchId);
   });
 
   visibleServices = computed(() => {
@@ -231,11 +253,52 @@ export class CalendarPage implements OnInit {
 
   onPetChange(): void {
     const pet = this.selectedPet();
-    this.selectedTenantId.set(pet?.tenantId || null);
+    const nextTenant = pet?.tenantId || null;
+    const tenantChanged = nextTenant !== this.selectedTenantId();
+    this.selectedTenantId.set(nextTenant);
     this.form.patchValue({ veterinarianId: '', serviceId: '' }, { emitEvent: false });
+    if (this.auth.isStaff() || !tenantChanged) {
+      if (!this.auth.isStaff() && this.selectedBranchId()) {
+        this.vets.set([]);
+        this.loadVeterinarians(this.selectedBranchId()!);
+      }
+      return;
+    }
+    this.clearVeterinarians();
+    this.loadOwnerBranches();
+  }
+
+  onBranchChange(): void {
+    const raw = this.form.controls.branchId.value;
+    const branchId = raw ? Number(raw) : null;
+    this.selectedBranchId.set(branchId && !Number.isNaN(branchId) ? branchId : null);
+    this.form.patchValue({ veterinarianId: '' }, { emitEvent: false });
+    this.vets.set([]);
+    if (!this.selectedBranchId()) {
+      this.vetRequest++;
+      this.loadingVeterinarians.set(false);
+      return;
+    }
+    this.loadVeterinarians(this.selectedBranchId()!);
+  }
+
+  vetSpecialty(vet: { specialty?: string; specialtyOther?: string }): string {
+    return specialtyLabel(this.i18n, vet.specialty, vet.specialtyOther, vet.specialty);
+  }
+
+  appointmentSpecialty(appointment: Appointment): string {
+    return specialtyLabel(this.i18n, appointment.veterinarianSpecialty, appointment.veterinarianSpecialtyOther, appointment.veterinarianSpecialty);
+  }
+
+  vetRequiredMissing(): boolean {
+    return !this.auth.isStaff() && !!this.selectedBranchId() && !this.loadingVeterinarians() && this.visibleVets().length === 0;
   }
 
   ngOnInit() {
+    if (!this.auth.isStaff()) {
+      this.form.controls.veterinarianId.addValidators(Validators.required);
+      this.form.controls.veterinarianId.updateValueAndValidity({ emitEvent: false });
+    }
     this.reload();
     this.loadBookingCatalog();
     this.route.queryParamMap.subscribe(params => {
@@ -247,23 +310,91 @@ export class CalendarPage implements OnInit {
 
   openForm(): void {
     this.formError.set('');
+    this.clearVeterinarians();
     this.open = true;
     this.loadBookingCatalog();
+    if (!this.auth.isStaff() && this.selectedTenantId()) {
+      this.loadOwnerBranches();
+    }
   }
 
   loadBookingCatalog(): void {
     if (this.auth.isStaff()) {
       this.api.get<PageResponse<Pet>>('/pets', { size: 100 }).subscribe(r => this.pets.set(r.content || []));
+      this.loadStaffBranches();
     } else {
       this.api.get<Pet[]>('/pets/mine').subscribe(r => this.pets.set(r || []));
     }
-    this.api.get<any[]>('/veterinarians').subscribe({
-      next: r => this.vets.set(r || []),
-      error: () => this.vets.set([])
-    });
     this.api.get<any[]>('/services').subscribe({
       next: r => this.services.set(r || []),
       error: () => this.services.set([])
+    });
+  }
+
+  private clearVeterinarians(): void {
+    this.vetRequest++;
+    this.selectedBranchId.set(null);
+    this.vets.set([]);
+    this.loadingVeterinarians.set(false);
+    this.form.patchValue({ branchId: '', veterinarianId: '' }, { emitEvent: false });
+  }
+
+  private loadStaffBranches(): void {
+    const request = ++this.branchRequest;
+    this.api.get<{ id: number; name: string }[]>('/branches').subscribe({
+      next: rows => this.applyBranches(request, rows || []),
+      error: () => this.applyBranches(request, [])
+    });
+  }
+
+  private loadOwnerBranches(): void {
+    const tenantId = this.selectedTenantId();
+    const request = ++this.branchRequest;
+    this.branches.set([]);
+    if (!tenantId) {
+      return;
+    }
+    this.api.get<{ id: number; name: string }[]>(`/branches/tenant/${tenantId}`).subscribe({
+      next: rows => this.applyBranches(request, rows || []),
+      error: () => this.applyBranches(request, [])
+    });
+  }
+
+  private applyBranches(request: number, rows: { id: number; name: string }[]): void {
+    if (request !== this.branchRequest) {
+      return;
+    }
+    this.branches.set(rows);
+    const control = this.form.controls.branchId;
+    control.setValidators(rows.length > 0 ? [Validators.required] : []);
+    control.updateValueAndValidity({ emitEvent: false });
+    if (rows.length === 1) {
+      this.form.patchValue({ branchId: String(rows[0].id) });
+      this.onBranchChange();
+    }
+  }
+
+  private loadVeterinarians(branchId: number): void {
+    const request = ++this.vetRequest;
+    this.loadingVeterinarians.set(true);
+    this.vets.set([]);
+    const tenantId = this.selectedTenantId();
+    const path = !this.auth.isStaff() && tenantId ? `/veterinarians/tenant/${tenantId}` : '/veterinarians';
+    this.api.get<any[]>(path, { branchId }).subscribe({
+      next: rows => {
+        if (request !== this.vetRequest) {
+          return;
+        }
+        this.vets.set(rows || []);
+        this.loadingVeterinarians.set(false);
+      },
+      error: () => {
+        if (request !== this.vetRequest) {
+          return;
+        }
+        this.vets.set([]);
+        this.loadingVeterinarians.set(false);
+      }
     });
   }
 
@@ -331,6 +462,7 @@ export class CalendarPage implements OnInit {
     this.formError.set('');
     this.api.post('/appointments', {
       petId: Number(v.petId),
+      branchId: v.branchId ? Number(v.branchId) : null,
       veterinarianId: v.veterinarianId ? Number(v.veterinarianId) : null,
       serviceId: v.serviceId ? Number(v.serviceId) : null,
       startAt: new Date(v.startAt!).toISOString(),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/auth.dart';
 import '../core/format.dart';
 import '../core/l10n.dart';
+import '../core/specialty.dart';
 import '../core/widgets.dart';
 
 class BookScreen extends StatefulWidget {
@@ -28,6 +29,8 @@ class _BookScreenState extends State<BookScreen> {
   Map? slot;
   final reason = TextEditingController();
   bool loading = false;
+  bool loadingVets = false;
+  int _vetRequest = 0;
   String? error;
 
   I18n get i => I18n.instance;
@@ -41,16 +44,64 @@ class _BookScreenState extends State<BookScreen> {
     return time.length >= 5 ? time.substring(0, 5) : raw;
   }
 
+  void _clearClinicSelection() {
+    _vetRequest++;
+    branch = null;
+    service = null;
+    vet = null;
+    slot = null;
+    branches = [];
+    services = [];
+    vets = [];
+    slots = [];
+    hoursHint = null;
+    loadingVets = false;
+  }
+
   Future<void> loadCatalog() async {
     tenantId = asInt(pet?['tenantId'], 0) == 0 ? null : asInt(pet?['tenantId']);
     if (tenantId == null) return;
     try {
       branches = asList(await widget.auth.api.get('/branches/tenant/$tenantId'));
       services = asList(await widget.auth.api.get('/services/tenant/$tenantId'));
-      vets = asList(await widget.auth.api.get('/veterinarians/tenant/$tenantId'));
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) setState(() => error = userMessage(e));
+    }
+  }
+
+  Future<void> selectBranch(Map selected) async {
+    final request = ++_vetRequest;
+    setState(() {
+      branch = selected;
+      vet = null;
+      slot = null;
+      slots = [];
+      vets = [];
+      loadingVets = true;
+      error = null;
+      step = 2;
+    });
+    if (tenantId == null) {
+      if (mounted) setState(() => loadingVets = false);
+      return;
+    }
+    try {
+      final list = asList(await widget.auth.api.get('/veterinarians/tenant/$tenantId', {
+        'branchId': '${selected['id']}',
+      }));
+      if (!mounted || request != _vetRequest) return;
+      setState(() {
+        vets = list;
+        loadingVets = false;
+      });
+    } catch (e) {
+      if (!mounted || request != _vetRequest) return;
+      setState(() {
+        vets = [];
+        loadingVets = false;
+        error = userMessage(e);
+      });
     }
   }
 
@@ -123,26 +174,43 @@ class _BookScreenState extends State<BookScreen> {
                     fallbackIcon: Icons.pets,
                   ),
                   onTap: () async {
+                    _clearClinicSelection();
                     pet = p as Map;
+                    tenantId = null;
                     await loadCatalog();
-                    setState(() => step = 1);
+                    if (mounted) setState(() => step = 1);
                   },
                 ),
             ])),
             if (step == 1) Expanded(child: ListView(children: [
               Text(i.t('branch'), style: Theme.of(context).textTheme.titleMedium),
               for (final b in branches)
-                ListTile(title: Text('${b['name']}'), subtitle: Text('${b['address'] ?? ''}'), onTap: () { branch = b as Map; setState(() => step = 2); }),
+                ListTile(title: Text('${b['name']}'), subtitle: Text('${b['address'] ?? ''}'), onTap: () => selectBranch(b as Map)),
             ])),
             if (step == 2) Expanded(child: ListView(children: [
               Text(i.t('service'), style: Theme.of(context).textTheme.titleMedium),
               for (final s in services)
                 ListTile(title: Text(_serviceName(s as Map)), subtitle: Text('${s['durationMin'] ?? ''} min'), onTap: () { service = s; setState(() => step = 3); }),
             ])),
-            if (step == 3) Expanded(child: ListView(children: [
+            if (step == 3) Expanded(child: loadingVets
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(children: [
               Text(i.t('vet'), style: Theme.of(context).textTheme.titleMedium),
+              if (vets.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(error ?? i.t('noVetsAtBranch')),
+                ),
               for (final v in vets)
-                ListTile(title: Text('${v['fullName']}'), subtitle: Text('${v['specialty'] ?? ''}'), onTap: () async { vet = v as Map; await loadSlots(); setState(() => step = 4); }),
+                ListTile(
+                  leading: RemoteCircleAvatar(
+                    url: asString(v['photoUrl']),
+                    fallbackText: personInitials(v['fullName']),
+                  ),
+                  title: Text('${v['fullName']}'),
+                  subtitle: Text(specialtyLabel(v['specialty'], other: v['specialtyOther'])),
+                  onTap: () async { vet = v as Map; await loadSlots(); setState(() => step = 4); },
+                ),
             ])),
             if (step == 4) Expanded(child: ListView(children: [
               ListTile(
@@ -177,7 +245,13 @@ class _BookScreenState extends State<BookScreen> {
               ListTile(title: Text('${pet?['name']}'), subtitle: Text('${pet?['tenantName'] ?? ''}')),
               ListTile(title: Text('${branch?['name']}'), subtitle: Text(i.t('branch'))),
               ListTile(title: Text(service == null ? '' : _serviceName(service!)), subtitle: Text(i.t('service'))),
-              ListTile(title: Text('${vet?['fullName']}'), subtitle: Text(i.t('vet'))),
+              ListTile(
+                title: Text('${vet?['fullName']}'),
+                subtitle: Text([
+                  i.t('vet'),
+                  specialtyLabel(vet?['specialty'], other: vet?['specialtyOther']),
+                ].where((line) => line.isNotEmpty).join(' · ')),
+              ),
               ListTile(title: Text('${slot?['startAt']}'), subtitle: Text(reason.text)),
               if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
               const SizedBox(height: 16),

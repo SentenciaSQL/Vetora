@@ -18,6 +18,7 @@ import { RoleLabelPipe } from '../shared/ui/role-label.pipe';
 import { UserAvatarComponent } from '../shared/ui/user-avatar.component';
 import { TranslateService } from '@ngx-translate/core';
 import { notificationTarget, relativeTime } from '../core/notification-link';
+import { specialtyLabel } from '../core/team-labels';
 
 interface NavItem {
   path: string;
@@ -92,7 +93,7 @@ interface NavItem {
                         <a [routerLink]="group.key === 'owners' ? ['/pets'] : group.path + item.id"
                            [queryParams]="group.key === 'owners' ? { owner: item.id } : null"
                            (click)="results.set(null)" class="block px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5">
-                          {{ item.name }} <span class="text-slate-400">{{ item.owner || item.email || item.specialty }}</span>
+                          {{ item.name }} <span class="text-slate-400">{{ searchExtra(item) }}</span>
                         </a>
                       }
                     }
@@ -308,6 +309,16 @@ export class ShellComponent implements OnInit {
   hasResults(): boolean {
     const r = this.results();
     return !!r && (r.pets.length + r.owners.length + r.veterinarians.length) > 0;
+  }
+
+  searchExtra(item: { owner?: string; email?: string; specialty?: string; specialtyOther?: string }): string {
+    if (item.owner) {
+      return item.owner;
+    }
+    if (item.email) {
+      return item.email;
+    }
+    return specialtyLabel(this.i18n, item.specialty, item.specialtyOther, item.specialty);
   }
 
   @HostListener('document:keydown.escape')
