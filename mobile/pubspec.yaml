@@ -1,7 +1,7 @@
 name: animalin
 description: Lunaveta — app para propietarios de mascotas
 publish_to: "none"
-version: 1.2.1+3
+version: 1.2.2+4
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
