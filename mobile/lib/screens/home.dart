@@ -72,7 +72,14 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(widget.auth.isStaff ? '${widget.auth.user?['tenantName'] ?? ''}' : i.t('tagline')),
             const SizedBox(height: 16),
             if (loading || error != null)
-              StatusView(loading: loading, error: error, onRetry: _load)
+              SizedBox(
+                height: (MediaQuery.sizeOf(context).height
+                        - MediaQuery.paddingOf(context).vertical
+                        - kBottomNavigationBarHeight
+                        - 140)
+                    .clamp(160, 640),
+                child: StatusView(loading: loading, error: error, onRetry: _load),
+              )
             else if (widget.auth.isStaff)
               ..._staffCards(i)
             else

@@ -36,10 +36,14 @@ class StatusView extends StatelessWidget {
       content = child ?? const SizedBox.shrink();
     }
     return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.hasBoundedHeight && constraints.maxHeight.isFinite) {
-        return Center(child: SingleChildScrollView(child: content));
+      final bounded = constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+      if (!bounded) {
+        return content;
       }
-      return content;
+      if (loading) {
+        return Center(child: content);
+      }
+      return Center(child: SingleChildScrollView(child: content));
     });
   }
 }
@@ -53,9 +57,17 @@ class AppLoadingIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: size,
-      child: CircularProgressIndicator(strokeWidth: strokeWidth, color: color),
+    // A list or button passes a tight width equal to the screen. A plain
+    // SizedBox cannot shrink below that minimum, so the indicator becomes a
+    // full-width oval. Align loosens those constraints and keeps a square.
+    return Align(
+      alignment: Alignment.center,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: SizedBox.square(
+        dimension: size,
+        child: CircularProgressIndicator(strokeWidth: strokeWidth, color: color),
+      ),
     );
   }
 }
