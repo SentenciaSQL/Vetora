@@ -20,7 +20,11 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
           <h1 class="mt-4 max-w-md font-display text-4xl font-semibold leading-tight">{{ 'app.tagline' | translate }}</h1>
           <p class="mt-4 max-w-md text-brand-50/80">{{ 'auth.subtitle' | translate }}</p>
         </div>
-        <p class="text-sm text-brand-100/70">© {{ year }} {{ 'app.name' | translate }}</p>
+        <p class="text-sm text-brand-100/70">
+          © {{ year }} {{ 'app.name' | translate }}<br>
+          {{ 'app.developedBy' | translate }}
+          <a class="underline hover:text-white" href="https://andresfrias.dev" target="_blank" rel="noopener noreferrer">afriasdev</a>
+        </p>
       </section>
       <section class="flex flex-col justify-center px-6 py-12 sm:px-12">
         <div class="mb-8 flex items-center justify-between">
@@ -68,10 +72,17 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
           </div>
           <a routerLink="/register-clinic" class="mt-3 block text-sm font-medium text-brand-700 hover:underline">{{ 'signup.clinicCta' | translate }}</a>
           <a routerLink="/eliminar-cuenta" class="mt-3 block text-sm font-medium text-brand-700 hover:underline">{{ 'auth.deleteAccountLink' | translate }}</a>
-          <footer class="mt-8 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500">
-            <a class="hover:underline" href="/privacidad">{{ 'accountDeletion.privacy' | translate }}</a>
-            <a class="hover:underline" href="/terminos">{{ 'accountDeletion.terms' | translate }}</a>
-            <a class="hover:underline" href="mailto:supportlunaveta@gmail.com">{{ 'accountDeletion.contact' | translate }}</a>
+          <footer class="mt-8 text-sm text-slate-500">
+            <p class="mb-3 lg:hidden">
+              © {{ year }} {{ 'app.name' | translate }}<br>
+              {{ 'app.developedBy' | translate }}
+              <a class="text-brand-700 hover:underline" href="https://andresfrias.dev" target="_blank" rel="noopener noreferrer">afriasdev</a>
+            </p>
+            <div class="flex flex-wrap gap-x-4 gap-y-2">
+              <a class="hover:underline" href="/privacidad">{{ 'accountDeletion.privacy' | translate }}</a>
+              <a class="hover:underline" href="/terminos">{{ 'accountDeletion.terms' | translate }}</a>
+              <a class="hover:underline" href="mailto:supportlunaveta@gmail.com">{{ 'accountDeletion.contact' | translate }}</a>
+            </div>
           </footer>
         </div>
       </section>
