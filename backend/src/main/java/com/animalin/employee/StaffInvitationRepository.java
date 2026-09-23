@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +25,17 @@ public interface StaffInvitationRepository extends JpaRepository<StaffInvitation
               and i.expiresAt > :now
             """)
     long countPendingByTenantId(@Param("tenantId") Long tenantId, @Param("now") Instant now);
+
+    @Query("""
+            select count(i) from StaffInvitation i
+            where i.tenant.id = :tenantId
+              and i.status = 'PENDING'
+              and i.expiresAt > :now
+              and i.roleCode in :roleCodes
+            """)
+    long countPendingByTenantIdAndRoleCodeIn(@Param("tenantId") Long tenantId,
+                                              @Param("now") Instant now,
+                                              @Param("roleCodes") Collection<String> roleCodes);
 
     @Query("select count(i) from StaffInvitation i where i.status = 'PENDING' and i.expiresAt > :now")
     long countPending(@Param("now") Instant now);

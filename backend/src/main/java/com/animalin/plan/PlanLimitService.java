@@ -10,6 +10,7 @@ import com.animalin.employee.StaffInvitationRepository;
 import com.animalin.tenant.Tenant;
 import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
+import com.animalin.user.RoleCodes;
 import com.animalin.veterinarian.VeterinarianRepository;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
@@ -102,15 +103,18 @@ public class PlanLimitService {
 
     private void assertUserCapacity(Long tenantId) {
         Plan plan = requirePlanUnchecked(tenantId);
-        long count = usedUsers(tenantId);
+        long count = usedStaffUsers(tenantId);
         if (count >= plan.getMaxUsers()) {
             throw limit("users", count, plan.getMaxUsers(), plan, "plan.limit.users");
         }
     }
 
-    private long usedUsers(Long tenantId) {
-        return membershipRepository.countByTenantIdAndStatus(tenantId, "ACTIVE")
-                + invitationRepository.countPendingByTenantId(tenantId, clock.instant());
+    /**
+     * Staff seats used by the clinic. Pet owners are clients and do not consume this quota.
+     */
+    public long usedStaffUsers(Long tenantId) {
+        return membershipRepository.countByTenantIdAndStatusAndRoleCodeIn(tenantId, "ACTIVE", RoleCodes.STAFF_ROLES)
+                + invitationRepository.countPendingByTenantIdAndRoleCodeIn(tenantId, clock.instant(), RoleCodes.STAFF_ROLES);
     }
 
     public void assertStorageAvailable(Long tenantId, long additionalBytes) {
@@ -165,7 +169,7 @@ public class PlanLimitService {
         Instant from = YearMonth.from(clock.instant().atZone(ZoneOffset.UTC)).atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC);
         long storageBytes = storedFileRepository.sumSizeBytesByTenantId(resolved);
         return new BillingDtos.PlanUsage(
-                new BillingDtos.UsageMetric(usedUsers(resolved), plan.getMaxUsers()),
+                new BillingDtos.UsageMetric(usedStaffUsers(resolved), plan.getMaxUsers()),
                 new BillingDtos.UsageMetric(veterinarianRepository.countByTenantIdAndStatus(resolved, "ACTIVE"), plan.getMaxVeterinarians()),
                 new BillingDtos.UsageMetric(branchRepository.countByTenantIdAndActiveTrue(resolved), plan.getMaxBranches()),
                 new BillingDtos.UsageMetric(Math.round(storageBytes / (1024.0 * 1024.0)), plan.getMaxStorageMb()),
