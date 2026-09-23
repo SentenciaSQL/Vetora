@@ -4,7 +4,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { BrandingService } from '../../core/services/branding.service';
 import { ThemeService } from '../../core/services/theme.service';
 
-const PLATFORM_LOGO = '/assets/branding/logo.png';
+const PLATFORM_LOGO = '/assets/branding/logo.svg';
 
 @Component({
   selector: 'app-brand-mark',
@@ -13,13 +13,15 @@ const PLATFORM_LOGO = '/assets/branding/logo.png';
   host: { class: 'block min-w-0' },
   template: `
     <div class="flex w-full min-w-0 items-center gap-3" [class.justify-center]="centered()">
-      @if (logoSrc(); as src) {
-        <img [src]="src" [alt]="alt()" class="h-9 w-9 shrink-0 rounded-xl object-contain" (error)="failed.set(src)" />
-      } @else {
-        <span class="h-9 w-9 shrink-0 rounded-xl bg-brand-700" aria-hidden="true"></span>
-      }
+      <span class="grid h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+        @if (logoSrc(); as src) {
+          <img [src]="src" [alt]="alt()" class="h-9 w-9 max-h-9 max-w-9 object-contain" (error)="failed.set(src)" />
+        } @else {
+          <span class="h-9 w-9 rounded-xl bg-brand-700" aria-hidden="true"></span>
+        }
+      </span>
       @if (showName()) {
-        <span class="min-w-0 truncate font-display text-base font-semibold">{{ label() || ('app.name' | translate) }}</span>
+        <span class="min-w-0 flex-1 truncate font-display text-base font-semibold">{{ label() || ('app.name' | translate) }}</span>
       }
     </div>
   `

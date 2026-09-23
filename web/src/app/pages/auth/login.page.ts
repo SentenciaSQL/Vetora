@@ -106,7 +106,7 @@ export class LoginPage implements OnInit {
     if (slug) {
       this.branding.loadPublic(slug).subscribe(b => this.branding.branding.set(b));
     } else {
-      this.branding.branding.set({ name: 'Lunaveta', commercialName: 'Lunaveta', logoUrl: '/assets/branding/logo.png' });
+      this.branding.branding.set({ name: 'Lunaveta', commercialName: 'Lunaveta', logoUrl: '/assets/branding/logo.svg' });
     }
   }
 
