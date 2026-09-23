@@ -581,7 +581,7 @@
     "usage": "Users",
     "usageOf": "of",
     "usageUsed": "used",
-    "limitReached": "You have reached your plan's user limit.",
+    "limitReached": "You have reached your plan's team user limit.",
     "upgradePlan": "Upgrade plan",
     "role": "Role",
     "specialty": "Specialty",

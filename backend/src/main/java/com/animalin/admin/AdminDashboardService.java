@@ -12,6 +12,7 @@ import com.animalin.messaging.MessageRepository;
 import com.animalin.owner.OwnerRepository;
 import com.animalin.pet.PetRepository;
 import com.animalin.plan.Plan;
+import com.animalin.plan.PlanLimitService;
 import com.animalin.plan.PlanRepository;
 import com.animalin.security.TenantContext;
 import com.animalin.signup.ClinicSignup;
@@ -19,7 +20,6 @@ import com.animalin.signup.ClinicSignupRepository;
 import com.animalin.tenant.Subscription;
 import com.animalin.tenant.SubscriptionRepository;
 import com.animalin.tenant.Tenant;
-import com.animalin.tenant.TenantMembershipRepository;
 import com.animalin.tenant.TenantRepository;
 import com.animalin.user.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -77,7 +77,7 @@ public class AdminDashboardService {
     private final BillingEventRepository billingEventRepository;
     private final StaffInvitationRepository invitationRepository;
     private final ClinicSignupRepository signupRepository;
-    private final TenantMembershipRepository membershipRepository;
+    private final PlanLimitService planLimitService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
@@ -97,7 +97,7 @@ public class AdminDashboardService {
                                  BillingEventRepository billingEventRepository,
                                  StaffInvitationRepository invitationRepository,
                                  ClinicSignupRepository signupRepository,
-                                 TenantMembershipRepository membershipRepository,
+                                 PlanLimitService planLimitService,
                                  AuditService auditService,
                                  ObjectMapper objectMapper,
                                  Clock clock) {
@@ -113,7 +113,7 @@ public class AdminDashboardService {
         this.billingEventRepository = billingEventRepository;
         this.invitationRepository = invitationRepository;
         this.signupRepository = signupRepository;
-        this.membershipRepository = membershipRepository;
+        this.planLimitService = planLimitService;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
         this.clock = clock;
@@ -374,7 +374,7 @@ public class AdminDashboardService {
             if (plan == null || plan.getMaxUsers() <= 0) {
                 continue;
             }
-            long used = membershipRepository.countByTenantIdAndStatus(tenant.getId(), "ACTIVE");
+            long used = planLimitService.usedStaffUsers(tenant.getId());
             if (used * 100 >= plan.getMaxUsers() * 80L) {
                 count++;
             }
