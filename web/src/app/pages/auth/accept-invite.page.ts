@@ -4,15 +4,16 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SignupService } from '../../core/services/signup.service';
 import { InvitePreview } from '../../core/models';
+import { RoleLabelPipe } from '../../shared/ui/role-label.pipe';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, RoleLabelPipe],
   template: `
     <div class="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-6">
       <h1 class="font-display text-2xl font-semibold">{{ 'signup.inviteTitle' | translate }}</h1>
       @if (preview(); as invite) {
-        <p class="mt-2 text-sm text-slate-500">{{ invite.tenantName }} · {{ invite.role }}</p>
+        <p class="mt-2 text-sm text-slate-500">{{ invite.tenantName }} · {{ invite.role | roleLabel }}</p>
         @if (invite.expired || invite.accepted) {
           <p class="mt-4 text-sm text-rose-600">{{ 'signup.inviteInvalid' | translate }}</p>
         } @else {

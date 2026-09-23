@@ -8,6 +8,7 @@ import { ToastService } from '../../../core/services/toast.service';
 import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
 import { apiErrorMessage } from '../../../core/http-error';
 import { UserAvatarComponent } from '../../../shared/ui/user-avatar.component';
+import { RoleLabelPipe } from '../../../shared/ui/role-label.pipe';
 
 function matchesPassword(control: AbstractControl): ValidationErrors | null {
   const next = control.get('newPassword')?.value;
@@ -20,7 +21,7 @@ function matchesPassword(control: AbstractControl): ValidationErrors | null {
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe, UserAvatarComponent],
+  imports: [ReactiveFormsModule, TranslatePipe, UserAvatarComponent, RoleLabelPipe],
   template: `
     <h1 class="font-display text-2xl font-semibold">{{ 'profile.title' | translate }}</h1>
 
@@ -29,6 +30,7 @@ function matchesPassword(control: AbstractControl): ValidationErrors | null {
         <app-user-avatar class="h-24 w-24 text-2xl" [url]="preview() || auth.user()?.avatarUrl" [name]="auth.user()?.fullName" />
         <div>
           <p class="font-medium">{{ auth.user()?.fullName }}</p>
+          <p class="text-sm text-slate-500">{{ (auth.user()?.role || auth.user()?.roles?.[0]) | roleLabel }}</p>
           <p class="text-sm text-slate-500">{{ auth.user()?.email }}</p>
         </div>
         <div class="flex flex-wrap justify-center gap-2">

@@ -7,13 +7,14 @@ import { specialtyLabel } from '../../../core/team-labels';
 import { ApiService } from '../../../core/services/api.service';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
+import { StatusLabelPipe } from '../../../shared/ui/status-label.pipe';
 import { Appointment, Pet, TimelineEvent } from '../../../core/models';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, TranslatePipe, EmptyStateComponent, StatusBadgePipe],
+  imports: [CommonModule, FormsModule, RouterLink, TranslatePipe, EmptyStateComponent, StatusBadgePipe, StatusLabelPipe],
   template: `
     @if (pet(); as p) {
       <div class="mb-4 text-sm text-slate-500"><a routerLink="/pets" class="hover:text-brand-700">{{ 'nav.pets' | translate }}</a> / {{ p.name }}</div>
@@ -72,7 +73,7 @@ import { ToastService } from '../../../core/services/toast.service';
             <p><span class="text-slate-400">{{ 'pets.breed' | translate }}:</span> {{ p.breed }}</p>
             <p><span class="text-slate-400">{{ 'pets.weight' | translate }}:</span> {{ p.weightKg }} kg</p>
             <p><span class="text-slate-400">Microchip:</span> {{ p.microchip || '—' }}</p>
-            <p><span class="text-slate-400">{{ 'common.status' | translate }}:</span> {{ p.status }}</p>
+            <p><span class="text-slate-400">{{ 'common.status' | translate }}:</span> {{ p.status | statusLabel }}</p>
           </div>
           <div class="card">
             <p class="text-sm font-medium">{{ 'pets.tabs.timeline' | translate }}</p>
@@ -144,7 +145,7 @@ import { ToastService } from '../../../core/services/toast.service';
             </form>
           }
           @for (t of treatments(); track t.id) {
-            <div class="card"><p class="font-medium">{{ t.name }}</p><p class="text-sm text-slate-500">{{ t.status }} · {{ t.startDate }}</p></div>
+            <div class="card"><p class="font-medium">{{ t.name }}</p><p class="text-sm text-slate-500">{{ t.status | statusLabel }} · {{ t.startDate }}</p></div>
           }
         </div>
       }
@@ -179,7 +180,7 @@ import { ToastService } from '../../../core/services/toast.service';
           @for (l of labs(); track l.id) {
             <div class="card">
               <p class="font-medium">{{ l.name }}</p>
-              <p class="text-sm text-slate-500">{{ l.labName }} · {{ l.collectedAt | date }} · {{ l.status }}</p>
+              <p class="text-sm text-slate-500">{{ l.labName }} · {{ l.collectedAt | date }} · {{ l.status | statusLabel }}</p>
               <p class="text-sm">{{ l.resultSummary }}</p>
             </div>
           }
@@ -249,7 +250,7 @@ import { ToastService } from '../../../core/services/toast.service';
           @for (a of appointments(); track a.id) {
             <div class="card flex items-center justify-between">
               <p>{{ a.startAt | date:'short' }} · {{ a.serviceName }} · {{ a.veterinarianName }}@if (appointmentSpecialty(a)) { · {{ appointmentSpecialty(a) }} }</p>
-              <span [class]="a.status | statusBadge">{{ a.status }}</span>
+              <span [class]="a.status | statusBadge">{{ a.status | statusLabel }}</span>
             </div>
           }
         </div>

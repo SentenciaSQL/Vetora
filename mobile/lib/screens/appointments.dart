@@ -174,7 +174,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
-                      label: Text(status == null ? i.t('all') : i.t('status_$status')),
+                      label: Text(status == null ? i.t('all') : statusLabel(status)),
                       selected: statusFilter == status,
                       onSelected: (_) {
                         statusFilter = status;
@@ -204,7 +204,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                                   a['tenantName'] ?? a['owner'] ?? '',
                                   a['veterinarianName'] ?? a['veterinarian'] ?? '',
                                   specialtyLabel(a['veterinarianSpecialty'], other: a['veterinarianSpecialtyOther']),
-                                  a['status'] ?? '',
+                                  statusLabel(a['status']),
                                 ].where((part) => '$part'.trim().isNotEmpty).join(' · '),
                               ].join('\n')),
                               isThreeLine: true,
@@ -332,7 +332,7 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                   ].where((line) => line.isNotEmpty).join('\n')),
                 ),
                 ListTile(title: Text(i.t('date')), subtitle: Text(formatDate(item['startAt']))),
-                ListTile(title: Text(i.t('subscriptionStatus')), subtitle: Text(i.t('status_${item['status']}') == 'status_${item['status']}' ? '${item['status']}' : i.t('status_${item['status']}'))),
+                ListTile(title: Text(i.t('subscriptionStatus')), subtitle: Text(statusLabel(item['status']))),
                 if (asString(item['reason']).isNotEmpty) ListTile(title: Text(i.t('reason')), subtitle: Text('${item['reason']}')),
                 const SizedBox(height: 16),
                 if (canManage && !busy) ...[

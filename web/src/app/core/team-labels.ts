@@ -45,6 +45,31 @@ export function roleLabel(i18n: TranslateService, code?: string | null): string 
   return translatedCode(i18n, 'roles', code);
 }
 
+export function statusLabel(i18n: TranslateService, code?: string | null): string {
+  if (!code) {
+    return '';
+  }
+  const status = translatedCode(i18n, 'statuses', code);
+  if (status !== code) {
+    return status;
+  }
+  const vaccine = translatedCode(i18n, 'pets.vaccineStatus', code);
+  if (vaccine !== code) {
+    return vaccine;
+  }
+  const billing = translatedCode(i18n, 'billing.status', code);
+  if (billing !== code) {
+    return billing;
+  }
+  if (code === 'ACTIVE') {
+    return translatedCode(i18n, 'team', 'active');
+  }
+  if (code === 'INACTIVE') {
+    return translatedCode(i18n, 'team', 'inactive');
+  }
+  return /^[A-Z0-9_]+$/.test(code) ? '' : code;
+}
+
 export function specialtyLabel(
   i18n: TranslateService,
   code?: string | null,

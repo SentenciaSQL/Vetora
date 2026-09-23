@@ -20,13 +20,29 @@ int asInt(dynamic value, [int fallback = 0]) {
   return int.tryParse('$value') ?? fallback;
 }
 
-String statusLabel(dynamic status) {
-  final code = asString(status);
-  if (code.isEmpty) return '';
-  final key = 'status_$code';
+String _namedCode(String prefix, dynamic code) {
+  final value = asString(code).trim();
+  if (value.isEmpty) return '';
+  final key = '${prefix}_$value';
   final translated = I18n.instance.t(key);
-  return translated == key ? code : translated;
+  if (translated != key) return translated;
+  return RegExp(r'^[A-Z0-9_]+$').hasMatch(value) ? '' : value;
 }
+
+String statusLabel(dynamic status) => _namedCode('status', status);
+
+String roleLabel(dynamic role) => _namedCode('role', role);
+
+String rolesLabel(Iterable<dynamic> roles) {
+  final labels = <String>[];
+  for (final role in roles) {
+    final label = roleLabel(role);
+    if (label.isNotEmpty && !labels.contains(label)) labels.add(label);
+  }
+  return labels.join(', ');
+}
+
+String cycleLabel(dynamic cycle) => _namedCode('cycle', cycle);
 
 String asString(dynamic value, [String fallback = '']) {
   if (value == null) return fallback;

@@ -92,8 +92,8 @@ class _BillingScreenState extends State<BillingScreen> {
                     Text(i.t('noSubscription'))
                   else ...[
                     ListTile(title: Text(i.t('plan')), subtitle: Text('${sub['planName'] ?? sub['planCode'] ?? '—'}')),
-                    ListTile(title: Text(i.t('billingCycle')), subtitle: Text('${sub['billingCycle'] ?? '—'}')),
-                    ListTile(title: Text(i.t('subscriptionStatus')), subtitle: Text('${sub['status'] ?? '—'}')),
+                    ListTile(title: Text(i.t('billingCycle')), subtitle: Text(cycleLabel(sub['billingCycle']).isEmpty ? '—' : cycleLabel(sub['billingCycle']))),
+                    ListTile(title: Text(i.t('subscriptionStatus')), subtitle: Text(statusLabel(sub['status']).isEmpty ? '—' : statusLabel(sub['status']))),
                     ListTile(title: Text(i.t('startedAt')), subtitle: Text(formatDay(sub['startedAt']))),
                     ListTile(title: Text(i.t('nextBillingAt')), subtitle: Text(formatDay(sub['nextBillingAt'] ?? sub['currentPeriodEndsAt']))),
                     if (sub['trial'] == true || '${sub['status']}' == 'TRIALING')

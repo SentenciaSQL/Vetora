@@ -5,10 +5,11 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { StatusLabelPipe } from '../../../shared/ui/status-label.pipe';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule, TranslatePipe, StatusLabelPipe],
   template: `
     <h1 class="font-display text-2xl font-semibold">{{ 'reports.title' | translate }}</h1>
     <p class="text-sm text-slate-500">{{ (auth.isSuperAdmin() ? 'reports.platformSubtitle' : 'reports.subtitle') | translate }}</p>
@@ -35,14 +36,14 @@ import { ToastService } from '../../../core/services/toast.service';
         <label class="text-sm">{{ 'admin.cycle' | translate }}
           <select class="input mt-1" [(ngModel)]="billingCycle">
             <option value="">{{ 'common.all' | translate }}</option>
-            <option value="MONTHLY">MONTHLY</option>
-            <option value="ANNUAL">ANNUAL</option>
+            <option value="MONTHLY">{{ 'billing.monthly' | translate }}</option>
+            <option value="ANNUAL">{{ 'billing.annual' | translate }}</option>
           </select>
         </label>
         <label class="text-sm">{{ 'common.status' | translate }}
           <select class="input mt-1" [(ngModel)]="status">
             <option value="">{{ 'common.all' | translate }}</option>
-            @for (s of platformStatuses; track s) { <option [value]="s">{{ s }}</option> }
+            @for (s of platformStatuses; track s) { <option [value]="s">{{ s | statusLabel }}</option> }
           </select>
         </label>
         <label class="text-sm">{{ 'admin.filters.country' | translate }}
@@ -61,7 +62,7 @@ import { ToastService } from '../../../core/services/toast.service';
         <label class="text-sm">{{ 'common.status' | translate }}
           <select class="input mt-1" [(ngModel)]="status">
             <option value="">{{ 'common.all' | translate }}</option>
-            @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+            @for (s of statuses; track s) { <option [value]="s">{{ s | statusLabel }}</option> }
           </select>
         </label>
       }

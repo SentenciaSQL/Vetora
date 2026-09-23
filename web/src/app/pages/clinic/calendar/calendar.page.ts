@@ -10,11 +10,12 @@ import { TranslateService } from '@ngx-translate/core';
 import { Appointment, PageResponse, Pet } from '../../../core/models';
 import { specialtyLabel } from '../../../core/team-labels';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
+import { StatusLabelPipe } from '../../../shared/ui/status-label.pipe';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe, StatusBadgePipe, EmptyStateComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe, StatusBadgePipe, StatusLabelPipe, EmptyStateComponent],
   template: `
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
@@ -77,7 +78,7 @@ import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
             <p class="text-sm text-slate-500">{{ a.startAt | date:'short' }} · {{ a.serviceName }} · {{ a.veterinarianName }}@if (appointmentSpecialty(a)) { · {{ appointmentSpecialty(a) }} }</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <span [class]="a.status | statusBadge">{{ a.status }}</span>
+            <span [class]="a.status | statusBadge">{{ a.status | statusLabel }}</span>
             @if (auth.isStaff() && (a.status === 'PENDING' || a.status === 'REQUESTED')) {
               <button class="btn-secondary text-xs" (click)="status(a.id,'CONFIRMED')">{{ 'calendar.confirm' | translate }}</button>
             }

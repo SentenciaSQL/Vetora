@@ -76,6 +76,8 @@
 	<string>Lunaveta usa la galería para la foto de perfil y la foto de la mascota.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Lunaveta usa la cámara para la foto de perfil y la foto de la mascota.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Lunaveta utiliza Face ID para permitirte acceder de forma segura a tu cuenta.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>
