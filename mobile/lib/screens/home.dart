@@ -190,12 +190,21 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> _staffCards(I18n i) {
     final agenda = asList(home['todayAgenda']);
     return [
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        _stat(i.t('appointmentsToday'), '${home['appointmentsToday'] ?? 0}'),
-        _stat(i.t('pendingAppointments'), '${home['pendingAppointments'] ?? 0}'),
-        _stat(i.t('unread'), '${home['unreadMessages'] ?? 0}'),
-        _stat(i.t('upcomingVaccines'), '${home['upcomingVaccines'] ?? 0}'),
-      ]),
+      Row(
+        children: [
+          Expanded(child: _stat(i.t('appointmentsToday'), '${home['appointmentsToday'] ?? 0}')),
+          const SizedBox(width: 12),
+          Expanded(child: _stat(i.t('pendingAppointments'), '${home['pendingAppointments'] ?? 0}')),
+        ],
+      ),
+      const SizedBox(height: 12),
+      Row(
+        children: [
+          Expanded(child: _stat(i.t('unread'), '${home['unreadMessages'] ?? 0}')),
+          const SizedBox(width: 12),
+          Expanded(child: _stat(i.t('upcomingVaccines'), '${home['upcomingVaccines'] ?? 0}')),
+        ],
+      ),
       const SizedBox(height: 16),
       Text(i.t('agenda'), style: Theme.of(context).textTheme.titleMedium),
       if (agenda.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: Text(i.t('empty'))),
@@ -230,13 +239,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _stat(String label, String value) {
     return SizedBox(
-      width: 150,
+      height: 112,
+      width: double.infinity,
       child: Card(
+        margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-            Text(label),
+            const SizedBox(height: 4),
+            Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
           ]),
         ),
       ),
