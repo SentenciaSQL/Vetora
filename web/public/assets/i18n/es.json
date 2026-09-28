@@ -423,6 +423,12 @@
     "male": "Macho",
     "female": "Hembra",
     "unknown": "No especificado",
+    "brand": "Marca",
+    "lot": "Lote",
+    "notes": "Notas",
+    "appliedAt": "Fecha de aplicación",
+    "nextDose": "Próxima dosis",
+    "deleteVaccineConfirm": "¿Desea eliminar esta vacuna?",
     "tabs": {
       "summary": "Resumen",
       "timeline": "Historial",
