@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -103,8 +104,16 @@ class AuthStore extends ChangeNotifier {
     return user?['accessGranted'] == false;
   }
 
+  String _deviceLocale() {
+    final code = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    return code == 'en' ? 'en' : 'es';
+  }
+
+  String _normalizeLocale(String? code) => code?.toLowerCase() == 'en' ? 'en' : 'es';
+
   Future<void> restore() async {
-    await I18n.instance.load('es');
+    final savedLocale = await _storage.read(key: 'locale');
+    await I18n.instance.load(savedLocale == null ? _deviceLocale() : _normalizeLocale(savedLocale));
     biometricEnabled = await _storage.read(key: 'biometricEnabled') == '1';
     final access = await _storage.read(key: 'access');
     final refresh = await _storage.read(key: 'refresh');
@@ -116,7 +125,7 @@ class AuthStore extends ChangeNotifier {
       if (raw != null) {
         final sealed = jsonDecode(raw);
         if (sealed is Map && sealed['locale'] is String) {
-          await I18n.instance.load(sealed['locale'] as String);
+          await I18n.instance.load(_normalizeLocale(sealed['locale'] as String));
         }
       }
       notifyListeners();
@@ -126,7 +135,7 @@ class AuthStore extends ChangeNotifier {
     refreshToken = refresh;
     if (raw != null) {
       user = jsonDecode(raw) as Map<String, dynamic>;
-      await I18n.instance.load((user?['locale'] as String?) ?? 'es');
+      await I18n.instance.load(_normalizeLocale(user?['locale'] as String?));
     }
     final activity = await _storage.read(key: 'lastActivity');
     if (activity != null) {
@@ -288,9 +297,11 @@ class AuthStore extends ChangeNotifier {
   }
 
   Future<void> setLocale(String locale) async {
-    await I18n.instance.load(locale);
+    final code = _normalizeLocale(locale);
+    await I18n.instance.load(code);
+    await _storage.write(key: 'locale', value: code);
     if (isLoggedIn) {
-      await updateProfile({'locale': locale});
+      await updateProfile({'locale': code});
     }
   }
 
@@ -308,6 +319,7 @@ class AuthStore extends ChangeNotifier {
     final keepDestination = reason == 'UNAUTHORIZED' || reason == 'INACTIVITY';
     final installationId = await _storage.read(key: 'installationId');
     final permissionAsked = await _storage.read(key: 'notificationsPermissionRequested');
+    final savedLocale = await _storage.read(key: 'locale');
     final pendingConversation = keepDestination ? await _storage.read(key: NotificationRouter.pendingConversationKey) : null;
     final pendingMessage = keepDestination ? await _storage.read(key: NotificationRouter.pendingMessageKey) : null;
     if (refresh != null && reason != 'REMOTE' && reason != 'ACCOUNT_DELETED') {
@@ -338,6 +350,9 @@ class AuthStore extends ChangeNotifier {
     }
     if (permissionAsked != null && permissionAsked.isNotEmpty) {
       await _storage.write(key: 'notificationsPermissionRequested', value: permissionAsked);
+    }
+    if (savedLocale == 'es' || savedLocale == 'en') {
+      await _storage.write(key: 'locale', value: savedLocale!);
     }
     if (keepDestination && pendingConversation != null && pendingConversation.isNotEmpty) {
       await _storage.write(key: NotificationRouter.pendingConversationKey, value: pendingConversation);
@@ -415,7 +430,7 @@ class AuthStore extends ChangeNotifier {
       final me = await api.get('/auth/me');
       user = asMap(me);
       await _storage.write(key: 'user', value: jsonEncode(user));
-      await I18n.instance.load((user?['locale'] as String?) ?? 'es');
+      await I18n.instance.load(_normalizeLocale(user?['locale'] as String?));
       notifyListeners();
       await afterLogin();
       if (isIdleExpired) {
@@ -460,7 +475,9 @@ class AuthStore extends ChangeNotifier {
     if (refreshToken != null) await _storage.write(key: 'refresh', value: refreshToken);
     if (user != null) await _storage.write(key: 'user', value: jsonEncode(user));
     if (user?['locale'] is String) {
-      await I18n.instance.load(user!['locale'] as String);
+      final code = _normalizeLocale(user!['locale'] as String);
+      await I18n.instance.load(code);
+      await _storage.write(key: 'locale', value: code);
     }
     if (resetActivity) {
       _clearSealedSession();
