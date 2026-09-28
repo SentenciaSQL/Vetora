@@ -69,26 +69,26 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
     }
   }
 
-  Future<void> _addVaccine() async {
-    final name = TextEditingController();
-    final saved = await showDialog<bool>(
+  Future<void> _editVaccine([Map? existing]) async {
+    final result = await showDialog<Map>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(I18n.instance.t('vaccines')),
-        content: TextField(controller: name, decoration: InputDecoration(labelText: I18n.instance.t('name'))),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(I18n.instance.t('back'))),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(I18n.instance.t('save'))),
-        ],
-      ),
+      builder: (ctx) => _VaccineEditor(existing: existing),
     );
-    if (saved != true || name.text.trim().isEmpty) return;
+    if (result == null || !mounted) return;
     try {
-      await widget.auth.api.post('/vaccinations', {
-        'petId': widget.pet['id'],
-        'vaccineName': name.text.trim(),
-        'appliedAt': DateTime.now().toIso8601String().split('T').first,
-      });
+      if (result['delete'] == true) {
+        await widget.auth.api.delete('/vaccinations/${existing!['id']}');
+      } else if (existing == null) {
+        await widget.auth.api.post('/vaccinations', {
+          'petId': widget.pet['id'],
+          ...result,
+        });
+      } else {
+        await widget.auth.api.put('/vaccinations/${existing['id']}', {
+          'petId': widget.pet['id'],
+          ...result,
+        });
+      }
       await _load();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t('saved'))));
     } catch (e) {
@@ -145,7 +145,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
           if (widget.auth.hasPermission('PET_UPDATE'))
             IconButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetFormScreen(auth: widget.auth, pet: asMap(pet)))).then((_) => _load()), icon: const Icon(Icons.edit_outlined)),
           if (widget.auth.canWriteMedical)
-            IconButton(onPressed: _addVaccine, icon: const Icon(Icons.vaccines_outlined)),
+            IconButton(tooltip: i.t('addVaccine'), onPressed: () => _editVaccine(), icon: const Icon(Icons.vaccines_outlined)),
         ],
       ),
       body: loading || error != null
@@ -233,7 +233,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                           Text('${i.t('nextIndications')}: ${consultations.first['recommendations'] ?? consultations.first['nextControlAt'] ?? i.t('empty')}'),
                       ]),
                       _list(timeline, (e) => ListTile(title: Text('${e['title']}'), subtitle: Text('${e['type']} · ${formatDate(e['at'])}'))),
-                      _list(vaccines, (v) => ListTile(title: Text('${v['vaccineName']}'), subtitle: Text('${statusLabel(v['status'])} · ${formatDate(v['appliedAt'])}'))),
+                      _vaccinesTab(i),
                       _list(treatments, (t) => ListTile(title: Text('${t['name']}'), subtitle: Text('${statusLabel(t['status'])} · ${t['startDate'] ?? ''}'))),
                       _list(prescriptions, (p) => ListTile(
                         title: Text('${p['notes'] ?? i.t('prescriptions')}'),
@@ -263,9 +263,228 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
     );
   }
 
+  Widget _vaccinesTab(I18n i) {
+    final canWrite = widget.auth.canWriteMedical;
+    return Column(
+      children: [
+        if (canWrite)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: TextButton.icon(
+                onPressed: () => _editVaccine(),
+                icon: const Icon(Icons.add),
+                label: Text(i.t('addVaccine')),
+              ),
+            ),
+          ),
+        Expanded(
+          child: vaccines.isEmpty
+              ? Center(child: Text(i.t('empty'), textAlign: TextAlign.center))
+              : ListView(
+                  children: [
+                    for (final v in vaccines) _vaccineTile(i, asMap(v), canWrite),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _vaccineTile(I18n i, Map<String, dynamic> vaccine, bool canWrite) {
+    final next = asString(vaccine['nextDoseAt']);
+    final lines = [
+      statusLabel(vaccine['status']),
+      '${i.t('appliedOn')} ${formatDay(vaccine['appliedAt'])}',
+      if (next.isNotEmpty) '${i.t('nextDose')} ${formatDay(vaccine['nextDoseAt'])}',
+    ].where((part) => part.trim().isNotEmpty).join('\n');
+    return ListTile(
+      title: Text(asString(vaccine['vaccineName'])),
+      subtitle: Text(lines),
+      isThreeLine: next.isNotEmpty,
+      onTap: canWrite ? () => _editVaccine(vaccine) : null,
+      trailing: canWrite
+          ? IconButton(
+              tooltip: i.t('editVaccine'),
+              onPressed: () => _editVaccine(vaccine),
+              icon: const Icon(Icons.edit_outlined),
+            )
+          : null,
+    );
+  }
+
   Widget _list(List items, Widget Function(dynamic) builder, {String? empty}) {
     final i = I18n.instance;
     if (items.isEmpty) return Center(child: Text(empty ?? i.t('empty')));
     return ListView(children: [for (final item in items) builder(item)]);
+  }
+}
+
+class _VaccineEditor extends StatefulWidget {
+  const _VaccineEditor({this.existing});
+
+  final Map? existing;
+
+  @override
+  State<_VaccineEditor> createState() => _VaccineEditorState();
+}
+
+class _VaccineEditorState extends State<_VaccineEditor> {
+  late final TextEditingController name;
+  late final TextEditingController brand;
+  late final TextEditingController lot;
+  late final TextEditingController notes;
+  late DateTime applied;
+  DateTime? nextDose;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    name = TextEditingController(text: asString(existing?['vaccineName']));
+    brand = TextEditingController(text: asString(existing?['brand']));
+    lot = TextEditingController(text: asString(existing?['lot']));
+    notes = TextEditingController(text: asString(existing?['notes']));
+    applied = _day(existing?['appliedAt']) ?? DateTime.now();
+    nextDose = _day(existing?['nextDoseAt']);
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    brand.dispose();
+    lot.dispose();
+    notes.dispose();
+    super.dispose();
+  }
+
+  bool get editing => widget.existing != null;
+
+  DateTime? _day(dynamic value) {
+    final parsed = DateTime.tryParse(asString(value));
+    if (parsed == null) return null;
+    final local = parsed.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  String _iso(DateTime day) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${day.year}-${two(day.month)}-${two(day.day)}';
+  }
+
+  Future<void> _pick(bool next) async {
+    final current = next ? (nextDose ?? applied) : applied;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+    if (picked == null) return;
+    setState(() {
+      final day = DateTime(picked.year, picked.month, picked.day);
+      if (next) {
+        nextDose = day;
+      } else {
+        applied = day;
+      }
+    });
+  }
+
+  Future<void> _delete() async {
+    final i = I18n.instance;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(i.t('deleteVaccine')),
+        content: Text(i.t('deleteVaccineConfirm')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(i.t('back'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(i.t('deleteVaccine'))),
+        ],
+      ),
+    );
+    if (ok == true && mounted) Navigator.pop(context, {'delete': true});
+  }
+
+  void _save() {
+    final trimmed = name.text.trim();
+    if (trimmed.isEmpty) return;
+    Navigator.pop(context, {
+      'vaccineName': trimmed,
+      'brand': brand.text.trim(),
+      'lot': lot.text.trim(),
+      'notes': notes.text.trim(),
+      'appliedAt': _iso(applied),
+      'nextDoseAt': nextDose == null ? null : _iso(nextDose!),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final i = I18n.instance;
+    return AlertDialog(
+      title: Text(editing ? i.t('editVaccine') : i.t('addVaccine')),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: name,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(labelText: i.t('name')),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: brand,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(labelText: i.t('brand')),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: lot,
+              decoration: InputDecoration(labelText: i.t('lot')),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(i.t('appliedOn')),
+              subtitle: Text(formatDay(applied)),
+              trailing: const Icon(Icons.calendar_today_outlined),
+              onTap: () => _pick(false),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(i.t('nextDose')),
+              subtitle: Text(nextDose == null ? '—' : formatDay(nextDose)),
+              trailing: const Icon(Icons.calendar_today_outlined),
+              onTap: () => _pick(true),
+            ),
+            if (nextDose != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(onPressed: () => setState(() => nextDose = null), child: Text(i.t('clearDate'))),
+              ),
+            TextField(
+              controller: notes,
+              minLines: 1,
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(labelText: i.t('notes')),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        if (editing)
+          TextButton(
+            onPressed: _delete,
+            child: Text(i.t('deleteVaccine'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(i.t('back'))),
+        FilledButton(onPressed: name.text.trim().isEmpty ? null : _save, child: Text(i.t('save'))),
+      ],
+    );
   }
 }

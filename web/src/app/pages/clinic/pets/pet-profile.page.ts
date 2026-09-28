@@ -116,20 +116,41 @@ import { ToastService } from '../../../core/services/toast.service';
       @if (tab === 'vaccines') {
         <div class="mt-4 space-y-2">
           @if (canWrite) {
-            <form class="card grid gap-2 sm:grid-cols-4" (ngSubmit)="saveVaccine()">
+            <form class="card grid gap-2 sm:grid-cols-2 lg:grid-cols-3" (ngSubmit)="saveVaccine()">
               <input class="input" [(ngModel)]="vaccine.name" name="vname" [placeholder]="'pets.tabs.vaccines' | translate" required />
-              <input class="input" [(ngModel)]="vaccine.brand" name="vbrand" placeholder="Marca" />
-              <input class="input" type="date" [(ngModel)]="vaccine.appliedAt" name="vdate" required />
-              <button class="btn-primary">{{ 'common.create' | translate }}</button>
+              <input class="input" [(ngModel)]="vaccine.brand" name="vbrand" [placeholder]="'pets.brand' | translate" />
+              <input class="input" [(ngModel)]="vaccine.lot" name="vlot" [placeholder]="'pets.lot' | translate" />
+              <label class="block text-sm text-slate-500">{{ 'pets.appliedAt' | translate }}
+                <input class="input mt-1" type="date" [(ngModel)]="vaccine.appliedAt" name="vdate" required />
+              </label>
+              <label class="block text-sm text-slate-500">{{ 'pets.nextDose' | translate }}
+                <input class="input mt-1" type="date" [(ngModel)]="vaccine.nextDoseAt" name="vnext" />
+              </label>
+              <input class="input sm:col-span-2 lg:col-span-3" [(ngModel)]="vaccine.notes" name="vnotes" [placeholder]="'pets.notes' | translate" />
+              <div class="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
+                <button class="btn-primary" type="submit">{{ (vaccine.id ? 'common.save' : 'common.create') | translate }}</button>
+                @if (vaccine.id) {
+                  <button class="btn-secondary" type="button" (click)="resetVaccine()">{{ 'common.cancel' | translate }}</button>
+                }
+              </div>
             </form>
           }
           @for (v of vaccines(); track v.id) {
-            <div class="card flex items-center justify-between">
+            <div class="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p class="font-medium">{{ v.vaccineName }}</p>
-                <p class="text-sm text-slate-500">{{ v.appliedAt | date }} · {{ v.brand }}</p>
+                <p class="text-sm text-slate-500">{{ v.appliedAt | date }}@if (v.brand) { · {{ v.brand }} }</p>
+                @if (v.nextDoseAt) {
+                  <p class="text-sm text-slate-500">{{ 'pets.nextDose' | translate }}: {{ v.nextDoseAt | date }}</p>
+                }
               </div>
-              <span [class]="v.status | statusBadge">{{ ('pets.vaccineStatus.' + v.status) | translate }}</span>
+              <div class="flex flex-wrap items-center gap-2">
+                <span [class]="v.status | statusBadge">{{ ('pets.vaccineStatus.' + v.status) | translate }}</span>
+                @if (canWrite) {
+                  <button type="button" class="btn-secondary text-xs" (click)="editVaccine(v)">{{ 'common.edit' | translate }}</button>
+                  <button type="button" class="btn-secondary text-xs" (click)="deleteVaccine(v)">{{ 'common.delete' | translate }}</button>
+                }
+              </div>
             </div>
           }
         </div>
@@ -295,7 +316,7 @@ export class PetProfilePage implements OnInit {
   }
   weights = signal<any[]>([]);
   tab = 'summary';
-  vaccine = { name: '', brand: '', appliedAt: '' };
+  vaccine: { id: number | null; name: string; brand: string; lot: string; appliedAt: string; nextDoseAt: string; notes: string } = { id: null, name: '', brand: '', lot: '', appliedAt: '', nextDoseAt: '', notes: '' };
   treatment = { name: '', startDate: '' };
   rx = { medicationName: '', dose: '' };
   lab = { name: '', resultSummary: '' };
@@ -364,14 +385,49 @@ export class PetProfilePage implements OnInit {
     return Number(this.route.snapshot.paramMap.get('id'));
   }
 
+  editVaccine(item: { id: number; vaccineName?: string; brand?: string; lot?: string; appliedAt?: string; nextDoseAt?: string; notes?: string }) {
+    this.vaccine = {
+      id: item.id,
+      name: item.vaccineName ?? '',
+      brand: item.brand ?? '',
+      lot: item.lot ?? '',
+      appliedAt: (item.appliedAt ?? '').slice(0, 10),
+      nextDoseAt: (item.nextDoseAt ?? '').slice(0, 10),
+      notes: item.notes ?? ''
+    };
+  }
+
+  resetVaccine() {
+    this.vaccine = { id: null, name: '', brand: '', lot: '', appliedAt: '', nextDoseAt: '', notes: '' };
+  }
+
   saveVaccine() {
-    this.api.post('/vaccinations', {
+    const body = {
       petId: this.petId(),
       vaccineName: this.vaccine.name,
       brand: this.vaccine.brand,
-      appliedAt: this.vaccine.appliedAt
-    }).subscribe({
-      next: () => { this.toast.show('common.saved'); this.vaccine = { name: '', brand: '', appliedAt: '' }; this.select('vaccines'); },
+      lot: this.vaccine.lot,
+      notes: this.vaccine.notes,
+      appliedAt: this.vaccine.appliedAt,
+      nextDoseAt: this.vaccine.nextDoseAt || null
+    };
+    const request = this.vaccine.id
+      ? this.api.put(`/vaccinations/${this.vaccine.id}`, body)
+      : this.api.post('/vaccinations', body);
+    request.subscribe({
+      next: () => { this.toast.show('common.saved'); this.resetVaccine(); this.select('vaccines'); },
+      error: () => this.toast.show('common.error', true)
+    });
+  }
+
+  deleteVaccine(item: { id: number }) {
+    if (!confirm(this.i18n.instant('pets.deleteVaccineConfirm'))) return;
+    this.api.delete(`/vaccinations/${item.id}`).subscribe({
+      next: () => {
+        if (this.vaccine.id === item.id) this.resetVaccine();
+        this.toast.show('common.saved');
+        this.select('vaccines');
+      },
       error: () => this.toast.show('common.error', true)
     });
   }
