@@ -633,6 +633,19 @@
     "RECEPTIONIST": "Receptionist",
     "PET_OWNER": "Pet Owner"
   },
+  "statuses": {
+    "REQUESTED": "Requested",
+    "PENDING": "Pending",
+    "CONFIRMED": "Confirmed",
+    "ARRIVED": "Arrived",
+    "WAITING": "Waiting",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled",
+    "NO_SHOW": "No-show",
+    "ACTIVE": "Active",
+    "INACTIVE": "Inactive"
+  },
   "specialties": {
     "GENERAL_MEDICINE": "General Medicine",
     "INTERNAL_MEDICINE": "Internal Medicine",

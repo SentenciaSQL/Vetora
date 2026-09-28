@@ -234,14 +234,14 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                       ]),
                       _list(timeline, (e) => ListTile(title: Text('${e['title']}'), subtitle: Text('${e['type']} · ${formatDate(e['at'])}'))),
                       _list(vaccines, (v) => ListTile(title: Text('${v['vaccineName']}'), subtitle: Text('${statusLabel(v['status'])} · ${formatDate(v['appliedAt'])}'))),
-                      _list(treatments, (t) => ListTile(title: Text('${t['name']}'), subtitle: Text('${t['status']} · ${t['startDate'] ?? ''}'))),
+                      _list(treatments, (t) => ListTile(title: Text('${t['name']}'), subtitle: Text('${statusLabel(t['status'])} · ${t['startDate'] ?? ''}'))),
                       _list(prescriptions, (p) => ListTile(
                         title: Text('${p['notes'] ?? i.t('prescriptions')}'),
                         subtitle: Text('${formatDate(p['issuedAt'])} · ${pet['tenantName'] ?? ''}'),
                       )),
                       _list(documents, (d) => ListTile(title: Text('${d['title']}'), subtitle: Text('${d['category'] ?? ''} · ${formatDate(d['createdAt'])}'))),
                       _list(appointments, (a) => ListTile(
-                        title: Text('${a['serviceName'] ?? ''} · ${a['status']}'),
+                        title: Text('${a['serviceName'] ?? ''} · ${statusLabel(a['status'])}'),
                         subtitle: Text([
                           formatDate(a['startAt']),
                           [a['tenantName'] ?? '', a['veterinarianName'] ?? '', specialtyLabel(a['veterinarianSpecialty'], other: a['veterinarianSpecialtyOther'])]
@@ -252,7 +252,7 @@ class _PetDetailScreenState extends State<PetDetailScreen> with SingleTickerProv
                       )),
                       _list(
                         widget.auth.laboratoryEnabled ? labs : const [],
-                        (l) => ListTile(title: Text('${l['name'] ?? l['testName'] ?? i.t('labs')}'), subtitle: Text('${l['status'] ?? ''} · ${formatDate(l['createdAt'] ?? l['collectedAt'])}')),
+                        (l) => ListTile(title: Text('${l['name'] ?? l['testName'] ?? i.t('labs')}'), subtitle: Text('${statusLabel(l['status'])} · ${formatDate(l['createdAt'] ?? l['collectedAt'])}')),
                         empty: widget.auth.laboratoryEnabled ? null : i.t('featureUnavailable'),
                       ),
                     ],

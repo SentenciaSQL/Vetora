@@ -6,11 +6,12 @@ import { ToastService } from '../../core/services/toast.service';
 import { PlatformUser } from '../../core/models';
 import { PLATFORM_ROLES, VETERINARY_SPECIALTIES, roleLabel, specialtyLabel } from '../../core/team-labels';
 import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
+import { StatusLabelPipe } from '../../shared/ui/status-label.pipe';
 import { UserAvatarComponent } from '../../shared/ui/user-avatar.component';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, TranslatePipe, StatusBadgePipe, UserAvatarComponent],
+  imports: [ReactiveFormsModule, TranslatePipe, StatusBadgePipe, StatusLabelPipe, UserAvatarComponent],
   template: `
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
@@ -197,7 +198,7 @@ import { UserAvatarComponent } from '../../shared/ui/user-avatar.component';
               <p class="text-sm text-slate-500">{{ 'admin.noMemberships' | translate }}</p>
             } @else {
               @for (membership of user.memberships; track membership.id) {
-                <p class="text-sm text-slate-500">{{ membership.tenantName }} · {{ labelRole(membership.role) }} · {{ membership.status }}</p>
+                <p class="text-sm text-slate-500">{{ membership.tenantName }} · {{ labelRole(membership.role) }} · {{ membership.status | statusLabel }}</p>
               }
             }
           </div>

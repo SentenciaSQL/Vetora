@@ -20,13 +20,29 @@ int asInt(dynamic value, [int fallback = 0]) {
   return int.tryParse('$value') ?? fallback;
 }
 
-String statusLabel(dynamic status) {
-  final code = asString(status);
-  if (code.isEmpty) return '';
-  final key = 'status_$code';
+String _namedCode(String prefix, dynamic code) {
+  final value = asString(code).trim();
+  if (value.isEmpty) return '';
+  final key = '${prefix}_$value';
   final translated = I18n.instance.t(key);
-  return translated == key ? code : translated;
+  if (translated != key) return translated;
+  return RegExp(r'^[A-Z0-9_]+$').hasMatch(value) ? '' : value;
 }
+
+String statusLabel(dynamic status) => _namedCode('status', status);
+
+String roleLabel(dynamic role) => _namedCode('role', role);
+
+String rolesLabel(Iterable<dynamic> roles) {
+  final labels = <String>[];
+  for (final role in roles) {
+    final label = roleLabel(role);
+    if (label.isNotEmpty && !labels.contains(label)) labels.add(label);
+  }
+  return labels.join(', ');
+}
+
+String cycleLabel(dynamic cycle) => _namedCode('cycle', cycle);
 
 String asString(dynamic value, [String fallback = '']) {
   if (value == null) return fallback;
@@ -60,11 +76,28 @@ String userMessage(Object error) {
   final i = I18n.instance;
   if (error is UnauthorizedException) return i.t('sessionExpired');
   if (error is ApiException) {
-    if (error.status == 403) return error.message.isNotEmpty ? error.message : i.t('forbidden');
-    if (error.message.isNotEmpty) return error.message;
+    if (error.status == 401) {
+      if (_technical(error.message) || _sessionText(error.message)) return i.t('sessionExpired');
+      return i.t('invalid');
+    }
+    if (error.status == 403) return error.message.isNotEmpty && !_technical(error.message) ? error.message : i.t('forbidden');
+    if (error.status >= 500) return i.t('requestError');
+    if (error.message.isNotEmpty && !_technical(error.message)) return error.message;
     return i.t('requestError');
   }
+  final text = error.toString();
+  if (_technical(text) && text.contains('401')) return i.t('sessionExpired');
+  if (_offline(error)) return i.t('networkError');
   return i.t('requestError');
+}
+
+bool _offline(Object error) {
+  final name = error.runtimeType.toString();
+  if (name.contains('SocketException') || name.contains('ClientException') || name.contains('HandshakeException') || name.contains('HttpException') || name.contains('TimeoutException')) {
+    return true;
+  }
+  final text = error.toString().toLowerCase();
+  return text.contains('failed host lookup') || text.contains('connection refused') || text.contains('network is unreachable') || text.contains('connection reset') || text.contains('timed out');
 }
 
 String parseApiMessage(int status, String body) {
@@ -92,12 +125,26 @@ String parseApiCode(String body) {
   return '';
 }
 
-bool _safe(String message) {
+bool _sessionText(String message) {
   final lower = message.toLowerCase();
-  return !lower.contains('bearer ')
-      && !lower.contains('api key')
-      && !lower.contains('jwt')
-      && !lower.contains('stack')
-      && !lower.contains('exception')
-      && !lower.contains('sql');
+  return lower.contains('sesi')
+      || lower.contains('session')
+      || lower.contains('token')
+      || lower.contains('expir');
 }
+
+bool _technical(String message) {
+  final lower = message.toLowerCase();
+  return lower.contains('bearer ')
+      || lower.contains('api key')
+      || lower.contains('jwt')
+      || lower.contains('stack')
+      || lower.contains('exception')
+      || lower.contains('sql')
+      || lower.contains('requestoptions')
+      || lower.contains('validatestatus')
+      || lower.contains('dio')
+      || lower.contains('status code');
+}
+
+bool _safe(String message) => !_technical(message);

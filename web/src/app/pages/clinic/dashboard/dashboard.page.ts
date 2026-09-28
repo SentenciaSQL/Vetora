@@ -7,12 +7,13 @@ import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { StatCardComponent } from '../../../shared/ui/stat-card.component';
 import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
+import { StatusLabelPipe } from '../../../shared/ui/status-label.pipe';
 import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 import { AdminDashboardPage } from '../../admin/admin-dashboard.page';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, TranslatePipe, StatCardComponent, StatusBadgePipe, EmptyStateComponent, AdminDashboardPage],
+  imports: [CommonModule, RouterLink, TranslatePipe, StatCardComponent, StatusBadgePipe, StatusLabelPipe, EmptyStateComponent, AdminDashboardPage],
   template: `
     @if (auth.isSuperAdmin()) {
       <app-admin-dashboard />
@@ -32,7 +33,7 @@ import { AdminDashboardPage } from '../../admin/admin-dashboard.page';
             <empty-state [title]="'dashboard.emptyAgenda' | translate" />
           } @else {
             <p class="mt-3 font-medium">{{ data().nextAppointment.pet }}</p>
-            <p class="text-sm text-slate-500">{{ data().nextAppointment.startAt | date:'short' }} · {{ data().nextAppointment.status }}</p>
+            <p class="text-sm text-slate-500">{{ data().nextAppointment.startAt | date:'short' }} · {{ data().nextAppointment.status | statusLabel }}</p>
           }
         </div>
         <div class="card">
@@ -93,7 +94,7 @@ import { AdminDashboardPage } from '../../admin/admin-dashboard.page';
                     <p class="font-medium">{{ item.pet }} · {{ item.owner }}</p>
                     <p class="text-slate-500">{{ item.startAt | date:'shortTime' }} · {{ item.veterinarian }}</p>
                   </div>
-                  <span [class]="item.status | statusBadge">{{ item.status }}</span>
+                  <span [class]="item.status | statusBadge">{{ item.status | statusLabel }}</span>
                 </li>
               }
             </ul>

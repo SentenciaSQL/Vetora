@@ -72,7 +72,15 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(widget.auth.isStaff ? '${widget.auth.user?['tenantName'] ?? ''}' : i.t('tagline')),
             const SizedBox(height: 16),
             if (loading || error != null)
-              StatusView(loading: loading, error: error, onRetry: _load)
+              SizedBox(
+                height: (MediaQuery.sizeOf(context).height
+                        - MediaQuery.paddingOf(context).vertical
+                        - kBottomNavigationBarHeight
+                        - 140)
+                    .clamp(160.0, 640.0)
+                    .toDouble(),
+                child: StatusView(loading: loading, error: error, onRetry: _load),
+              )
             else if (widget.auth.isStaff)
               ..._staffCards(i)
             else
@@ -194,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
       for (final item in agenda)
         ListTile(
           title: Text('${item['pet']} · ${item['owner']}'),
-          subtitle: Text('${formatDate(item['startAt'])} · ${item['status']}'),
+          subtitle: Text([formatDate(item['startAt']), statusLabel(item['status'])].where((part) => part.isNotEmpty).join(' · ')),
         ),
       const SizedBox(height: 8),
       if (!widget.auth.clinicalLocked &&
