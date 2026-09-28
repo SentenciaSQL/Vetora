@@ -89,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await widget.auth.login(email.text.trim(), password.text);
       }
     } catch (e) {
-      setState(() => error = userMessage(e));
+      if (mounted) setState(() => error = userMessage(e));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -128,7 +128,18 @@ class _LoginScreenState extends State<LoginScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const SizedBox(height: 32),
+            Align(
+              alignment: Alignment.centerRight,
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'es', label: Text('ES')),
+                  ButtonSegment(value: 'en', label: Text('EN')),
+                ],
+                selected: {i.locale == 'en' ? 'en' : 'es'},
+                onSelectionChanged: loading ? null : (value) => widget.auth.setLocale(value.first),
+              ),
+            ),
+            const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: Image.asset('assets/branding/logo.png', width: 72, height: 72),
@@ -143,21 +154,43 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(controller: lastName, decoration: InputDecoration(labelText: i.t('lastName'))),
               const SizedBox(height: 12),
             ],
-            TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: i.t('email'))),
-            if (!forgot) ...[
-              const SizedBox(height: 12),
-              TextField(controller: password, obscureText: true, decoration: InputDecoration(labelText: i.t('password'))),
-            ],
-            if (forgot) ...[
-              const SizedBox(height: 12),
-              TextField(controller: token, decoration: InputDecoration(labelText: i.t('resetToken')), onChanged: (_) => setState(() {})),
-              const SizedBox(height: 12),
-              TextField(controller: password, obscureText: true, decoration: InputDecoration(labelText: i.t('password'))),
-            ],
-            if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
+            AutofillGroup(
+              child: Column(
+                children: [
+                  TextField(
+                    controller: email,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    textInputAction: TextInputAction.next,
+                    enableInteractiveSelection: true,
+                    decoration: InputDecoration(labelText: i.t('email')),
+                  ),
+                  if (!forgot) ...[
+                    const SizedBox(height: 12),
+                    _SecretField(controller: password, label: i.t('password'), onSubmitted: loading ? null : submit),
+                  ],
+                  if (forgot) ...[
+                    const SizedBox(height: 12),
+                    TextField(controller: token, decoration: InputDecoration(labelText: i.t('resetToken')), onChanged: (_) => setState(() {})),
+                    const SizedBox(height: 12),
+                    _SecretField(controller: password, label: i.t('password'), onSubmitted: loading ? null : submit),
+                  ],
+                ],
+              ),
+            ),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
             if (sent) Padding(padding: const EdgeInsets.only(top: 12), child: Text(i.t('forgotSent'))),
             if (widget.auth.logoutReason == 'ACCOUNT_DELETED')
               Padding(padding: const EdgeInsets.only(top: 12), child: Text(i.t('deleteDone'))),
+            if (widget.auth.logoutReason == 'UNAUTHORIZED' || widget.auth.logoutReason == 'INACTIVITY')
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(i.t('sessionExpired'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: loading ? null : submit,
@@ -202,6 +235,94 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Text(i.t('deleteAccountLink')),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SecretField extends StatefulWidget {
+  const _SecretField({required this.controller, required this.label, this.onSubmitted});
+
+  final TextEditingController controller;
+  final String label;
+  final VoidCallback? onSubmitted;
+
+  @override
+  State<_SecretField> createState() => _SecretFieldState();
+}
+
+class _SecretFieldState extends State<_SecretField> {
+  bool _obscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_keepSelectionInRange);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SecretField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_keepSelectionInRange);
+      widget.controller.addListener(_keepSelectionInRange);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_keepSelectionInRange);
+    super.dispose();
+  }
+
+  /// Paste, autofill and fast replacement can leave a selection or composing
+  /// range past the new text. That throws inside the field on the next frame.
+  void _keepSelectionInRange() {
+    final value = widget.controller.value;
+    final text = value.text;
+    final selection = value.selection;
+    final composing = value.composing;
+    var nextSelection = selection;
+    var nextComposing = composing;
+    var dirty = false;
+    if (selection.isValid) {
+      final start = selection.start.clamp(0, text.length).toInt();
+      final end = selection.end.clamp(0, text.length).toInt();
+      if (start != selection.start || end != selection.end) {
+        nextSelection = TextSelection(baseOffset: start, extentOffset: end);
+        dirty = true;
+      }
+    }
+    if (composing.isValid && (composing.start < 0 || composing.end > text.length)) {
+      nextComposing = TextRange.empty;
+      dirty = true;
+    }
+    if (!dirty) return;
+    widget.controller.value = value.copyWith(selection: nextSelection, composing: nextComposing);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final i = I18n.instance;
+    return TextField(
+      controller: widget.controller,
+      obscureText: _obscure,
+      enableSuggestions: false,
+      autocorrect: false,
+      smartDashesType: SmartDashesType.disabled,
+      smartQuotesType: SmartQuotesType.disabled,
+      enableInteractiveSelection: true,
+      keyboardType: TextInputType.visiblePassword,
+      autofillHints: const [AutofillHints.password],
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => widget.onSubmitted?.call(),
+      decoration: InputDecoration(
+        labelText: widget.label,
+        suffixIcon: IconButton(
+          tooltip: _obscure ? i.t('showPassword') : i.t('hidePassword'),
+          onPressed: () => setState(() => _obscure = !_obscure),
+          icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
         ),
       ),
     );
