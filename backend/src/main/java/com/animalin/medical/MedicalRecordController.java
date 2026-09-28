@@ -2,6 +2,7 @@ package com.animalin.medical;
 
 import com.animalin.dto.AppDtos;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -86,6 +87,17 @@ public class MedicalRecordController {
     @ResponseStatus(HttpStatus.CREATED)
     public AppDtos.VaccinationResponse createVaccination(@RequestBody AppDtos.VaccinationRequest request) {
         return medicalRecordService.createVaccination(request);
+    }
+
+    @PutMapping("/vaccinations/{id}")
+    public AppDtos.VaccinationResponse updateVaccination(@PathVariable Long id, @RequestBody AppDtos.VaccinationRequest request) {
+        return medicalRecordService.updateVaccination(id, request);
+    }
+
+    @DeleteMapping("/vaccinations/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteVaccination(@PathVariable Long id) {
+        medicalRecordService.deleteVaccination(id);
     }
 
     @GetMapping("/pets/{petId}/labs")
