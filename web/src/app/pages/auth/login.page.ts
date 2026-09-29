@@ -81,6 +81,7 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
             <div class="flex flex-wrap gap-x-4 gap-y-2">
               <a class="hover:underline" href="/privacidad">{{ 'accountDeletion.privacy' | translate }}</a>
               <a class="hover:underline" href="/terminos">{{ 'accountDeletion.terms' | translate }}</a>
+              <a class="hover:underline" href="/reembolsos">{{ 'accountDeletion.refundPolicy' | translate }}</a>
               <a class="hover:underline" href="mailto:supportlunaveta@gmail.com">{{ 'accountDeletion.contact' | translate }}</a>
             </div>
           </footer>
