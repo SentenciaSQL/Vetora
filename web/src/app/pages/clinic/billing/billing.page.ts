@@ -171,6 +171,7 @@ export function usageReached(metric?: UsageMetric | null): boolean {
         @if (canManage() && (subscription()?.status === 'ACTIVE' || subscription()?.status === 'TRIALING') && !subscription()?.scheduledChangeEffectiveAt) {
           <button type="button" class="btn-secondary" [disabled]="busy()" (click)="cancel()">{{ 'billing.cancel' | translate }}</button>
         }
+        <a class="self-center text-sm text-brand-700 hover:underline" href="/reembolsos">{{ 'billing.refundPolicy' | translate }}</a>
       </div>
     </section>
 
