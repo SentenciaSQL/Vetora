@@ -942,5 +942,199 @@
     "refundPolicy": "Política de reembolsos",
     "pricing": "Precios",
     "contact": "Contacto o soporte"
+  },
+  "public": {
+  "language": "Idioma",
+  "nav": {
+    "label": "Cuenta",
+    "pricing": "Precios",
+    "register": "Registrarse",
+    "signIn": "Iniciar sesión"
+  },
+  "footer": {
+    "tagline": "Gestión veterinaria de forma simple.",
+    "contact": "Contacto",
+    "product": "Producto",
+    "legal": "Legal",
+    "login": "Iniciar sesión",
+    "terms": "Términos de Servicio",
+    "privacy": "Política de Privacidad",
+    "refund": "Política de Reembolsos"
+  },
+  "cta": {
+    "start": "Comenzar",
+    "pricing": "Ver precios"
+  },
+  "hero": {
+    "title": "La gestión de tu clínica veterinaria, simplificada",
+    "body": "LunaVeta es una plataforma moderna de gestión veterinaria diseñada para ayudar a las clínicas a organizar sus operaciones diarias, administrar mascotas y propietarios, y mantener la información médica en un solo lugar."
+  },
+  "features": {
+    "title": "Todo lo que tu clínica veterinaria necesita",
+    "pets": {
+      "title": "Gestión de mascotas",
+      "body": "Administra perfiles, información médica, vacunas e historial."
+    },
+    "owners": {
+      "title": "Gestión de propietarios",
+      "body": "Mantén organizada la información de los propietarios y sus mascotas."
+    },
+    "appointments": {
+      "title": "Citas",
+      "body": "Organiza y administra las citas de tu clínica."
+    },
+    "records": {
+      "title": "Historias clínicas",
+      "body": "Mantén la información médica veterinaria organizada y accesible."
+    },
+    "clinic": {
+      "title": "Gestión de la clínica",
+      "body": "Administra tu clínica veterinaria y sus operaciones diarias desde una sola plataforma."
+    },
+    "access": {
+      "title": "Acceso para múltiples usuarios",
+      "body": "Permite que tu equipo trabaje en conjunto con acceso basado en roles."
+    }
+  },
+  "pricing": {
+    "title": "Precios simples y transparentes",
+    "subtitle": "Elige el plan que se ajusta a tu clínica y administra tu veterinaria desde cualquier lugar.",
+    "perMonth": "/ mes",
+    "usdMonthly": "USD · suscripción mensual",
+    "popular": "Más popular",
+    "disclaimer": "Los precios están en USD y corresponden a suscripciones mensuales. Los precios anuales, cuando se muestran, también están en USD y están disponibles en la aplicación web. Los propietarios son clientes de la clínica: no compran estos planes ni usan una cuenta de personal. Suscribirse y cambiar de plan se hace en la aplicación web después de iniciar sesión. Esta página no inicia un pago.",
+    "basic": {
+      "audience": "Para clínicas que necesitan las funcionalidades esenciales de gestión.",
+      "note": "O 190 USD al año en la aplicación web. Hay una prueba de 14 días en la primera suscripción mensual Basic.",
+      "f1": "Gestión de mascotas y propietarios",
+      "f2": "Historias clínicas",
+      "f3": "Registro de vacunas",
+      "f4": "Gestión de citas",
+      "f5": "1 sucursal, hasta 2 veterinarios y 5 cuentas de personal",
+      "f6": "Reportes",
+      "f7": "Mensajería, hasta 200 mensajes al mes",
+      "f8": "1 GB de almacenamiento de archivos",
+      "f9": "Acceso web y móvil"
+    },
+    "professional": {
+      "audience": "Para clínicas que necesitan herramientas adicionales para administrar sus operaciones.",
+      "note": "O 390 USD al año en la aplicación web.",
+      "f1": "Todo lo incluido en Basic",
+      "f2": "Hasta 3 sucursales, 8 veterinarios y 20 cuentas de personal",
+      "f3": "Resultados de laboratorio",
+      "f4": "Mensajería, hasta 2.000 mensajes al mes",
+      "f5": "10 GB de almacenamiento de archivos",
+      "f6": "Acceso web y móvil"
+    },
+    "premium": {
+      "audience": "Para clínicas que necesitan una solución más completa para su operación.",
+      "note": "O 690 USD al año en la aplicación web.",
+      "f1": "Todo lo incluido en Professional",
+      "f2": "Hasta 15 sucursales, 40 veterinarios y 100 cuentas de personal",
+      "f3": "Mensajería, hasta 20.000 mensajes al mes",
+      "f4": "100 GB de almacenamiento de archivos",
+      "f5": "Acceso web y móvil"
+    }
+  },
+  "about": {
+    "title": "Creado para las clínicas veterinarias modernas",
+    "body": "LunaVeta reúne en una sola plataforma las herramientas esenciales para administrar una clínica veterinaria. Desde la gestión de mascotas y propietarios hasta historias clínicas y citas, LunaVeta ayuda a los equipos veterinarios a mantener su información organizada y controlar mejor sus operaciones diarias."
+  },
+  "closing": {
+    "title": "¿Listo para simplificar la gestión de tu clínica?",
+    "body": "Comienza a administrar tu clínica con LunaVeta."
+  },
+  "faq": {
+    "title": "Preguntas frecuentes",
+    "what": {
+      "q": "¿Qué es LunaVeta?",
+      "a": "LunaVeta es un software para clínicas veterinarias. El personal lo usa para guardar fichas de mascotas, programar citas, registrar vacunas y administrar la clínica. Los propietarios pueden seguir a sus mascotas en la aplicación móvil."
+    },
+    "mobile": {
+      "q": "¿Puedo usar LunaVeta en el móvil?",
+      "a": "Sí. Hay una aplicación móvil y una aplicación web. Comprar, cambiar o cancelar una suscripción se hace en la aplicación web, no en la aplicación móvil."
+    },
+    "pets": {
+      "q": "¿Puedo administrar varias mascotas y propietarios?",
+      "a": "Sí. Una clínica puede registrar muchas mascotas y a sus propietarios. Los propietarios no cuentan para el límite de cuentas de personal del plan."
+    },
+    "languages": {
+      "q": "¿LunaVeta está disponible en español e inglés?",
+      "a": "Sí. La aplicación web y la aplicación móvil se pueden usar en español o en inglés."
+    },
+    "billing": {
+      "q": "¿Cómo funciona la facturación?",
+      "a": "El administrador de la clínica crea una cuenta y elige un plan en la aplicación web. Los pagos los procesa Paddle en USD. La cancelación habitual surte efecto al final del periodo de facturación en curso.",
+      "link": "Las solicitudes de reembolso se describen en la política de reembolsos."
+    }
+  },
+  "meta": {
+    "homeTitle": "LunaVeta — La gestión de tu clínica veterinaria, simplificada",
+    "homeDescription": "LunaVeta es una plataforma moderna de gestión veterinaria diseñada para ayudar a las clínicas a organizar sus operaciones diarias, administrar mascotas y propietarios, y mantener la información médica en un solo lugar.",
+    "pricingTitle": "Precios simples y transparentes — LunaVeta",
+    "pricingDescription": "Planes mensuales de LunaVeta para clínicas veterinarias, en USD."
+  },
+  "legal": {
+    "pendingTitle": "Datos que todavía deben completarse",
+    "pendingName": "[COMPLETAR: nombre legal de la empresa]",
+    "pendingAddress": "[COMPLETAR: dirección física]",
+    "pendingNumber": "[COMPLETAR: número de empresa o identificación fiscal]",
+    "pendingLaw": "[COMPLETAR: jurisdicción y ley aplicable]",
+    "deletionTitle": "Eliminación de cuenta",
+    "deletionBody": "Los usuarios pueden solicitar la eliminación de una cuenta y de los datos personales asociados. Los pasos se explican en la página de eliminación de cuenta.",
+    "deletionLink": "Eliminar cuenta y datos",
+    "contactTitle": "Contacto",
+    "contactBody": "El correo de soporte de LunaVeta es:",
+    "updated": "Última actualización: 29 de septiembre de 2026.",
+    "terms": {
+      "title": "Términos de Servicio",
+      "description": "Términos de Servicio de LunaVeta, una plataforma de gestión para clínicas veterinarias.",
+      "intro": "Estos términos describen cómo las clínicas veterinarias usan LunaVeta. Crear una cuenta o usar el servicio significa que la clínica los acepta.",
+      "serviceTitle": "El servicio",
+      "serviceBody": "LunaVeta es una plataforma de gestión para clínicas veterinarias. Ayuda a organizar las operaciones diarias, administrar mascotas y propietarios, conservar la información médica y gestionar las citas. El personal puede usar la aplicación web y la aplicación móvil.",
+      "audienceTitle": "Para quién es",
+      "audienceBody": "Las suscripciones son para clínicas veterinarias. Los propietarios de mascotas son clientes de una clínica. No compran estos planes ni usan una cuenta de personal incluida en un plan.",
+      "accountsTitle": "Cuentas",
+      "accountsBody": "La clínica es responsable de las cuentas de personal que crea y de la información que registra sobre la clínica, las mascotas, los propietarios y la atención médica. Cada plan define cuántas sucursales, veterinarios y cuentas de personal puede usar la clínica.",
+      "plansTitle": "Planes y pago",
+      "plansBody": "Los planes vigentes y los precios mensuales en USD se muestran en la página de precios. Los pagos los procesa Paddle, que actúa como comerciante de registro.",
+      "plansBody2": "Comprar, cambiar o cancelar una suscripción se hace en la aplicación web después de iniciar sesión. La aplicación móvil no permite comprar, cambiar ni cancelar planes.",
+      "cancelTitle": "Cancelación",
+      "cancelBody": "El administrador de la clínica puede cancelar desde Facturación en la aplicación web. La cancelación habitual surte efecto al final del periodo de facturación en curso y el acceso continúa hasta esa fecha. Cancelar no reembolsa por sí solo el periodo ya cobrado. Los reembolsos se describen en la política de reembolsos.",
+      "useTitle": "Uso aceptable",
+      "useBody": "La clínica usará LunaVeta para su práctica veterinaria. No intentará acceder a la información de otra clínica ni usar el servicio de una forma que infrinja la ley que le resulte aplicable."
+    },
+    "privacy": {
+      "title": "Política de Privacidad",
+      "description": "Política de Privacidad de LunaVeta, una plataforma de gestión para clínicas veterinarias.",
+      "intro": "Esta política describe la información que LunaVeta utiliza para ofrecer la gestión de clínicas veterinarias a las clínicas y a sus usuarios.",
+      "infoTitle": "Información utilizada para prestar el servicio",
+      "infoBody": "LunaVeta utiliza información de la cuenta, como nombre, correo, credenciales y preferencia de idioma; información de la clínica, como el nombre, las sucursales, los servicios, el horario y el equipo; y la información de mascotas, propietarios, historia clínica, vacunas, citas, mensajes y archivos que registra la clínica.",
+      "infoBody2": "LunaVeta no almacena los números completos de las tarjetas de pago. Los pagos de la suscripción los procesa Paddle, el comerciante de registro.",
+      "useTitle": "Para qué se utiliza",
+      "useBody": "Esa información se utiliza para prestar la plataforma, iniciar sesión, operar el espacio de la clínica, procesar suscripciones, entregar notificaciones y mensajes dentro de la aplicación sobre citas y vacunas, y proteger la seguridad del servicio.",
+      "paymentsTitle": "Pagos",
+      "paymentsBody": "Paddle procesa los pagos de suscripción de las clínicas veterinarias y actúa como comerciante de registro. Los términos y la política de privacidad de Paddle se aplican a la información de pago que Paddle trata.",
+      "retentionTitle": "Registros que pueden conservarse",
+      "retentionBody": "Algunos registros clínicos, fiscales, de seguridad y de auditoría pueden conservarse durante el periodo exigido por las obligaciones legales aplicables, o mientras sean necesarios para proteger la integridad y la seguridad del servicio. Cuando es posible, se conservan de forma anonimizada."
+    },
+    "refund": {
+      "title": "Política de Reembolsos",
+      "description": "Política de reembolsos de las suscripciones de LunaVeta contratadas por una clínica veterinaria.",
+      "intro": "Esta política aplica a las suscripciones de LunaVeta contratadas por una veterinaria. Los pagos los procesa Paddle, que actúa como comerciante de registro. Los propietarios de mascotas no pagan una suscripción a LunaVeta.",
+      "cancelTitle": "Cancelación",
+      "cancelBody": "El administrador de la veterinaria puede cancelar la suscripción desde Facturación en la aplicación web. La cancelación habitual surte efecto al final del periodo de facturación en curso y el acceso se mantiene hasta esa fecha. Cancelar no reembolsa por sí solo el periodo ya cobrado. La aplicación móvil no permite comprar, cambiar ni cancelar planes.",
+      "trialTitle": "Periodo de prueba",
+      "trialBody": "Si el plan incluye un periodo de prueba, no hay cobro hasta que termina. Cancelar durante la prueba evita el primer cobro.",
+      "changesTitle": "Cambios de plan",
+      "changesBody": "Antes de confirmar un cambio de plan, la aplicación muestra una vista previa del ajuste. El prorrateo, cuando corresponde, lo calcula Paddle.",
+      "requestTitle": "Cómo solicitar un reembolso",
+      "requestBody": "Escriba a supportlunaveta@gmail.com con el nombre de la veterinaria, el correo de la cuenta, la fecha del cobro, el identificador de la factura o de la transacción si lo tiene, y el motivo.",
+      "requestBody2": "Cada solicitud se revisa. Pueden corresponder, entre otros casos, un cobro duplicado, un error de facturación o un cobro posterior a una cancelación que no debía producirse. Un reembolso aprobado se devuelve por Paddle al mismo medio de pago. El plazo en que aparece en la cuenta depende de la entidad emisora.",
+      "requestBody3": "La cancelación voluntaria al final del periodo no genera un reembolso automático del tiempo no usado.",
+      "rightsTitle": "Derechos aplicables",
+      "rightsBody": "Esta política no limita los derechos que la ley aplicable no permita renunciar."
+    }
   }
+}
 }

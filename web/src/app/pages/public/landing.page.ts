@@ -1,120 +1,91 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, DestroyRef, inject, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Meta, Title } from '@angular/platform-browser';
-
-const PAGE_TITLE = 'LunaVeta — Veterinary Clinic Management Software';
-const PAGE_DESCRIPTION = 'LunaVeta helps veterinary clinics manage pets, owners, medical records, vaccinations, appointments, communications, and daily operations.';
+import { RouterLink } from '@angular/router';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { PricingCardsComponent } from './pricing-cards.component';
+import { PublicShellComponent } from './public-shell.component';
 
 @Component({
   standalone: true,
+  imports: [RouterLink, TranslatePipe, PublicShellComponent, PricingCardsComponent],
   template: `
-    <div class="mx-auto min-h-screen max-w-5xl px-5 py-6 sm:px-8">
-      <header class="flex flex-wrap items-center justify-between gap-4">
-        <a href="/" class="flex items-center gap-3 font-display text-lg font-semibold text-brand-800">
-          <img src="/assets/branding/logo.svg" width="36" height="36" alt="" class="h-9 w-9 rounded-xl" />
-          LunaVeta
-        </a>
-        <nav class="flex flex-wrap gap-4 text-sm" aria-label="Account">
-          <a href="/pricing" class="font-medium text-brand-700 hover:underline">Pricing</a>
-          <a href="/register" class="font-medium text-brand-700 hover:underline">Register</a>
-          <a href="/login" class="font-medium text-brand-700 hover:underline">Sign in</a>
-        </nav>
-      </header>
+    <app-public-shell>
+      <section class="max-w-3xl">
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-brand-700">LunaVeta</p>
+        <h1 class="mt-3 font-display text-4xl font-semibold tracking-tight text-brand-900 sm:text-5xl">{{ 'public.hero.title' | translate }}</h1>
+        <p class="mt-4 text-lg text-slate-600">{{ 'public.hero.body' | translate }}</p>
+        <div class="mt-8 flex flex-wrap gap-3">
+          <a class="btn-primary" routerLink="/register-clinic">{{ 'public.cta.start' | translate }}</a>
+          <a class="btn-secondary" href="#pricing">{{ 'public.cta.pricing' | translate }}</a>
+        </div>
+      </section>
 
-      <main>
-        <section class="mt-12 max-w-2xl">
-          <h1 class="font-display text-4xl font-semibold tracking-tight text-brand-900 sm:text-5xl">LunaVeta</h1>
-          <p class="mt-3 text-xl font-semibold text-brand-800">Veterinary clinic management made simple.</p>
-          <p class="mt-3 text-slate-600">LunaVeta is a cloud-based SaaS platform for veterinary clinics that helps manage pets, owners, medical records, vaccinations, appointments, communications, and everyday clinic operations.</p>
-          <div class="mt-6 flex flex-wrap gap-3">
-            <a class="btn-primary" href="/pricing">Pricing</a>
-            <a class="btn-secondary" href="/login">Sign In</a>
-            <a class="btn-secondary" href="/register">Register</a>
-          </div>
-        </section>
+      <section id="features" class="scroll-mt-24 mt-16">
+        <h2 class="font-display text-3xl font-semibold tracking-tight text-brand-900">{{ 'public.features.title' | translate }}</h2>
+        <div class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          @for (feature of features; track feature.title) {
+            <article class="card">
+              <h3 class="font-display text-lg font-semibold text-brand-900">{{ feature.title | translate }}</h3>
+              <p class="mt-2 text-slate-600">{{ feature.body | translate }}</p>
+            </article>
+          }
+        </div>
+      </section>
 
-        <section class="mt-10 grid gap-4 md:grid-cols-2">
-          <article class="card md:col-span-2">
-            <h2 class="font-display text-lg font-semibold text-brand-900">What is LunaVeta?</h2>
-            <p class="mt-2 text-slate-600">LunaVeta is a cloud-based SaaS platform for veterinary clinics that helps manage pets, owners, medical records, vaccinations, appointments, communications, and everyday clinic operations.</p>
-          </article>
+      <section id="pricing" class="scroll-mt-24 mt-16">
+        <h2 class="font-display text-3xl font-semibold tracking-tight text-brand-900">{{ 'public.pricing.title' | translate }}</h2>
+        <p class="mt-3 max-w-2xl text-slate-600">{{ 'public.pricing.subtitle' | translate }}</p>
+        <div class="mt-8">
+          <app-pricing-cards />
+        </div>
+      </section>
 
-          <article class="card md:col-span-2">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Key features</h2>
-            <ul class="mt-2 list-disc space-y-1 pl-5 text-slate-600">
-              <li>Veterinary clinic management</li>
-              <li>Pet and owner management</li>
-              <li>Medical records</li>
-              <li>Vaccinations</li>
-              <li>Appointments</li>
-              <li>Notifications and communications</li>
-              <li>Web and mobile access</li>
-              <li>Spanish and English support</li>
-            </ul>
-          </article>
+      <section id="about" class="scroll-mt-24 mt-16">
+        <article class="card">
+          <h2 class="font-display text-3xl font-semibold tracking-tight text-brand-900">{{ 'public.about.title' | translate }}</h2>
+          <p class="mt-3 max-w-3xl text-slate-600">{{ 'public.about.body' | translate }}</p>
+        </article>
+      </section>
 
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Veterinary clinic management</h2>
-            <p class="mt-2 text-slate-600">Run branches, services, business hours, and the clinic team from one place. Each plan sets how many branches, veterinarians, and staff accounts the clinic can use. Reports are included on every plan.</p>
-          </article>
-
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Pet and owner management</h2>
-            <p class="mt-2 text-slate-600">Register pets and the people who own them. Pet owners are clients of the clinic. They do not count toward the staff accounts included in a plan.</p>
-          </article>
-
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Medical records</h2>
-            <p class="mt-2 text-slate-600">Keep each pet’s clinical history on the pet profile, including consultations recorded by the clinic.</p>
-          </article>
-
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Vaccinations</h2>
-            <p class="mt-2 text-slate-600">Record the vaccine name, brand, lot, applied date, next dose, and notes. A vaccination already saved can be corrected or removed.</p>
-          </article>
-
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Appointments</h2>
-            <p class="mt-2 text-slate-600">Schedule an appointment with a veterinarian, a service, and a reason. Staff can update the reason, change the date, or cancel.</p>
-          </article>
-
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Notifications and communications</h2>
-            <p class="mt-2 text-slate-600">LunaVeta stores in-app notifications, and can send push notifications on mobile, when an appointment changes, when a vaccination is recorded, and when a vaccine reminder is due. Clinics and pet owners can also exchange messages. The number of messages included each month depends on the plan. Messaging is available on every plan.</p>
-          </article>
-
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Web and mobile access</h2>
-            <p class="mt-2 text-slate-600">Staff use the web app and the mobile app. Pet owners can follow their pets in the mobile app. Buying, changing, or canceling a subscription is done in the web app.</p>
-          </article>
-
-          <article class="card">
-            <h2 class="font-display text-lg font-semibold text-brand-900">Spanish and English support</h2>
-            <p class="mt-2 text-slate-600">The web app and the mobile app can be used in Spanish or English.</p>
-          </article>
-        </section>
-      </main>
-
-      <footer class="mt-10 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 pt-5 text-sm">
-        <a href="/pricing" class="text-brand-700 hover:underline">Pricing</a>
-        <a href="/terms" class="text-brand-700 hover:underline">Terms &amp; Conditions</a>
-        <a href="/privacy" class="text-brand-700 hover:underline">Privacy Policy</a>
-        <a href="/refund" class="text-brand-700 hover:underline">Refund Policy</a>
-        <a href="mailto:supportlunaveta@gmail.com" class="text-brand-700 hover:underline">Contact</a>
-        <a href="/login" class="text-brand-700 hover:underline">Login</a>
-      </footer>
-    </div>
+      <section class="mt-16 rounded-2xl bg-brand-800 px-6 py-10 text-white sm:px-10">
+        <h2 class="font-display text-3xl font-semibold tracking-tight">{{ 'public.closing.title' | translate }}</h2>
+        <p class="mt-3 max-w-2xl text-brand-50">{{ 'public.closing.body' | translate }}</p>
+        <a class="mt-6 inline-flex items-center justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-brand-800 shadow-sm hover:bg-brand-50" routerLink="/register-clinic">{{ 'public.cta.start' | translate }}</a>
+      </section>
+    </app-public-shell>
   `
 })
 export class LandingPage implements OnInit {
   private title = inject(Title);
   private meta = inject(Meta);
+  private i18n = inject(TranslateService);
+  private destroyRef = inject(DestroyRef);
+
+  readonly features = [
+    { title: 'public.features.pets.title', body: 'public.features.pets.body' },
+    { title: 'public.features.owners.title', body: 'public.features.owners.body' },
+    { title: 'public.features.appointments.title', body: 'public.features.appointments.body' },
+    { title: 'public.features.records.title', body: 'public.features.records.body' },
+    { title: 'public.features.clinic.title', body: 'public.features.clinic.body' },
+    { title: 'public.features.access.title', body: 'public.features.access.body' }
+  ];
 
   ngOnInit(): void {
-    this.title.setTitle(PAGE_TITLE);
-    this.meta.updateTag({ name: 'description', content: PAGE_DESCRIPTION });
-    this.meta.updateTag({ property: 'og:type', content: 'website' });
-    this.meta.updateTag({ property: 'og:url', content: 'https://lunaveta.com/' });
-    this.meta.updateTag({ property: 'og:title', content: PAGE_TITLE });
-    this.meta.updateTag({ property: 'og:description', content: PAGE_DESCRIPTION });
+    this.applyMeta();
+    this.i18n.onLangChange.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.applyMeta());
+  }
+
+  private applyMeta(): void {
+    this.i18n.get(['public.meta.homeTitle', 'public.meta.homeDescription']).subscribe(t => {
+      const pageTitle = t['public.meta.homeTitle'];
+      const description = t['public.meta.homeDescription'];
+      this.title.setTitle(pageTitle);
+      this.meta.updateTag({ name: 'description', content: description });
+      this.meta.updateTag({ property: 'og:type', content: 'website' });
+      this.meta.updateTag({ property: 'og:url', content: 'https://lunaveta.com/' });
+      this.meta.updateTag({ property: 'og:title', content: pageTitle });
+      this.meta.updateTag({ property: 'og:description', content: description });
+    });
   }
 }
