@@ -59,6 +59,25 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/public/landing.page').then(m => m.LandingPage)
   },
   {
+    path: 'pricing',
+    loadComponent: () => import('./pages/public/pricing.page').then(m => m.PricingPage)
+  },
+  {
+    path: 'terms',
+    loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
+    data: { title: 'Términos y condiciones | LunaVeta', src: '/terminos/index.html' }
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
+    data: { title: 'Política de privacidad | LunaVeta', src: '/privacidad/index.html' }
+  },
+  {
+    path: 'refund',
+    loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
+    data: { title: 'Política de reembolsos | LunaVeta', src: '/reembolsos/index.html' }
+  },
+  {
     path: '',
     canActivate: [authGuard, onboardingGuard],
     loadComponent: () => import('./layout/shell.component').then(m => m.ShellComponent),

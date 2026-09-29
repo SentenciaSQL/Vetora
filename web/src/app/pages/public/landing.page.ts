@@ -15,6 +15,7 @@ const PAGE_DESCRIPTION = 'LunaVeta helps veterinary clinics manage pets, owners,
         </a>
         <nav class="flex flex-wrap gap-4 text-sm" aria-label="Account">
           <a href="/pricing" class="font-medium text-brand-700 hover:underline">Pricing</a>
+          <a href="/register" class="font-medium text-brand-700 hover:underline">Register</a>
           <a href="/login" class="font-medium text-brand-700 hover:underline">Sign in</a>
         </nav>
       </header>
@@ -25,8 +26,9 @@ const PAGE_DESCRIPTION = 'LunaVeta helps veterinary clinics manage pets, owners,
           <p class="mt-3 text-xl font-semibold text-brand-800">Veterinary clinic management made simple.</p>
           <p class="mt-3 text-slate-600">LunaVeta is a cloud-based SaaS platform for veterinary clinics that helps manage pets, owners, medical records, vaccinations, appointments, communications, and everyday clinic operations.</p>
           <div class="mt-6 flex flex-wrap gap-3">
-            <a class="btn-primary" href="/pricing">View Pricing</a>
+            <a class="btn-primary" href="/pricing">Pricing</a>
             <a class="btn-secondary" href="/login">Sign In</a>
+            <a class="btn-secondary" href="/register">Register</a>
           </div>
         </section>
 
