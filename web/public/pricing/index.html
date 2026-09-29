@@ -1,183 +1,341 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pricing | LunaVeta</title>
-  <meta name="description" content="LunaVeta pricing for veterinary clinics. Basic $19/month, Professional $39/month, and Premium $69/month.">
-  <link rel="canonical" href="https://lunaveta.com/pricing">
-  <link rel="icon" type="image/png" href="/assets/branding/logo.png">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
-  <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Manrope, "Segoe UI", Helvetica, Arial, sans-serif;
-      background: #faf7f2;
-      color: #1e293b;
-      line-height: 1.6;
-    }
-    a { color: #0f766e; }
-    a:focus-visible, button:focus-visible { outline: 3px solid #0f766e; outline-offset: 2px; }
-    .wrap { max-width: 68rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
-    header.site {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-    .brand { display: flex; align-items: center; gap: .75rem; color: #115e59; font-weight: 800; text-decoration: none; }
-    .brand img { width: 2.25rem; height: 2.25rem; border-radius: .75rem; }
-    .header-links { display: flex; flex-wrap: wrap; gap: .75rem 1rem; font-size: .875rem; }
-    h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.2; margin: 1.5rem 0 .5rem; color: #134e4a; }
-    .subtitle { max-width: 40rem; margin: 0; color: #475569; font-size: 1.05rem; }
-    .plans { display: grid; gap: 1rem; margin-top: 1.75rem; }
-    @media (min-width: 900px) { .plans { grid-template-columns: repeat(3, 1fr); align-items: stretch; } }
-    article {
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      border-radius: 1rem;
-      padding: 1.25rem;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .04);
-      display: flex;
-      flex-direction: column;
-    }
-    article.featured { border-color: #0f766e; box-shadow: 0 0 0 2px #0f766e; }
-    .badge { align-self: flex-start; margin: 0 0 .75rem; border-radius: 999px; background: #0d9488; color: #fff; font-size: .75rem; font-weight: 700; padding: .15rem .6rem; }
-    h2 { font-size: 1.25rem; margin: 0; }
-    .audience { color: #64748b; font-size: .925rem; min-height: 3.2rem; }
-    .price { margin: .75rem 0 .25rem; font-size: 2.25rem; font-weight: 800; color: #134e4a; letter-spacing: -.03em; }
-    .price span { font-size: 1rem; font-weight: 600; color: #64748b; }
-    .annual { margin: 0 0 1rem; color: #64748b; font-size: .8125rem; }
-    ul { margin: 0 0 1.25rem; padding-left: 1.1rem; }
-    li { margin: .35rem 0; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 2.75rem;
-      margin-top: auto;
-      border-radius: .75rem;
-      background: #0f766e;
-      color: #fff;
-      font-weight: 700;
-      text-decoration: none;
-      padding: .7rem 1rem;
-    }
-    .btn:hover { background: #115e59; }
-    section.block { margin-top: 2.5rem; }
-    section.block h2 { font-size: 1.45rem; margin-bottom: .5rem; }
-    .faq h3 { font-size: 1rem; margin: 1.1rem 0 .25rem; }
-    footer {
-      margin-top: 2.5rem;
-      padding-top: 1.25rem;
-      border-top: 1px solid #e2e8f0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: .75rem 1.25rem;
-      font-size: .925rem;
-    }
-    .note { color: #64748b; font-size: .875rem; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <header class="site">
-      <a class="brand" href="/pricing">
-        <img src="/assets/branding/logo.svg" width="36" height="36" alt="">
-        LunaVeta
-      </a>
-      <nav class="header-links" aria-label="Account">
-        <a href="/login">Sign in</a>
-        <a href="/register-clinic">Create clinic account</a>
-      </nav>
-    </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pricing — LunaVeta</title>
+    <meta
+      name="description"
+      content="Explore LunaVeta plans and pricing for veterinary clinic management."
+    />
+    <link rel="canonical" href="https://lunaveta.com/pricing" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://lunaveta.com/pricing" />
+    <meta property="og:title" content="Pricing — LunaVeta" />
+    <meta
+      property="og:description"
+      content="Explore LunaVeta plans and pricing for veterinary clinic management."
+    />
+    <link rel="icon" type="image/png" href="/assets/branding/logo.png" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+    />
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Manrope, "Segoe UI", Helvetica, Arial, sans-serif;
+        background: #faf7f2;
+        color: #1e293b;
+        line-height: 1.6;
+      }
+      a {
+        color: #0f766e;
+      }
+      a:focus-visible,
+      button:focus-visible {
+        outline: 3px solid #0f766e;
+        outline-offset: 2px;
+      }
+      .wrap {
+        max-width: 68rem;
+        margin: 0 auto;
+        padding: 1.25rem 1.25rem 3rem;
+      }
+      header.site {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: #115e59;
+        font-weight: 800;
+        text-decoration: none;
+      }
+      .brand img {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.75rem;
+      }
+      .header-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1rem;
+        font-size: 0.875rem;
+      }
+      h1 {
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        line-height: 1.2;
+        margin: 1.5rem 0 0.5rem;
+        color: #134e4a;
+      }
+      .subtitle {
+        max-width: 40rem;
+        margin: 0;
+        color: #475569;
+        font-size: 1.05rem;
+      }
+      .plans {
+        display: grid;
+        gap: 1rem;
+        margin-top: 1.75rem;
+      }
+      @media (min-width: 900px) {
+        .plans {
+          grid-template-columns: repeat(3, 1fr);
+          align-items: stretch;
+        }
+      }
+      article {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        padding: 1.25rem;
+        box-shadow:
+          0 1px 2px rgba(15, 23, 42, 0.04),
+          0 8px 24px rgba(15, 23, 42, 0.04);
+        display: flex;
+        flex-direction: column;
+      }
+      article.featured {
+        border-color: #0f766e;
+        box-shadow: 0 0 0 2px #0f766e;
+      }
+      .badge {
+        align-self: flex-start;
+        margin: 0 0 0.75rem;
+        border-radius: 999px;
+        background: #0d9488;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.15rem 0.6rem;
+      }
+      h2 {
+        font-size: 1.25rem;
+        margin: 0;
+      }
+      .audience {
+        color: #64748b;
+        font-size: 0.925rem;
+        min-height: 3.2rem;
+      }
+      .price {
+        margin: 0.75rem 0 0.25rem;
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: #134e4a;
+        letter-spacing: -0.03em;
+      }
+      .price span {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #64748b;
+      }
+      .annual {
+        margin: 0 0 1rem;
+        color: #64748b;
+        font-size: 0.8125rem;
+      }
+      ul {
+        margin: 0 0 1.25rem;
+        padding-left: 1.1rem;
+      }
+      li {
+        margin: 0.35rem 0;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.75rem;
+        margin-top: auto;
+        border-radius: 0.75rem;
+        background: #0f766e;
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+        padding: 0.7rem 1rem;
+      }
+      .btn:hover {
+        background: #115e59;
+      }
+      section.block {
+        margin-top: 2.5rem;
+      }
+      section.block h2 {
+        font-size: 1.45rem;
+        margin-bottom: 0.5rem;
+      }
+      .faq h3 {
+        font-size: 1rem;
+        margin: 1.1rem 0 0.25rem;
+      }
+      footer {
+        margin-top: 2.5rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.25rem;
+        font-size: 0.925rem;
+      }
+      .note {
+        color: #64748b;
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="site">
+        <a class="brand" href="/">
+          <img src="/assets/branding/logo.svg" width="36" height="36" alt="" />
+          LunaVeta
+        </a>
+        <nav class="header-links" aria-label="Account">
+          <a href="/register">Register</a>
+          <a href="/login">Sign in</a>
+        </nav>
+      </header>
 
-    <main>
-      <h1>Simple pricing for your veterinary clinic</h1>
-      <p class="subtitle">Choose the plan that fits your clinic and manage your veterinary practice from anywhere.</p>
+      <main>
+        <h1>Simple pricing for your veterinary clinic</h1>
+        <p class="subtitle">
+          Choose the plan that fits your clinic and manage your veterinary
+          practice from anywhere.
+        </p>
 
-      <div class="plans">
-        <article>
-          <h2>Basic</h2>
-          <p class="price">$19 <span>/ month</span></p>
-          <p class="audience">For clinics that are starting to digitize their practice.</p>
-          <p class="annual">Or $190 per year in the web app. A 14-day trial is available on the first Basic monthly subscription.</p>
-          <ul>
-            <li>Pet and owner management</li>
-            <li>Medical records</li>
-            <li>Vaccination records</li>
-            <li>Appointment management</li>
-            <li>1 branch, up to 2 veterinarians and 5 staff accounts</li>
-            <li>Reports</li>
-            <li>Messaging, up to 200 messages per month</li>
-            <li>1 GB of file storage</li>
-            <li>Web and mobile access</li>
-          </ul>
-          <a class="btn" href="/register-clinic">Create clinic account</a>
-        </article>
+        <div class="plans">
+          <article>
+            <h2>Basic</h2>
+            <p class="price">$19 <span>/ month</span></p>
+            <p class="audience">
+              For clinics that are starting to digitize their practice.
+            </p>
+            <p class="annual">
+              Or $190 per year in the web app. A 14-day trial is available on
+              the first Basic monthly subscription.
+            </p>
+            <ul>
+              <li>Pet and owner management</li>
+              <li>Medical records</li>
+              <li>Vaccination records</li>
+              <li>Appointment management</li>
+              <li>1 branch, up to 2 veterinarians and 5 staff accounts</li>
+              <li>Reports</li>
+              <li>Messaging, up to 200 messages per month</li>
+              <li>1 GB of file storage</li>
+              <li>Web and mobile access</li>
+            </ul>
+            <a class="btn" href="/register">Register</a>
+          </article>
 
-        <article class="featured">
-          <p class="badge">Most popular</p>
-          <h2>Professional</h2>
-          <p class="price">$39 <span>/ month</span></p>
-          <p class="audience">For clinics that need more capacity for daily operations.</p>
-          <p class="annual">Or $390 per year in the web app.</p>
-          <ul>
-            <li>Everything in Basic</li>
-            <li>Up to 3 branches, 8 veterinarians and 20 staff accounts</li>
-            <li>Laboratory results</li>
-            <li>Messaging, up to 2,000 messages per month</li>
-            <li>10 GB of file storage</li>
-            <li>Web and mobile access</li>
-          </ul>
-          <a class="btn" href="/register-clinic">Create clinic account</a>
-        </article>
+          <article class="featured">
+            <p class="badge">Most popular</p>
+            <h2>Professional</h2>
+            <p class="price">$39 <span>/ month</span></p>
+            <p class="audience">
+              For clinics that need more capacity for daily operations.
+            </p>
+            <p class="annual">Or $390 per year in the web app.</p>
+            <ul>
+              <li>Everything in Basic</li>
+              <li>Up to 3 branches, 8 veterinarians and 20 staff accounts</li>
+              <li>Laboratory results</li>
+              <li>Messaging, up to 2,000 messages per month</li>
+              <li>10 GB of file storage</li>
+              <li>Web and mobile access</li>
+            </ul>
+            <a class="btn" href="/register">Register</a>
+          </article>
 
-        <article>
-          <h2>Premium</h2>
-          <p class="price">$69 <span>/ month</span></p>
-          <p class="audience">For clinics that need the highest capacity.</p>
-          <p class="annual">Or $690 per year in the web app.</p>
-          <ul>
-            <li>Everything in Professional</li>
-            <li>Up to 15 branches, 40 veterinarians and 100 staff accounts</li>
-            <li>Messaging, up to 20,000 messages per month</li>
-            <li>100 GB of file storage</li>
-            <li>Web and mobile access</li>
-          </ul>
-          <a class="btn" href="/register-clinic">Create clinic account</a>
-        </article>
-      </div>
-      <p class="note">Prices are in USD. Pet owners are clients of a clinic and do not buy these plans or use a staff seat. Subscribing and changing a plan is done in the web app after you sign in. This page does not start a payment.</p>
+          <article>
+            <h2>Premium</h2>
+            <p class="price">$69 <span>/ month</span></p>
+            <p class="audience">For clinics that need the highest capacity.</p>
+            <p class="annual">Or $690 per year in the web app.</p>
+            <ul>
+              <li>Everything in Professional</li>
+              <li>
+                Up to 15 branches, 40 veterinarians and 100 staff accounts
+              </li>
+              <li>Messaging, up to 20,000 messages per month</li>
+              <li>100 GB of file storage</li>
+              <li>Web and mobile access</li>
+            </ul>
+            <a class="btn" href="/register">Register</a>
+          </article>
+        </div>
+        <p class="note">
+          Prices are in USD. Pet owners are clients of a clinic and do not buy
+          these plans or use a staff seat. Subscribing and changing a plan is
+          done in the web app after you sign in. This page does not start a
+          payment.
+        </p>
 
-      <section class="block" id="about">
-        <h2>About LunaVeta</h2>
-        <p>LunaVeta is a cloud-based SaaS platform for veterinary clinics. It helps clinics manage pets, owners, medical records, vaccinations, appointments, communications, and day-to-day operations through web and mobile applications.</p>
-      </section>
+        <section class="block" id="about">
+          <h2>About LunaVeta</h2>
+          <p>
+            LunaVeta is a cloud-based SaaS platform for veterinary clinics. It
+            helps clinics manage pets, owners, medical records, vaccinations,
+            appointments, communications, and day-to-day operations through web
+            and mobile applications.
+          </p>
+        </section>
 
-      <section class="block faq" id="faq">
-        <h2>FAQ</h2>
-        <h3>What is LunaVeta?</h3>
-        <p>LunaVeta is software for veterinary clinics. Staff use it to keep pet records, schedule appointments, record vaccinations, and run the clinic. Pet owners can use the mobile app to follow their own pets.</p>
-        <h3>Can I use LunaVeta on mobile?</h3>
-        <p>Yes. There is a mobile app and a web app. Buying, changing, or canceling a subscription is available in the web app, not in the mobile app.</p>
-        <h3>Can I manage multiple pets and owners?</h3>
-        <p>Yes. A clinic can register many pets and their owners. Pet owners do not count toward the staff account limit of the plan.</p>
-        <h3>Is LunaVeta available in Spanish and English?</h3>
-        <p>Yes. The web app and the mobile app can be used in Spanish or English.</p>
-        <h3>How does billing work?</h3>
-        <p>A clinic administrator creates an account and chooses a plan in the web app. Payments are processed by Paddle in USD. The usual cancellation takes effect at the end of the current billing period. Refund requests are described in the <a href="/reembolsos">refund policy</a>.</p>
-      </section>
-    </main>
+        <section class="block faq" id="faq">
+          <h2>FAQ</h2>
+          <h3>What is LunaVeta?</h3>
+          <p>
+            LunaVeta is software for veterinary clinics. Staff use it to keep
+            pet records, schedule appointments, record vaccinations, and run the
+            clinic. Pet owners can use the mobile app to follow their own pets.
+          </p>
+          <h3>Can I use LunaVeta on mobile?</h3>
+          <p>
+            Yes. There is a mobile app and a web app. Buying, changing, or
+            canceling a subscription is available in the web app, not in the
+            mobile app.
+          </p>
+          <h3>Can I manage multiple pets and owners?</h3>
+          <p>
+            Yes. A clinic can register many pets and their owners. Pet owners do
+            not count toward the staff account limit of the plan.
+          </p>
+          <h3>Is LunaVeta available in Spanish and English?</h3>
+          <p>
+            Yes. The web app and the mobile app can be used in Spanish or
+            English.
+          </p>
+          <h3>How does billing work?</h3>
+          <p>
+            A clinic administrator creates an account and chooses a plan in the
+            web app. Payments are processed by Paddle in USD. The usual
+            cancellation takes effect at the end of the current billing period.
+            Refund requests are described in the
+            <a href="/refund">refund policy</a>.
+          </p>
+        </section>
+      </main>
 
-    <footer>
-      <a href="/terminos">Terms &amp; Conditions</a>
-      <a href="/privacidad">Privacy Policy</a>
-      <a href="/reembolsos">Refund Policy</a>
-      <a href="mailto:supportlunaveta@gmail.com">Contact</a>
-    </footer>
-  </div>
-</body>
+      <footer>
+        <a href="/terms">Terms &amp; Conditions</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/refund">Refund Policy</a>
+        <a href="mailto:supportlunaveta@gmail.com">Contact</a>
+        <a href="/login">Login</a>
+      </footer>
+    </div>
+  </body>
 </html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LunaVeta — Veterinary Clinic Management Software</title>
+  <meta name="description" content="LunaVeta helps veterinary clinics manage pets, owners, medical records, vaccinations, appointments, communications, and daily operations.">
+  <link rel="canonical" href="https://lunaveta.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lunaveta.com/">
+  <meta property="og:title" content="LunaVeta — Veterinary Clinic Management Software">
+  <meta property="og:description" content="LunaVeta helps veterinary clinics manage pets, owners, medical records, vaccinations, appointments, communications, and daily operations.">
+  <link rel="icon" type="image/png" href="/assets/branding/logo.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Manrope, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #faf7f2;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+    a { color: #0f766e; }
+    a:focus-visible { outline: 3px solid #0f766e; outline-offset: 2px; }
+    .wrap { max-width: 68rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
+    header.site {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .brand { display: flex; align-items: center; gap: .75rem; color: #115e59; font-weight: 800; text-decoration: none; }
+    .brand img { width: 2.25rem; height: 2.25rem; border-radius: .75rem; }
+    .header-links { display: flex; flex-wrap: wrap; gap: .75rem 1rem; font-size: .875rem; }
+    .hero { margin-top: 2.5rem; max-width: 42rem; }
+    h1 { font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.15; margin: 0; color: #134e4a; letter-spacing: -.03em; }
+    .tagline { margin: .75rem 0 0; font-size: 1.25rem; font-weight: 700; color: #115e59; }
+    .lead { margin: .75rem 0 0; color: #475569; font-size: 1.05rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.5rem; }
+    .btn, .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.75rem;
+      border-radius: .75rem;
+      font-weight: 700;
+      text-decoration: none;
+      padding: .7rem 1.1rem;
+    }
+    .btn { background: #0f766e; color: #fff; }
+    .btn:hover { background: #115e59; }
+    .btn-secondary { background: #fff; color: #134e4a; border: 1px solid #e2e8f0; }
+    .btn-secondary:hover { background: #f8fafc; }
+    .features { display: grid; gap: 1rem; margin-top: 2.5rem; }
+    @media (min-width: 800px) { .features { grid-template-columns: 1fr 1fr; } }
+    article {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      padding: 1.25rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 8px 24px rgba(15, 23, 42, .04);
+    }
+    article.wide { grid-column: 1 / -1; }
+    h2 { font-size: 1.15rem; margin: 0 0 .4rem; color: #134e4a; }
+    article p, .wide p { margin: 0; color: #475569; }
+    ul { margin: .5rem 0 0; padding-left: 1.15rem; }
+    li { margin: .3rem 0; }
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem 1.25rem;
+      font-size: .925rem;
+    }
+  </style>
+  <script>
+    (function () {
+      try {
+        if (!localStorage.getItem('animalin.access')) return;
+        var raw = localStorage.getItem('animalin.user');
+        var user = raw ? JSON.parse(raw) : null;
+        var roles = user && user.roles ? user.roles : [];
+        function has(role) { return roles.indexOf(role) !== -1; }
+        var live = ['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'GRACE_PERIOD', 'SUSPENDED', 'PAUSED', 'CANCELED', 'CANCELLED'];
+        var granted = ['ACTIVE', 'TRIAL', 'TRIALING', 'PAST_DUE', 'GRACE_PERIOD'];
+        var owner = has('TENANT_OWNER');
+        var onboarding = true;
+        if (user && owner) {
+          if (user.onboardingComplete || user.signupStatus === 'COMPLETED' || user.accessGranted) onboarding = true;
+          else onboarding = !!(user.tenantStatus && live.indexOf(user.tenantStatus) !== -1);
+        }
+        var accessGranted = !!(user && (user.accessGranted || granted.indexOf(user.tenantStatus || '') !== -1));
+        var checkoutPending = !!(user && !onboarding && !user.accessGranted && user.checkoutPending);
+        var path = '/dashboard';
+        if (has('SUPER_ADMIN')) path = '/dashboard';
+        else if (user && user.emailVerified === false) path = '/verify-email';
+        else if (user && (user.tenantStatus === 'SUSPENDED' || user.tenantStatus === 'PAUSED')) path = '/billing';
+        else if (onboarding || accessGranted) path = '/dashboard';
+        else if (owner && !user.tenantId) path = '/register-clinic';
+        else if (owner && checkoutPending) path = '/signup/processing';
+        else if (owner && user.tenantId && (user.signupStatus === 'PENDING_PAYMENT' || !user.accessGranted)) path = '/register-clinic';
+        location.replace(path);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site">
+      <a class="brand" href="/">
+        <img src="/assets/branding/logo.svg" width="36" height="36" alt="">
+        LunaVeta
+      </a>
+      <nav class="header-links" aria-label="Account">
+        <a href="/pricing">Pricing</a>
+        <a href="/register">Register</a>
+        <a href="/login">Sign in</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>LunaVeta</h1>
+        <p class="tagline">Veterinary clinic management made simple.</p>
+        <p class="lead">LunaVeta is a cloud-based SaaS platform for veterinary clinics that helps manage pets, owners, medical records, vaccinations, appointments, communications, and everyday clinic operations.</p>
+        <div class="actions">
+          <a class="btn" href="/pricing">Pricing</a>
+          <a class="btn-secondary" href="/login">Sign In</a>
+          <a class="btn-secondary" href="/register">Register</a>
+        </div>
+      </section>
+
+      <section class="features" aria-label="Product">
+        <article class="wide">
+          <h2>What is LunaVeta?</h2>
+          <p>LunaVeta is a cloud-based SaaS platform for veterinary clinics that helps manage pets, owners, medical records, vaccinations, appointments, communications, and everyday clinic operations.</p>
+        </article>
+
+        <article class="wide">
+          <h2>Key features</h2>
+          <ul>
+            <li>Veterinary clinic management</li>
+            <li>Pet and owner management</li>
+            <li>Medical records</li>
+            <li>Vaccinations</li>
+            <li>Appointments</li>
+            <li>Notifications and communications</li>
+            <li>Web and mobile access</li>
+            <li>Spanish and English support</li>
+          </ul>
+        </article>
+
+        <article>
+          <h2>Veterinary clinic management</h2>
+          <p>Run branches, services, business hours, and the clinic team from one place. Each plan sets how many branches, veterinarians, and staff accounts the clinic can use. Reports are included on every plan.</p>
+        </article>
+
+        <article>
+          <h2>Pet and owner management</h2>
+          <p>Register pets and the people who own them. Pet owners are clients of the clinic. They do not count toward the staff accounts included in a plan.</p>
+        </article>
+
+        <article>
+          <h2>Medical records</h2>
+          <p>Keep each pet’s clinical history on the pet profile, including consultations recorded by the clinic.</p>
+        </article>
+
+        <article>
+          <h2>Vaccinations</h2>
+          <p>Record the vaccine name, brand, lot, applied date, next dose, and notes. A vaccination already saved can be corrected or removed.</p>
+        </article>
+
+        <article>
+          <h2>Appointments</h2>
+          <p>Schedule an appointment with a veterinarian, a service, and a reason. Staff can update the reason, change the date, or cancel.</p>
+        </article>
+
+        <article>
+          <h2>Notifications and communications</h2>
+          <p>LunaVeta stores in-app notifications, and can send push notifications on mobile, when an appointment changes, when a vaccination is recorded, and when a vaccine reminder is due. Clinics and pet owners can also exchange messages. The number of messages included each month depends on the plan. Messaging is available on every plan.</p>
+        </article>
+
+        <article>
+          <h2>Web and mobile access</h2>
+          <p>Staff use the web app and the mobile app. Pet owners can follow their pets in the mobile app. Buying, changing, or canceling a subscription is done in the web app.</p>
+        </article>
+
+        <article>
+          <h2>Spanish and English support</h2>
+          <p>The web app and the mobile app can be used in Spanish or English.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <a href="/pricing">Pricing</a>
+      <a href="/terms">Terms &amp; Conditions</a>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/refund">Refund Policy</a>
+      <a href="mailto:supportlunaveta@gmail.com">Contact</a>
+      <a href="/login">Login</a>
+    </footer>
+  </div>
+</body>
+</html>
