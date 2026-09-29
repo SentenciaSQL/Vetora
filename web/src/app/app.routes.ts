@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { auditGuard, authGuard, guestGuard, medicalWriteGuard, settingsGuard, staffGuard, superAdminGuard, billingAccessGuard, clinicSignupGuard, onboardingGuard } from './core/guards/auth.guard';
+import { auditGuard, authGuard, guestGuard, medicalWriteGuard, settingsGuard, staffGuard, superAdminGuard, billingAccessGuard, clinicSignupGuard, onboardingGuard, publicHomeGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -51,6 +51,31 @@ export const routes: Routes = [
     path: 'reset-password',
     canActivate: [guestGuard],
     loadComponent: () => import('./pages/auth/reset.page').then(m => m.ResetPage)
+  },
+  {
+    path: '',
+    pathMatch: 'full',
+    canActivate: [publicHomeGuard],
+    loadComponent: () => import('./pages/public/landing.page').then(m => m.LandingPage)
+  },
+  {
+    path: 'pricing',
+    loadComponent: () => import('./pages/public/pricing.page').then(m => m.PricingPage)
+  },
+  {
+    path: 'terms',
+    loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
+    data: { title: 'Términos y condiciones | LunaVeta', src: '/terminos/index.html' }
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
+    data: { title: 'Política de privacidad | LunaVeta', src: '/privacidad/index.html' }
+  },
+  {
+    path: 'refund',
+    loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
+    data: { title: 'Política de reembolsos | LunaVeta', src: '/reembolsos/index.html' }
   },
   {
     path: '',
