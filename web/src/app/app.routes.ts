@@ -65,17 +65,22 @@ export const routes: Routes = [
   {
     path: 'terms',
     loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
-    data: { title: 'Términos y condiciones | LunaVeta', src: '/terminos/index.html' }
+    data: { kind: 'terms' }
   },
   {
     path: 'privacy',
     loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
-    data: { title: 'Política de privacidad | LunaVeta', src: '/privacidad/index.html' }
+    data: { kind: 'privacy' }
+  },
+  {
+    path: 'refund-policy',
+    loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
+    data: { kind: 'refund' }
   },
   {
     path: 'refund',
     loadComponent: () => import('./pages/public/legal.page').then(m => m.PublicLegalPage),
-    data: { title: 'Política de reembolsos | LunaVeta', src: '/reembolsos/index.html' }
+    data: { kind: 'refund' }
   },
   {
     path: '',

@@ -287,9 +287,9 @@ const EN: Copy = {
       <p class="mt-6">{{ copy().updated }}</p>
       <p>{{ copy().appName }}</p>
       <footer class="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-        <a class="text-brand-700 hover:underline" href="/privacidad">{{ copy().privacy }}</a>
-        <a class="text-brand-700 hover:underline" href="/terminos">{{ copy().terms }}</a>
-        <a class="text-brand-700 hover:underline" href="/reembolsos">{{ copy().refundPolicy }}</a>
+        <a class="text-brand-700 hover:underline" href="/privacy">{{ copy().privacy }}</a>
+        <a class="text-brand-700 hover:underline" href="/terms">{{ copy().terms }}</a>
+        <a class="text-brand-700 hover:underline" href="/refund-policy">{{ copy().refundPolicy }}</a>
         <a class="text-brand-700 hover:underline" href="mailto:supportlunaveta@gmail.com">{{ copy().contact }}</a>
       </footer>
     </div>
