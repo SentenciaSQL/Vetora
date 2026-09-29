@@ -16,6 +16,19 @@ export const authGuard: CanActivateFn = () => {
   return true;
 };
 
+export const publicHomeGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const session = inject(SessionInactivityService);
+  const router = inject(Router);
+  if (!auth.isAuthenticated) {
+    return true;
+  }
+  if (!session.ensureActive()) {
+    return true;
+  }
+  return router.createUrlTree([auth.homePath()]);
+};
+
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const session = inject(SessionInactivityService);
