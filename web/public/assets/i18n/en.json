@@ -873,6 +873,7 @@
     "annual": "Annual",
     "portal": "Open customer portal",
     "cancel": "Cancel at period end",
+    "refundPolicy": "Refund policy",
     "cancelConfirm": "Cancel the subscription at the end of the billing period?",
     "cancelScheduled": "Cancellation will take effect at the end of the period",
     "cycle": "Cycle",
@@ -938,6 +939,7 @@
   "accountDeletion": {
     "privacy": "Privacy policy",
     "terms": "Terms and conditions",
+    "refundPolicy": "Refund policy",
     "contact": "Contact or support"
   }
 }

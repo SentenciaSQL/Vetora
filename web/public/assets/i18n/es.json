@@ -873,6 +873,7 @@
     "annual": "Anual",
     "portal": "Abrir portal de cliente",
     "cancel": "Cancelar al final del periodo",
+    "refundPolicy": "Política de reembolsos",
     "cancelConfirm": "¿Cancelar la suscripción al final del periodo de facturación?",
     "cancelScheduled": "La cancelación quedará programada al final del periodo",
     "cycle": "Ciclo",
@@ -938,6 +939,7 @@
   "accountDeletion": {
     "privacy": "Política de privacidad",
     "terms": "Términos y condiciones",
+    "refundPolicy": "Política de reembolsos",
     "contact": "Contacto o soporte"
   }
 }
