@@ -25,18 +25,9 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<SubscriptionAccessView> findAccessViewsByTenantId(@Param("tenantId") Long tenantId, Pageable pageable);
 
     List<Subscription> findByTenantIdOrderByStartedAtDesc(Long tenantId);
-    Optional<Subscription> findByPaddleSubscriptionId(String paddleSubscriptionId);
-    Optional<Subscription> findFirstByPaddleCustomerIdOrderByStartedAtDesc(String paddleCustomerId);
     Optional<Subscription> findByLsSubscriptionIdAndLsTestMode(String lsSubscriptionId, Boolean lsTestMode);
     Optional<Subscription> findFirstByLsOrderIdAndLsTestModeOrderByStartedAtDesc(String lsOrderId, Boolean lsTestMode);
     Optional<Subscription> findFirstByLsCustomerIdAndLsTestModeOrderByStartedAtDesc(String lsCustomerId, Boolean lsTestMode);
-
-    @Query("""
-            select (count(s) > 0) from Subscription s
-            where s.paddleCustomerId = :customerId
-              and (s.trial = true or s.status in ('TRIAL', 'TRIALING'))
-            """)
-    boolean existsTrialForPaddleCustomer(@Param("customerId") String customerId);
 
     long countByPlanId(Long planId);
     long countByPlanIdAndStatusIn(Long planId, Collection<String> statuses);
@@ -105,16 +96,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
     List<Subscription> lockExpiredGracePeriods(@Param("now") Instant now);
-
-    @Query("""
-            select s.id from Subscription s
-            where s.pendingPlan is not null
-              and s.pendingPriceId is not null
-              and s.pendingChangeEffectiveAt is not null
-              and s.pendingChangeEffectiveAt <= :horizon
-              and s.status in ('ACTIVE', 'TRIALING', 'TRIAL')
-            """)
-    List<Long> findDuePendingChangeIds(@Param("horizon") Instant horizon);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from Subscription s where s.id = :id")

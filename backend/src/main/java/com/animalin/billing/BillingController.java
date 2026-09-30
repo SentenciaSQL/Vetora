@@ -51,11 +51,35 @@ public class BillingController {
         return billingService.customerPortal();
     }
 
+    @PostMapping("/subscription/update-payment-method")
+    public BillingDtos.PortalResponse updatePaymentMethod() {
+        authService.requireActiveSession();
+        return billingService.updatePaymentMethod();
+    }
+
     @PostMapping("/subscription/cancel")
     @ResponseStatus(HttpStatus.OK)
     public BillingDtos.SubscriptionResponse cancel(@RequestBody(required = false) BillingDtos.CancelSubscriptionRequest request) {
         authService.requireActiveSession();
         return billingService.cancel(request);
+    }
+
+    @PostMapping("/subscription/resume")
+    public BillingDtos.SubscriptionResponse resume() {
+        authService.requireActiveSession();
+        return billingService.resume();
+    }
+
+    @PostMapping("/subscription/pause")
+    public BillingDtos.SubscriptionResponse pause() {
+        authService.requireActiveSession();
+        return billingService.pause();
+    }
+
+    @PostMapping("/subscription/unpause")
+    public BillingDtos.SubscriptionResponse unpause() {
+        authService.requireActiveSession();
+        return billingService.unpause();
     }
 
     @PostMapping("/subscription/change-plan/preview")

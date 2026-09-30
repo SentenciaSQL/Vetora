@@ -38,21 +38,6 @@ public class Subscription {
     @Column(nullable = false)
     private boolean trial = true;
 
-    @Column(name = "paddle_customer_id", length = 64)
-    private String paddleCustomerId;
-
-    @Column(name = "paddle_subscription_id", length = 64)
-    private String paddleSubscriptionId;
-
-    @Column(name = "paddle_transaction_id", length = 64)
-    private String paddleTransactionId;
-
-    @Column(name = "paddle_product_id", length = 64)
-    private String paddleProductId;
-
-    @Column(name = "paddle_price_id", length = 64)
-    private String paddlePriceId;
-
     @Column(name = "ls_subscription_id", length = 64)
     private String lsSubscriptionId;
 
@@ -172,9 +157,6 @@ public class Subscription {
     @Column(name = "pending_change_status", length = 20)
     private String pendingChangeStatus;
 
-    @Column(name = "pending_change_paddle_updated_at")
-    private Instant pendingChangePaddleUpdatedAt;
-
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -227,36 +209,6 @@ public class Subscription {
     }
     public void setTrial(boolean trial) {
         this.trial = trial;
-    }
-    public String getPaddleCustomerId() {
-        return paddleCustomerId;
-    }
-    public void setPaddleCustomerId(String paddleCustomerId) {
-        this.paddleCustomerId = paddleCustomerId;
-    }
-    public String getPaddleSubscriptionId() {
-        return paddleSubscriptionId;
-    }
-    public void setPaddleSubscriptionId(String paddleSubscriptionId) {
-        this.paddleSubscriptionId = paddleSubscriptionId;
-    }
-    public String getPaddleTransactionId() {
-        return paddleTransactionId;
-    }
-    public void setPaddleTransactionId(String paddleTransactionId) {
-        this.paddleTransactionId = paddleTransactionId;
-    }
-    public String getPaddleProductId() {
-        return paddleProductId;
-    }
-    public void setPaddleProductId(String paddleProductId) {
-        this.paddleProductId = paddleProductId;
-    }
-    public String getPaddlePriceId() {
-        return paddlePriceId;
-    }
-    public void setPaddlePriceId(String paddlePriceId) {
-        this.paddlePriceId = paddlePriceId;
     }
     public String getLsSubscriptionId() {
         return lsSubscriptionId;
@@ -504,12 +456,6 @@ public class Subscription {
     public void setPendingChangeStatus(String pendingChangeStatus) {
         this.pendingChangeStatus = pendingChangeStatus;
     }
-    public Instant getPendingChangePaddleUpdatedAt() {
-        return pendingChangePaddleUpdatedAt;
-    }
-    public void setPendingChangePaddleUpdatedAt(Instant pendingChangePaddleUpdatedAt) {
-        this.pendingChangePaddleUpdatedAt = pendingChangePaddleUpdatedAt;
-    }
     public boolean hasPendingPlanChange() {
         return pendingPlan != null || (pendingPriceId != null && !pendingPriceId.isBlank());
     }
@@ -520,7 +466,6 @@ public class Subscription {
         this.pendingChangeEffectiveAt = null;
         this.pendingChangeCreatedAt = null;
         this.pendingChangeStatus = null;
-        this.pendingChangePaddleUpdatedAt = null;
     }
     public Instant getCreatedAt() {
         return createdAt;

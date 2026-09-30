@@ -195,17 +195,13 @@ export interface BillingPlan {
   savingsPercent?: number | null;
   monthlyAvailable?: boolean;
   annualAvailable?: boolean;
-  paddleMonthlyPriceId?: string | null;
-  paddleAnnualPriceId?: string | null;
   enabled: boolean;
   limits: PlanLimits;
   monthlyTrialDays?: number;
 }
 
 export interface BillingConfig {
-  environment: 'sandbox' | 'production';
-  clientToken: string;
-  gracePeriodDays: number;
+  environment: 'test' | 'live' | string;
   trialDays?: number;
   plans: BillingPlan[];
 }
@@ -230,9 +226,7 @@ export interface PublicPlan {
 }
 
 export interface SignupConfig {
-  environment: 'sandbox' | 'production';
-  clientToken: string;
-  gracePeriodDays: number;
+  environment: 'test' | 'live' | string;
   trialDays: number;
   maxClinicsPerOwner: number;
   defaultCountry: string;
@@ -356,8 +350,8 @@ export interface TenantSubscription {
   status: string;
   billingCycle?: string | null;
   currency: string;
-  paddleProductId?: string | null;
-  paddlePriceId?: string | null;
+  productId?: string | null;
+  variantId?: string | null;
   trial: boolean;
   startedAt?: string | null;
   currentPeriodStartsAt?: string | null;
@@ -373,8 +367,10 @@ export interface TenantSubscription {
   accessGranted: boolean;
   gracePeriod: boolean;
   suspended: boolean;
-  hasPaddleCustomer: boolean;
-  hasPaddleSubscription?: boolean;
+  hasCustomer: boolean;
+  hasSubscription?: boolean;
+  cancelled?: boolean;
+  paused?: boolean;
   trialAccess?: boolean;
   limits?: PlanLimits;
   usage?: PlanUsage;
@@ -399,13 +395,6 @@ export interface AdminPlan {
   currency: string;
   monthlyPrice: number;
   annualPrice?: number | null;
-  paddleProductId?: string | null;
-  paddleMonthlyPriceId?: string | null;
-  paddleAnnualPriceId?: string | null;
-  paddleMonthlyPriceStatus?: string | null;
-  paddleAnnualPriceStatus?: string | null;
-  paddleLastSyncedAt?: string | null;
-  paddleSyncStatus?: string;
   active: boolean;
   subscriberCount?: number;
   limits?: PlanLimits;
@@ -419,33 +408,9 @@ export interface AdminPlan {
   laboratoryEnabled: boolean;
 }
 
-export interface PaddlePriceDiff {
-  cycle: string;
-  priceId: string;
-  localAmount: number;
-  paddleAmount: number;
-  currency: string;
-  interval: string;
-  status: string;
-  matches: boolean;
-  message?: string;
-}
-
-export interface PaddleSyncResult {
-  plan: AdminPlan;
-  differences: PaddlePriceDiff[];
-  inSync: boolean;
-  environment: string;
-}
-
 export interface CheckoutSession {
-  environment: 'sandbox' | 'production';
-  clientToken: string;
-  priceId: string;
+  url: string;
   billingCycle: string;
-  customData: Record<string, string>;
-  customerEmail: string;
-  locale: string;
 }
 
 export interface PortalSession {

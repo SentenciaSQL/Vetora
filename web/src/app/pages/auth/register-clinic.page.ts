@@ -5,7 +5,6 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SignupService } from '../../core/services/signup.service';
 import { AuthService } from '../../core/services/auth.service';
-import { PaddleService } from '../../core/services/paddle.service';
 import { ApiService } from '../../core/services/api.service';
 import { BrandingService } from '../../core/services/branding.service';
 import { ImageUploadComponent } from '../../shared/ui/image-upload.component';
@@ -190,7 +189,6 @@ export class RegisterClinicPage implements OnInit {
   private fb = inject(FormBuilder);
   private signup = inject(SignupService);
   private auth = inject(AuthService);
-  private paddle = inject(PaddleService);
   private api = inject(ApiService);
   private branding = inject(BrandingService);
   private router = inject(Router);
@@ -240,13 +238,6 @@ export class RegisterClinicPage implements OnInit {
       this.clinic.patchValue({
         country: config.defaultCountry || DEFAULT_COUNTRY_CODE,
         timezone: config.defaultTimezone || 'America/Santo_Domingo'
-      });
-      void this.paddle.ensure({
-        environment: config.environment,
-        clientToken: config.clientToken,
-        gracePeriodDays: config.gracePeriodDays,
-        trialDays: config.trialDays,
-        plans: []
       });
     });
     const user = this.auth.user();
@@ -374,8 +365,12 @@ export class RegisterClinicPage implements OnInit {
     const clinic = this.clinic.getRawValue();
     const finish = () => this.signup.checkout(plan.id, this.cycle()).subscribe({
       next: session => {
-        void this.paddle.openCheckout(session, () => void this.router.navigateByUrl('/signup/processing'), `${window.location.origin}/signup/processing`);
-        this.busy.set(false);
+        if (!session.url) {
+          this.busy.set(false);
+          this.error.set('No se pudo iniciar el pago');
+          return;
+        }
+        window.location.assign(session.url);
       },
       error: err => {
         this.busy.set(false);

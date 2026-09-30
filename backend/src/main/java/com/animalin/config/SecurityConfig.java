@@ -63,7 +63,6 @@ public class SecurityConfig {
                                 "/api/v1/auth/refresh", "/api/v1/auth/logout", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
                                 "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification",
                                 "/api/v1/auth/invite", "/api/v1/auth/accept-invite").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhooks/paddle").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/lemonsqueezy").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/files/**").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()

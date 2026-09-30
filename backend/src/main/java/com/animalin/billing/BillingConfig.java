@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Clock;
 
 @Configuration
-@EnableConfigurationProperties({PaddleProperties.class, LemonSqueezyProperties.class})
+@EnableConfigurationProperties(LemonSqueezyProperties.class)
 public class BillingConfig {
 
     @Bean

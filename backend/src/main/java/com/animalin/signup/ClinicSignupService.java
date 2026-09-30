@@ -9,7 +9,6 @@ import com.animalin.auth.EmailVerificationTokenRepository;
 import com.animalin.auth.SecureTokenService;
 import com.animalin.billing.BillingDtos;
 import com.animalin.billing.BillingService;
-import com.animalin.billing.PaddleProperties;
 import com.animalin.billing.SubscriptionCycle;
 import com.animalin.billing.SubscriptionStatuses;
 import com.animalin.billing.TrialPolicy;
@@ -81,7 +80,6 @@ public class ClinicSignupService {
     private final TransactionalEmailSender transactionalEmailSender;
     private final EmailVerificationIssuer verificationIssuer;
     private final AnimalinProperties properties;
-    private final PaddleProperties paddleProperties;
     private final BillingService billingService;
     private final AuthService authService;
     private final AuditService auditService;
@@ -102,7 +100,6 @@ public class ClinicSignupService {
                                TransactionalEmailSender transactionalEmailSender,
                                EmailVerificationIssuer verificationIssuer,
                                AnimalinProperties properties,
-                               PaddleProperties paddleProperties,
                                BillingService billingService,
                                AuthService authService,
                                AuditService auditService,
@@ -122,7 +119,6 @@ public class ClinicSignupService {
         this.transactionalEmailSender = transactionalEmailSender;
         this.verificationIssuer = verificationIssuer;
         this.properties = properties;
-        this.paddleProperties = paddleProperties;
         this.billingService = billingService;
         this.authService = authService;
         this.auditService = auditService;
@@ -237,7 +233,7 @@ public class ClinicSignupService {
         String timezone = normalizeTimezone(request.timezone());
         SubscriptionCycle cycle = SubscriptionCycle.parse(request.billingCycle());
         Plan plan = billingService.requireActivePlan(request.planId());
-        billingService.resolvePriceId(plan, cycle);
+        billingService.ensureSellable(plan, cycle);
 
         Tenant tenant = new Tenant();
         tenant.setSlug(slug);
@@ -312,11 +308,10 @@ public class ClinicSignupService {
         if (plan == null) {
             throw ApiException.badRequest("Debe indicar el identificador interno del plan");
         }
-        String priceId = billingService.resolveAlignedPriceId(plan, cycle);
 
         Subscription subscription = subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenant.getId())
                 .orElseThrow(() -> ApiException.badRequest("No hay una suscripción inicial"));
-        if (StringUtils.hasText(subscription.getPaddleSubscriptionId())
+        if (StringUtils.hasText(subscription.getLsSubscriptionId())
                 && (SubscriptionStatuses.ACTIVE.equals(subscription.getStatus())
                 || SubscriptionStatuses.TRIALING.equals(subscription.getStatus())
                 || SubscriptionStatuses.TRIAL.equals(subscription.getStatus()))) {
@@ -331,30 +326,11 @@ public class ClinicSignupService {
         if (!ClinicSignup.COMPLETED.equals(signup.getStatus())) {
             signup.setStatus(ClinicSignup.PENDING_PAYMENT);
         }
-        boolean paddleTrialUsed = StringUtils.hasText(subscription.getPaddleCustomerId())
-                && subscriptionRepository.existsTrialForPaddleCustomer(subscription.getPaddleCustomerId());
-        int trialDays = TrialPolicy.trialDays(plan, cycle.name(), tenant, user, paddleTrialUsed);
-        if (TrialPolicy.basicMonthly(plan, cycle.name()) && trialDays == 0) {
-            log.info("BASIC monthly checkout without trial userId={} tenantId={} trialUsedTenant={} trialUsedUser={} paddleCustomerUsed={}",
-                    user.getId(), tenant.getId(), tenant.isTrialUsed(), user.isTrialUsed(), paddleTrialUsed);
-        }
-        log.info("Signup checkout userId={} tenantId={} signupStatus={} tenantStatus={} planCode={} cycle={} trialDays={} paddlePrice={}",
-                user.getId(), tenant.getId(), signup.getStatus(), tenant.getStatus(), plan.getCode(), cycle.name(),
-                trialDays, TrialPolicy.maskPaddleId(priceId));
-
-        return new BillingDtos.CheckoutResponse(
-                paddleProperties.sandbox() ? "sandbox" : "production",
-                paddleProperties.clientToken(),
-                priceId,
-                cycle.name(),
-                Map.of(
-                        "tenant_id", String.valueOf(tenant.getId()),
-                        "tenant_slug", tenant.getSlug(),
-                        "signup_id", String.valueOf(signup.getId())
-                ),
-                user.getEmail(),
-                "es"
-        );
+        int trialDays = TrialPolicy.trialDays(plan, cycle.name(), tenant, user);
+        log.info("Signup checkout userId={} tenantId={} signupStatus={} tenantStatus={} planCode={} cycle={} trialDays={}",
+                user.getId(), tenant.getId(), signup.getStatus(), tenant.getStatus(), plan.getCode(), cycle.name(), trialDays);
+        return billingService.createCheckoutSession(tenant, user, plan, cycle, "/signup/processing",
+                Map.of("signup_id", String.valueOf(signup.getId())));
     }
 
     @Transactional
@@ -387,9 +363,7 @@ public class ClinicSignupService {
                 .map(plan -> toPublicPlan(plan, english))
                 .toList();
         return new SignupDtos.SignupConfigResponse(
-                paddleProperties.sandbox() ? "sandbox" : "production",
-                paddleProperties.clientToken(),
-                paddleProperties.gracePeriodDays(),
+                billingService.checkoutEnvironment(),
                 properties.trialDays(),
                 properties.signupOrDefault().maxClinicsPerOwner(),
                 DEFAULT_COUNTRY,
@@ -519,10 +493,8 @@ public class ClinicSignupService {
         Subscription subscription = tenant == null ? null
                 : subscriptionRepository.findFirstByTenantIdOrderByStartedAtDesc(tenant.getId()).orElse(null);
         String cycle = signup != null ? signup.getBillingCycle() : (subscription == null ? null : subscription.getBillingCycle());
-        boolean paddleTrialUsed = subscription != null && StringUtils.hasText(subscription.getPaddleCustomerId())
-                && subscriptionRepository.existsTrialForPaddleCustomer(subscription.getPaddleCustomerId());
         BigDecimal price = priceOf(plan, cycle);
-        int trialDays = TrialPolicy.trialDays(plan, cycle, tenant, user, paddleTrialUsed);
+        int trialDays = TrialPolicy.trialDays(plan, cycle, tenant, user);
         Instant firstCharge = trialDays > 0
                 ? clock.instant().plus(trialDays, ChronoUnit.DAYS)
                 : clock.instant();
@@ -581,8 +553,8 @@ public class ClinicSignupService {
                 plan.getAnnualPrice(),
                 BillingService.monthlyEquivalent(plan),
                 BillingService.savingsPercent(plan),
-                StringUtils.hasText(plan.getPaddleMonthlyPriceId()),
-                BillingService.annualAvailable(plan),
+                billingService.monthlyAvailable(plan),
+                billingService.annualAvailable(plan),
                 plan.isActive(),
                 BillingService.limits(plan),
                 TrialPolicy.catalogMonthlyTrialDays(plan)

@@ -9,10 +9,6 @@ public enum SubscriptionCycle {
     MONTHLY,
     ANNUAL;
 
-    public String paddleInterval() {
-        return this == ANNUAL ? "year" : "month";
-    }
-
     public static SubscriptionCycle parse(String raw) {
         if (!StringUtils.hasText(raw)) {
             return MONTHLY;

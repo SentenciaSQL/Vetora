@@ -84,12 +84,12 @@ public class LemonSqueezyWebhookService {
     private void processVerified(String headerEventName, String rawBody) {
         LemonSqueezyWebhookPayload payload = LemonSqueezyWebhookPayload.parse(rawBody, headerEventName, objectMapper);
         String eventKey = eventKey(payload);
-        if (billingEventRepository.existsByPaddleEventIdAndProcessingStatus(eventKey, SubscriptionStatuses.EVENT_PROCESSED)) {
+        if (billingEventRepository.existsByEventKeyAndProcessingStatus(eventKey, SubscriptionStatuses.EVENT_PROCESSED)) {
             log.info("Duplicate Lemon Squeezy webhook event={} resourceType={} resourceId={} userId={} result=duplicate",
                     payload.eventName(), payload.resourceType(), payload.resourceId(), payload.userId());
             return;
         }
-        BillingEvent event = billingEventRepository.findByPaddleEventId(eventKey)
+        BillingEvent event = billingEventRepository.findByEventKey(eventKey)
                 .orElseGet(() -> persistNew(eventKey, payload, rawBody));
         if (event.isProcessed()) {
             log.info("Duplicate Lemon Squeezy webhook event={} resourceType={} resourceId={} userId={} result=duplicate",
@@ -114,7 +114,7 @@ public class LemonSqueezyWebhookService {
 
     private BillingEvent persistNew(String eventKey, LemonSqueezyWebhookPayload payload, String rawBody) {
         BillingEvent event = new BillingEvent();
-        event.setPaddleEventId(eventKey);
+        event.setEventKey(eventKey);
         event.setEventType(payload.eventName());
         event.setOccurredAt(payload.updatedAt() != null ? payload.updatedAt() : payload.createdAt());
         event.setReceivedAt(clock.instant());
@@ -123,7 +123,7 @@ public class LemonSqueezyWebhookService {
         try {
             return billingEventRepository.saveAndFlush(event);
         } catch (DataIntegrityViolationException ex) {
-            return billingEventRepository.findByPaddleEventId(eventKey).orElseThrow(() -> ex);
+            return billingEventRepository.findByEventKey(eventKey).orElseThrow(() -> ex);
         }
     }
 
@@ -131,9 +131,9 @@ public class LemonSqueezyWebhookService {
         try {
             LemonSqueezyWebhookPayload payload = LemonSqueezyWebhookPayload.parse(rawBody, headerEventName, objectMapper);
             String eventKey = eventKey(payload);
-            BillingEvent event = billingEventRepository.findByPaddleEventId(eventKey).orElseGet(() -> {
+            BillingEvent event = billingEventRepository.findByEventKey(eventKey).orElseGet(() -> {
                 BillingEvent created = new BillingEvent();
-                created.setPaddleEventId(eventKey);
+                created.setEventKey(eventKey);
                 created.setEventType(payload.eventName());
                 created.setOccurredAt(payload.updatedAt());
                 created.setReceivedAt(clock.instant());

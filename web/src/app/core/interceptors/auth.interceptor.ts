@@ -12,9 +12,6 @@ export const AUTH_RETRIED = new HttpContextToken(() => false);
 let refresh$: Observable<TokenResponse> | null = null;
 
 function isAppApi(url: string): boolean {
-  if (/paddle\.(com|io|js)/i.test(url)) {
-    return false;
-  }
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url.includes('/api/v1') || (!!environment.apiUrl && url.startsWith(environment.apiUrl));
   }

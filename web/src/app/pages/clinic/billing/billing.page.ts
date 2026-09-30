@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { BillingService } from '../../../core/services/billing.service';
-import { PaddleService } from '../../../core/services/paddle.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SessionInactivityService } from '../../../core/services/session-inactivity.service';
@@ -13,18 +12,11 @@ import { StatusBadgePipe } from '../../../shared/ui/status-badge.pipe';
 
 export type BillingCycle = 'MONTHLY' | 'ANNUAL';
 
-export function selectedPriceId(plan: BillingPlan, cycle: BillingCycle): string | null {
+export function cycleAvailable(plan: Pick<BillingPlan, 'annualAvailable' | 'monthlyAvailable'>, cycle: BillingCycle): boolean {
   if (cycle === 'ANNUAL') {
-    return plan.paddleAnnualPriceId || null;
+    return plan.annualAvailable === true;
   }
-  return plan.paddleMonthlyPriceId || null;
-}
-
-export function cycleAvailable(plan: Pick<BillingPlan, 'annualAvailable' | 'monthlyAvailable' | 'paddleAnnualPriceId' | 'paddleMonthlyPriceId'>, cycle: BillingCycle): boolean {
-  if (cycle === 'ANNUAL') {
-    return plan.annualAvailable !== false && (plan.annualAvailable === true || !!plan.paddleAnnualPriceId);
-  }
-  return plan.monthlyAvailable !== false && (plan.monthlyAvailable === true || !!plan.paddleMonthlyPriceId);
+  return plan.monthlyAvailable !== false;
 }
 
 export function displayedPrice(plan: Pick<BillingPlan, 'monthlyPrice' | 'annualPrice'>, cycle: BillingCycle): number {
@@ -165,10 +157,20 @@ export function usageReached(metric?: UsageMetric | null): boolean {
         }
       }
       <div class="flex flex-wrap gap-3">
-        @if (canManage() && subscription()?.hasPaddleCustomer) {
+        @if (canManage() && subscription()?.hasCustomer) {
           <button type="button" class="btn-secondary" [disabled]="busy()" (click)="openPortal()">{{ 'billing.portal' | translate }}</button>
+          <button type="button" class="btn-secondary" [disabled]="busy()" (click)="openPaymentMethod()">{{ 'billing.updatePayment' | translate }}</button>
         }
-        @if (canManage() && (subscription()?.status === 'ACTIVE' || subscription()?.status === 'TRIALING') && !subscription()?.scheduledChangeEffectiveAt) {
+        @if (canManage() && subscription()?.scheduledChangeAction === 'cancel') {
+          <button type="button" class="btn-secondary" [disabled]="busy()" (click)="resume()">{{ 'billing.resume' | translate }}</button>
+        }
+        @if (canManage() && subscription()?.hasSubscription && (subscription()?.status === 'PAUSED' || subscription()?.paused)) {
+          <button type="button" class="btn-secondary" [disabled]="busy()" (click)="unpause()">{{ 'billing.unpause' | translate }}</button>
+        }
+        @if (canManage() && subscription()?.hasSubscription && subscription()?.status === 'ACTIVE' && !subscription()?.paused && subscription()?.scheduledChangeAction !== 'cancel') {
+          <button type="button" class="btn-secondary" [disabled]="busy()" (click)="pause()">{{ 'billing.pause' | translate }}</button>
+        }
+        @if (canManage() && (subscription()?.status === 'ACTIVE' || subscription()?.status === 'TRIALING' || subscription()?.status === 'TRIAL') && subscription()?.scheduledChangeAction !== 'cancel') {
           <button type="button" class="btn-secondary" [disabled]="busy()" (click)="cancel()">{{ 'billing.cancel' | translate }}</button>
         }
         <a class="self-center text-sm text-brand-700 hover:underline" href="/refund-policy">{{ 'billing.refundPolicy' | translate }}</a>
@@ -183,16 +185,12 @@ export function usageReached(metric?: UsageMetric | null): boolean {
         }
         <p class="text-sm">{{ 'billing.currentPlan' | translate }}: {{ change.currentPlanName || change.currentPlanCode }} ({{ change.currentCycle || '—' }})</p>
         <p class="text-sm">{{ 'billing.newPlan' | translate }}: {{ change.newPlanName || change.newPlanCode }} ({{ change.newCycle }})</p>
-        @if (change.changeType === 'DOWNGRADE') {
-          <p class="text-sm">{{ 'billing.effectiveAt' | translate }}: {{ formatEffectiveDate(change.effectiveAt) }}</p>
-          <p class="text-sm">{{ 'billing.immediateCharge' | translate }}: 0.00 {{ change.currency }}</p>
-          <p class="text-sm">{{ 'billing.credit' | translate }}: 0.00 {{ change.currency }}</p>
-        } @else {
+        @if (change.changeType !== 'DOWNGRADE') {
           <p class="text-sm">{{ 'billing.estimatedAmount' | translate }}:
             {{ change.estimatedAmount == null ? '—' : (change.estimatedAmount | number:'1.2-2') }} {{ change.currency }}
           </p>
-          <p class="text-sm">{{ 'billing.nextCharge' | translate }}: {{ change.nextBillingAt ? (change.nextBillingAt | date:'mediumDate') : '—' }}</p>
         }
+        <p class="text-sm">{{ 'billing.nextCharge' | translate }}: {{ change.nextBillingAt ? (change.nextBillingAt | date:'mediumDate') : '—' }}</p>
         @if (change.message) {
           <p class="text-sm text-slate-600 dark:text-slate-300">{{ change.message }}</p>
         }
@@ -230,7 +228,7 @@ export function usageReached(metric?: UsageMetric | null): boolean {
                 }
               </p>
             }
-            @if (!hasActivePaddleSubscription() && showsFreeTrial(plan, cycle())) {
+            @if (!hasActiveSubscription() && showsFreeTrial(plan, cycle())) {
               <p class="text-xs font-medium text-brand-700">{{ 'billing.basicMonthlyTrial' | translate }}</p>
             }
             <ul class="text-sm text-slate-600 dark:text-slate-300">
@@ -253,7 +251,7 @@ export function usageReached(metric?: UsageMetric | null): boolean {
                 </button>
               } @else {
                 <button type="button" class="btn-primary w-full" [disabled]="busy()" (click)="subscribe(plan)">
-                  {{ hasActivePaddleSubscription() ? ('billing.changePlan' | translate) : ('billing.subscribe' | translate) }}
+                  {{ hasActiveSubscription() ? ('billing.changePlan' | translate) : ('billing.subscribe' | translate) }}
                 </button>
               }
             } @else if (canManage() && cycle() === 'ANNUAL') {
@@ -267,7 +265,6 @@ export function usageReached(metric?: UsageMetric | null): boolean {
 })
 export class BillingPage implements OnInit {
   private billing = inject(BillingService);
-  private paddle = inject(PaddleService);
   private toast = inject(ToastService);
   private auth = inject(AuthService);
   private session = inject(SessionInactivityService);
@@ -280,7 +277,6 @@ export class BillingPage implements OnInit {
   cycle = signal<BillingCycle>('MONTHLY');
   preview = signal<ChangePreview | null>(null);
 
-  readonly selectedPriceId = selectedPriceId;
   readonly cycleAvailable = cycleAvailable;
   readonly displayedPrice = displayedPrice;
   readonly monthlyEquivalentAmount = monthlyEquivalentAmount;
@@ -295,7 +291,6 @@ export class BillingPage implements OnInit {
     this.billing.loadSubscription().subscribe();
     this.billing.loadConfig().subscribe(config => {
       this.plans.set(config.plans || []);
-      void this.paddle.ensure(config);
     });
     this.route.queryParamMap.subscribe(params => {
       if (params.get('checkout') === 'success') {
@@ -309,9 +304,9 @@ export class BillingPage implements OnInit {
     return this.auth.hasRole('TENANT_OWNER') || this.auth.hasRole('TENANT_ADMIN');
   }
 
-  hasActivePaddleSubscription(): boolean {
+  hasActiveSubscription(): boolean {
     const sub = this.subscription();
-    return !!sub?.hasPaddleSubscription && (sub.status === 'ACTIVE' || sub.status === 'TRIALING' || sub.status === 'TRIAL');
+    return !!sub?.hasSubscription && (sub.status === 'ACTIVE' || sub.status === 'TRIALING' || sub.status === 'TRIAL');
   }
 
   subscribe(plan: BillingPlan): void {
@@ -326,7 +321,7 @@ export class BillingPage implements OnInit {
       return;
     }
     this.busy.set(true);
-    if (this.hasActivePaddleSubscription()) {
+    if (this.hasActiveSubscription()) {
       if (this.isCurrentPlan(plan) && !this.subscription()?.pendingPlanId) {
         this.busy.set(false);
         this.toast.show('Ya está suscrito a este plan y ciclo.', true);
@@ -346,11 +341,12 @@ export class BillingPage implements OnInit {
     }
     this.billing.checkout(plan.id, this.cycle()).subscribe({
       next: session => {
-        void this.paddle.openCheckout(session, () => {
-          this.toast.show('billing.checkoutSuccess');
-          this.refreshUntilActive();
-        }).catch(() => this.toast.show('billing.checkoutError', true));
-        this.busy.set(false);
+        if (!session.url) {
+          this.busy.set(false);
+          this.toast.show('billing.checkoutError', true);
+          return;
+        }
+        window.location.assign(session.url);
       },
       error: err => {
         this.busy.set(false);
@@ -369,15 +365,82 @@ export class BillingPage implements OnInit {
     }
     this.busy.set(true);
     this.billing.changePlan(change.newPlanId, change.newCycle as BillingCycle).subscribe({
-      next: sub => {
+      next: () => {
         this.busy.set(false);
         this.preview.set(null);
-        if (change.changeType === 'DOWNGRADE') {
-          this.toast.show(sub.pendingChangeMessage || change.message || 'billing.downgradeScheduled');
-        } else {
-          this.toast.show('billing.changeSubmitted');
-        }
+        this.toast.show(change.message || 'billing.changeSubmitted');
         this.billing.loadSubscription().subscribe();
+      },
+      error: err => {
+        this.busy.set(false);
+        this.toast.showHttpError(err);
+      }
+    });
+  }
+
+  openPaymentMethod(): void {
+    if (!this.session.ensureActive() || this.busy()) {
+      return;
+    }
+    this.busy.set(true);
+    this.billing.updatePaymentMethod().subscribe({
+      next: session => {
+        this.busy.set(false);
+        window.open(session.url, '_blank', 'noopener');
+      },
+      error: err => {
+        this.busy.set(false);
+        this.toast.showHttpError(err);
+      }
+    });
+  }
+
+  pause(): void {
+    if (!this.session.ensureActive() || this.busy()) {
+      return;
+    }
+    if (!confirm(this.i18n.instant('billing.pauseConfirm'))) {
+      return;
+    }
+    this.busy.set(true);
+    this.billing.pause().subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.show('billing.paused');
+      },
+      error: err => {
+        this.busy.set(false);
+        this.toast.showHttpError(err);
+      }
+    });
+  }
+
+  unpause(): void {
+    if (!this.session.ensureActive() || this.busy()) {
+      return;
+    }
+    this.busy.set(true);
+    this.billing.unpause().subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.show('billing.unpaused');
+      },
+      error: err => {
+        this.busy.set(false);
+        this.toast.showHttpError(err);
+      }
+    });
+  }
+
+  resume(): void {
+    if (!this.session.ensureActive() || this.busy()) {
+      return;
+    }
+    this.busy.set(true);
+    this.billing.resume().subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.show('billing.resumed');
       },
       error: err => {
         this.busy.set(false);
