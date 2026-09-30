@@ -16,6 +16,7 @@ public final class SubscriptionStatuses {
     public static final String GRACE_PERIOD = "GRACE_PERIOD";
     public static final String SUSPENDED = "SUSPENDED";
     public static final String CANCELED = "CANCELED";
+    public static final String EXPIRED = "EXPIRED";
     public static final String PAUSED = "PAUSED";
 
     public static final String CYCLE_MONTHLY = "MONTHLY";
@@ -37,7 +38,7 @@ public final class SubscriptionStatuses {
     }
 
     public static boolean blocksTenant(String status) {
-        return SUSPENDED.equals(status) || CANCELED.equals(status) || PAUSED.equals(status);
+        return SUSPENDED.equals(status) || CANCELED.equals(status) || PAUSED.equals(status) || EXPIRED.equals(status);
     }
 
     public static boolean blocksTenant(Subscription subscription, Instant now) {
@@ -45,7 +46,7 @@ public final class SubscriptionStatuses {
             return false;
         }
         String status = subscription.getStatus();
-        if (SUSPENDED.equals(status) || PAUSED.equals(status)) {
+        if (SUSPENDED.equals(status) || PAUSED.equals(status) || EXPIRED.equals(status)) {
             return true;
         }
         if (CANCELED.equals(status)) {

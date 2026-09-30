@@ -20,7 +20,7 @@ public class BillingEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "paddle_event_id", nullable = false, unique = true, length = 80)
+    @Column(name = "paddle_event_id", nullable = false, unique = true, length = 180)
     private String paddleEventId;
 
     @Column(name = "event_type", nullable = false, length = 80)
