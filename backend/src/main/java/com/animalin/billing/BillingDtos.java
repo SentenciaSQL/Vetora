@@ -3,7 +3,6 @@ package com.animalin.billing;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 public final class BillingDtos {
 
@@ -38,8 +37,6 @@ public final class BillingDtos {
             BigDecimal savingsPercent,
             boolean monthlyAvailable,
             boolean annualAvailable,
-            String paddleMonthlyPriceId,
-            String paddleAnnualPriceId,
             boolean enabled,
             PlanLimits limits,
             int monthlyTrialDays
@@ -48,8 +45,6 @@ public final class BillingDtos {
 
     public record BillingConfigResponse(
             String environment,
-            String clientToken,
-            int gracePeriodDays,
             int trialDays,
             List<PlanResponse> plans
     ) {
@@ -64,8 +59,8 @@ public final class BillingDtos {
             String status,
             String billingCycle,
             String currency,
-            String paddleProductId,
-            String paddlePriceId,
+            String productId,
+            String variantId,
             boolean trial,
             Instant startedAt,
             Instant currentPeriodStartsAt,
@@ -81,8 +76,8 @@ public final class BillingDtos {
             boolean accessGranted,
             boolean gracePeriod,
             boolean suspended,
-            boolean hasPaddleCustomer,
-            boolean hasPaddleSubscription,
+            boolean hasCustomer,
+            boolean hasSubscription,
             boolean trialAccess,
             PlanLimits limits,
             PlanUsage usage,
@@ -94,22 +89,20 @@ public final class BillingDtos {
             Instant pendingChangeEffectiveAt,
             Instant pendingChangeCreatedAt,
             String pendingChangeStatus,
-            String pendingChangeMessage
+            String pendingChangeMessage,
+            boolean cancelled,
+            boolean paused,
+            Boolean testMode,
+            Instant endsAt,
+            Instant renewsAt,
+            Instant trialEndsAt
     ) {
     }
 
     public record CheckoutRequest(Long planId, String billingCycle) {
     }
 
-    public record CheckoutResponse(
-            String environment,
-            String clientToken,
-            String priceId,
-            String billingCycle,
-            Map<String, String> customData,
-            String customerEmail,
-            String locale
-    ) {
+    public record CheckoutResponse(String url, String billingCycle) {
     }
 
     public record PortalResponse(String url) {
@@ -155,43 +148,12 @@ public final class BillingDtos {
             String currency,
             BigDecimal monthlyPrice,
             BigDecimal annualPrice,
-            String paddleProductId,
-            String paddleMonthlyPriceId,
-            String paddleAnnualPriceId,
             boolean active,
             PlanLimits limits,
             long subscriberCount,
             Instant createdAt,
-            Instant updatedAt,
-            String paddleMonthlyPriceStatus,
-            String paddleAnnualPriceStatus,
-            Instant paddleLastSyncedAt,
-            String paddleSyncStatus
+            Instant updatedAt
     ) {
-    }
-
-    public record PaddlePriceDiff(
-            String cycle,
-            String priceId,
-            BigDecimal localAmount,
-            BigDecimal paddleAmount,
-            String currency,
-            String interval,
-            String status,
-            String message,
-            boolean matches
-    ) {
-    }
-
-    public record PaddleSyncResult(
-            AdminPlanResponse plan,
-            List<PaddlePriceDiff> differences,
-            boolean inSync,
-            String environment
-    ) {
-    }
-
-    public record RotatePriceRequest(String cycle, BigDecimal amount, Boolean confirm) {
     }
 
     public record UsageMetric(long current, int limit) {
@@ -215,7 +177,6 @@ public final class BillingDtos {
             String currency,
             BigDecimal monthlyPrice,
             BigDecimal annualPrice,
-            Boolean syncToPaddle,
             Integer maxUsers,
             Integer maxVeterinarians,
             Integer maxBranches,
@@ -224,10 +185,7 @@ public final class BillingDtos {
             Boolean reportsEnabled,
             Boolean messagingEnabled,
             Boolean laboratoryEnabled,
-            Boolean active,
-            String paddleProductId,
-            String paddleMonthlyPriceId,
-            String paddleAnnualPriceId
+            Boolean active
     ) {
     }
 
@@ -239,10 +197,6 @@ public final class BillingDtos {
             String currency,
             BigDecimal monthlyPrice,
             BigDecimal annualPrice,
-            Boolean migratePrice,
-            String paddleProductId,
-            String paddleMonthlyPriceId,
-            String paddleAnnualPriceId,
             Integer maxUsers,
             Integer maxVeterinarians,
             Integer maxBranches,

@@ -22,14 +22,7 @@ public final class TrialPolicy {
     }
 
     public static boolean eligible(Plan plan, String billingCycle, Tenant tenant, User user) {
-        return eligible(plan, billingCycle, tenant, user, false);
-    }
-
-    public static boolean eligible(Plan plan, String billingCycle, Tenant tenant, User user, boolean paddleCustomerUsedTrial) {
         if (!basicMonthly(plan, billingCycle)) {
-            return false;
-        }
-        if (paddleCustomerUsedTrial) {
             return false;
         }
         if (tenant != null && tenant.isTrialUsed()) {
@@ -42,22 +35,7 @@ public final class TrialPolicy {
     }
 
     public static int trialDays(Plan plan, String billingCycle, Tenant tenant, User user) {
-        return trialDays(plan, billingCycle, tenant, user, false);
-    }
-
-    public static int trialDays(Plan plan, String billingCycle, Tenant tenant, User user, boolean paddleCustomerUsedTrial) {
-        return eligible(plan, billingCycle, tenant, user, paddleCustomerUsedTrial) ? DAYS : 0;
-    }
-
-    public static boolean hasTrialPeriod(com.animalin.billing.paddle.PaddleDtos.TrialPeriod period) {
-        return period != null && period.frequency() != null && period.frequency() > 0;
-    }
-
-    public static boolean hasConfiguredBasicMonthlyTrial(com.animalin.billing.paddle.PaddleDtos.TrialPeriod period) {
-        return period != null
-                && "day".equalsIgnoreCase(period.interval())
-                && period.frequency() != null
-                && period.frequency() == DAYS;
+        return eligible(plan, billingCycle, tenant, user) ? DAYS : 0;
     }
 
     public static int catalogMonthlyTrialDays(Plan plan) {
@@ -74,7 +52,7 @@ public final class TrialPolicy {
         String status = tenant.getStatus();
         if (SubscriptionStatuses.PENDING_PAYMENT.equals(status) || SubscriptionStatuses.PENDING.equals(status)
                 || ClinicSignup.PENDING_EMAIL_VERIFICATION.equals(status)) {
-            return subscription != null && StringUtils.hasText(subscription.getPaddleSubscriptionId())
+            return subscription != null && StringUtils.hasText(subscription.getLsSubscriptionId())
                     && SubscriptionStatuses.grantsAccess(subscription.getStatus());
         }
         return SubscriptionStatuses.ACTIVE.equals(status)
@@ -86,12 +64,5 @@ public final class TrialPolicy {
                 || SubscriptionStatuses.PAUSED.equals(status)
                 || SubscriptionStatuses.CANCELED.equals(status)
                 || "CANCELLED".equals(status);
-    }
-
-    public static String maskPaddleId(String id) {
-        if (!StringUtils.hasText(id) || id.length() < 8) {
-            return StringUtils.hasText(id) ? "***" : null;
-        }
-        return id.substring(0, 4) + "…" + id.substring(id.length() - 4);
     }
 }

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
-import { AdminPlan, PaddleSyncResult } from '../../core/models';
+import { AdminPlan } from '../../core/models';
 
 export interface PlanDraft extends AdminPlan {
   formError?: string;
@@ -20,9 +20,6 @@ export function emptyPlanDraft(): PlanDraft {
     currency: 'USD',
     monthlyPrice: 0,
     annualPrice: null,
-    paddleProductId: '',
-    paddleMonthlyPriceId: '',
-    paddleAnnualPriceId: '',
     active: true,
     maxUsers: 5,
     maxVeterinarians: 2,
@@ -32,7 +29,6 @@ export function emptyPlanDraft(): PlanDraft {
     reportsEnabled: true,
     messagingEnabled: true,
     laboratoryEnabled: false,
-    paddleSyncStatus: 'UNKNOWN',
     subscriberCount: 0
   };
 }
@@ -84,24 +80,7 @@ export function validatePlanDraft(plan: PlanDraft, requireCode = true): string[]
       errors.push(`El límite de ${label} no puede ser negativo`);
     }
   }
-  if (plan.paddleProductId && !String(plan.paddleProductId).startsWith('pro_')) {
-    errors.push('El Paddle Product ID debe comenzar por pro_');
-  }
-  if (plan.paddleMonthlyPriceId && !String(plan.paddleMonthlyPriceId).startsWith('pri_')) {
-    errors.push('El Paddle Monthly Price ID debe comenzar por pri_');
-  }
-  if (plan.paddleAnnualPriceId && !String(plan.paddleAnnualPriceId).startsWith('pri_')) {
-    errors.push('El Paddle Annual Price ID debe comenzar por pri_');
-  }
-  if (plan.paddleMonthlyPriceId && plan.paddleAnnualPriceId
-      && String(plan.paddleMonthlyPriceId) === String(plan.paddleAnnualPriceId)) {
-    errors.push('Los Price ID mensual y anual no pueden ser iguales');
-  }
   return errors;
-}
-
-export function annualSaleBlocked(plan: PlanDraft): boolean {
-  return plan.annualPrice != null && Number(plan.annualPrice) > 0 && !String(plan.paddleAnnualPriceId || '').startsWith('pri_');
 }
 
 export function payloadFromDraft(plan: PlanDraft) {
@@ -115,9 +94,6 @@ export function payloadFromDraft(plan: PlanDraft) {
     annualPrice: plan.annualPrice === null || plan.annualPrice === undefined || plan.annualPrice === ('' as unknown)
       ? null
       : Number(plan.annualPrice),
-    paddleProductId: plan.paddleProductId || null,
-    paddleMonthlyPriceId: plan.paddleMonthlyPriceId || null,
-    paddleAnnualPriceId: plan.paddleAnnualPriceId || null,
     maxUsers: Number(plan.maxUsers),
     maxVeterinarians: Number(plan.maxVeterinarians),
     maxBranches: Number(plan.maxBranches),
@@ -172,12 +148,6 @@ export function payloadFromDraft(plan: PlanDraft) {
               <p class="text-xs uppercase tracking-wide text-slate-400">{{ p.code }} · {{ p.subscriberCount || 0 }} {{ 'admin.subscribers' | translate }}</p>
               <h2 class="font-display text-xl font-semibold">{{ lang === 'en' ? p.nameEn : p.nameEs }}</h2>
             </div>
-            <span class="rounded-full px-2 py-1 text-xs"
-                  [class.bg-emerald-100]="p.paddleSyncStatus === 'IN_SYNC'"
-                  [class.bg-amber-100]="p.paddleSyncStatus === 'DRIFT' || p.paddleSyncStatus === 'UNKNOWN'"
-                  [class.bg-rose-100]="p.paddleSyncStatus === 'ERROR'">
-              {{ ('admin.sync.' + (p.paddleSyncStatus || 'UNKNOWN')) | translate }}
-            </span>
           </div>
           <p class="text-2xl font-semibold">{{ p.monthlyPrice | number:'1.2-2' }} {{ p.currency || 'USD' }}
             <span class="text-sm font-normal text-slate-500">{{ 'billing.perMonth' | translate }}</span>
@@ -189,14 +159,8 @@ export function payloadFromDraft(plan: PlanDraft) {
           @if (p.formError) {
             <p class="text-sm text-rose-600">{{ p.formError }}</p>
           }
-          @if (annualSaleBlocked(p)) {
-            <p class="text-xs text-amber-700">{{ 'admin.annualIdRequired' | translate }}</p>
-          }
           <div class="flex flex-wrap gap-2">
             <button type="submit" class="btn-primary text-sm" [disabled]="busy()">{{ 'common.save' | translate }}</button>
-            <button type="button" class="btn-secondary text-sm" [disabled]="busy()" (click)="validate(p)">{{ 'admin.validatePaddle' | translate }}</button>
-            <button type="button" class="btn-secondary text-sm" [disabled]="busy()" (click)="rotate(p, 'MONTHLY')">{{ 'admin.updateMonthlyPrice' | translate }}</button>
-            <button type="button" class="btn-secondary text-sm" [disabled]="busy() || p.annualPrice == null" (click)="rotate(p, 'ANNUAL')">{{ 'admin.updateAnnualPrice' | translate }}</button>
           </div>
         </form>
       }
@@ -237,15 +201,6 @@ export function payloadFromDraft(plan: PlanDraft) {
         <label class="text-xs text-slate-500">{{ 'admin.messagesMonth' | translate }}
           <input class="input mt-1" type="number" min="0" [(ngModel)]="p.maxMessagesMonth" [name]="'msgs' + prefix" />
         </label>
-        <label class="text-xs text-slate-500">Paddle Product ID
-          <input class="input mt-1 font-mono text-xs" [(ngModel)]="p.paddleProductId" [name]="'pro' + prefix" />
-        </label>
-        <label class="text-xs text-slate-500">Paddle Monthly Price ID
-          <input class="input mt-1 font-mono text-xs" [(ngModel)]="p.paddleMonthlyPriceId" [name]="'priM' + prefix" />
-        </label>
-        <label class="text-xs text-slate-500">Paddle Annual Price ID
-          <input class="input mt-1 font-mono text-xs" [(ngModel)]="p.paddleAnnualPriceId" [name]="'priY' + prefix" />
-        </label>
       </div>
       <div class="flex flex-wrap gap-4 text-xs">
         <label class="flex items-center gap-2"><input type="checkbox" [(ngModel)]="p.reportsEnabled" [name]="'rep' + prefix" /> {{ 'nav.reports' | translate }}</label>
@@ -265,7 +220,6 @@ export class AdminPlansPage implements OnInit {
   creating = signal(false);
   busy = signal(false);
   lang = 'es';
-  readonly annualSaleBlocked = annualSaleBlocked;
 
   ngOnInit() {
     this.lang = this.i18n.getCurrentLang() || 'es';
@@ -295,8 +249,7 @@ export class AdminPlansPage implements OnInit {
     this.busy.set(true);
     this.api.post<AdminPlan>('/admin/plans', {
       ...payloadFromDraft(plan),
-      code: plan.code.trim().toUpperCase(),
-      syncToPaddle: false
+      code: plan.code.trim().toUpperCase()
     }).subscribe({
       next: () => {
         this.busy.set(false);
@@ -336,64 +289,4 @@ export class AdminPlansPage implements OnInit {
     });
   }
 
-  validate(plan: PlanDraft) {
-    if (this.busy() || !plan.id) {
-      return;
-    }
-    const errors = validatePlanDraft(plan, false);
-    if (errors.length) {
-      plan.formError = errors[0];
-      return;
-    }
-    this.busy.set(true);
-    this.api.put<AdminPlan>(`/admin/plans/${plan.id}`, payloadFromDraft(plan)).subscribe({
-      next: () => this.api.post<PaddleSyncResult>(`/admin/plans/${plan.id}/paddle/validate`, {}).subscribe({
-        next: result => {
-          this.busy.set(false);
-          this.toast.show(result.inSync ? 'admin.paddleInSync' : 'admin.paddleDrift');
-          this.reload();
-        },
-        error: err => {
-          this.busy.set(false);
-          plan.formError = err.error?.message || 'common.error';
-          this.toast.showHttpError(err);
-        }
-      }),
-      error: err => {
-        this.busy.set(false);
-        this.toast.showHttpError(err);
-      }
-    });
-  }
-
-  rotate(plan: PlanDraft, cycle: 'MONTHLY' | 'ANNUAL') {
-    if (this.busy() || !plan.id) {
-      return;
-    }
-    const amount = cycle === 'MONTHLY' ? Number(plan.monthlyPrice) : Number(plan.annualPrice);
-    if (amount == null || Number.isNaN(amount) || amount <= 0) {
-      plan.formError = cycle === 'MONTHLY' ? 'El precio mensual debe ser mayor que cero' : 'El precio anual debe ser mayor que cero';
-      return;
-    }
-    if (cycle === 'ANNUAL' && Number(plan.monthlyPrice) > 0 && amount >= Number(plan.monthlyPrice) * 12) {
-      plan.formError = 'El precio anual debe ser menor que el precio mensual multiplicado por 12';
-      return;
-    }
-    if (!confirm(this.i18n.instant('admin.rotatePriceConfirm'))) {
-      return;
-    }
-    this.busy.set(true);
-    this.api.post(`/admin/plans/${plan.id}/paddle/prices`, { cycle, amount, confirm: true }).subscribe({
-      next: () => {
-        this.busy.set(false);
-        this.toast.show('admin.priceRotated');
-        this.reload();
-      },
-      error: err => {
-        this.busy.set(false);
-        plan.formError = err.error?.message || 'common.error';
-        this.toast.showHttpError(err);
-      }
-    });
-  }
 }

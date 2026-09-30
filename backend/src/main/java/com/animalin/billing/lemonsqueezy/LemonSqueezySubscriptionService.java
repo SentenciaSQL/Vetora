@@ -1,6 +1,7 @@
 package com.animalin.billing.lemonsqueezy;
 
 import com.animalin.audit.AuditService;
+import com.animalin.billing.SubscriptionCycle;
 import com.animalin.billing.SubscriptionStatuses;
 import com.animalin.plan.Plan;
 import com.animalin.plan.PlanRepository;
@@ -208,9 +209,6 @@ public class LemonSqueezySubscriptionService {
         if (subscription.getLsTestMode() != null && subscription.getLsTestMode() != testMode) {
             return true;
         }
-        if (testMode && subscription.getLsTestMode() == null && StringUtils.hasText(subscription.getPaddleSubscriptionId())) {
-            return true;
-        }
         return testMode && subscription.getLsTestMode() == null && StringUtils.hasText(subscription.getLsSubscriptionId());
     }
 
@@ -307,9 +305,8 @@ public class LemonSqueezySubscriptionService {
     private void applyPlan(Subscription subscription, LemonSqueezyWebhookPayload payload, boolean requireMapped,
                            String previousVariantId) {
         String variantId = payload.attr("variant_id");
-        String productId = payload.attr("product_id");
-        String variantCode = properties.planCodeForVariant(variantId);
-        final String code = variantCode != null ? variantCode : properties.planCodeForProduct(productId);
+        final String code = properties.planCodeForVariant(variantId);
+        SubscriptionCycle cycle = properties.cycleForVariant(variantId);
         boolean variantChanged = StringUtils.hasText(variantId) && !variantId.equals(previousVariantId);
         if (code == null) {
             Plan current = subscription.getPlan() != null ? subscription.getPlan() : subscription.getTenant().getPlan();
@@ -317,7 +314,7 @@ public class LemonSqueezySubscriptionService {
                 log.error("No LunaVeta plan mapped for Lemon Squeezy variant event={} resourceId={} testMode={}",
                         payload.eventName(), payload.resourceId(), payload.testMode());
                 throw new LemonSqueezyProcessingException(
-                        "No LunaVeta plan is mapped for this Lemon Squeezy variant. Set LEMONSQUEEZY_VARIANT_BASIC, LEMONSQUEEZY_VARIANT_PROFESSIONAL and LEMONSQUEEZY_VARIANT_PREMIUM.");
+                        "No LunaVeta plan is mapped for this Lemon Squeezy variant. Set LEMON_SQUEEZY_VARIANT_BASIC_MONTHLY, LEMON_SQUEEZY_VARIANT_PROFESSIONAL_MONTHLY and LEMON_SQUEEZY_VARIANT_PREMIUM_MONTHLY.");
             }
             subscription.setPlan(current);
             return;
@@ -327,6 +324,9 @@ public class LemonSqueezySubscriptionService {
         String previous = subscription.getPlan() == null ? null : subscription.getPlan().getCode();
         subscription.setPlan(plan);
         subscription.getTenant().setPlan(plan);
+        if (cycle != null) {
+            subscription.setBillingCycle(cycle.name());
+        }
         if (previous != null && !previous.equals(plan.getCode())) {
             audit(subscription, "PLAN_CHANGED", "Lemon Squeezy plan changed", previous, plan.getCode());
         }

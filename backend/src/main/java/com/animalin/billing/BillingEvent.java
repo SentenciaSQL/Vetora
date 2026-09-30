@@ -20,8 +20,8 @@ public class BillingEvent {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "paddle_event_id", nullable = false, unique = true, length = 180)
-    private String paddleEventId;
+    @Column(name = "event_key", nullable = false, unique = true, length = 180)
+    private String eventKey;
 
     @Column(name = "event_type", nullable = false, length = 80)
     private String eventType;
@@ -65,11 +65,11 @@ public class BillingEvent {
     public void setId(Long id) {
         this.id = id;
     }
-    public String getPaddleEventId() {
-        return paddleEventId;
+    public String getEventKey() {
+        return eventKey;
     }
-    public void setPaddleEventId(String paddleEventId) {
-        this.paddleEventId = paddleEventId;
+    public void setEventKey(String eventKey) {
+        this.eventKey = eventKey;
     }
     public String getEventType() {
         return eventType;

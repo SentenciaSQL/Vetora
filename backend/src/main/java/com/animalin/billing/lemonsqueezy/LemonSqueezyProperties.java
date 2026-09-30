@@ -1,67 +1,130 @@
 package com.animalin.billing.lemonsqueezy;
 
+import com.animalin.billing.SubscriptionCycle;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.StringUtils;
 
 /**
- * Lemon Squeezy settings. Variant and product ids are configured per environment
- * because they are not the same thing as a LunaVeta plan code.
+ * Lemon Squeezy settings. Variant ids are environment-specific and are not plan codes.
  */
 @ConfigurationProperties(prefix = "lemonsqueezy")
 public record LemonSqueezyProperties(
+        String apiKey,
+        String storeId,
         String webhookSecret,
-        PlanIds variants,
-        PlanIds products
+        boolean testMode,
+        Variants variants,
+        Products products
 ) {
     public LemonSqueezyProperties {
         if (variants == null) {
-            variants = new PlanIds("", "", "");
+            variants = new Variants("", "", "", "", "", "");
         }
         if (products == null) {
-            products = new PlanIds("", "", "");
+            products = new Products("", "", "");
         }
+    }
+
+    public boolean configured() {
+        return StringUtils.hasText(apiKey) && StringUtils.hasText(storeId);
+    }
+
+    public String variantId(String planCode, SubscriptionCycle cycle) {
+        if (planCode == null || cycle == null) {
+            return null;
+        }
+        boolean annual = cycle == SubscriptionCycle.ANNUAL;
+        return switch (planCode.toUpperCase()) {
+            case "BASIC" -> annual ? blankToNull(variants.basicAnnual()) : blankToNull(variants.basicMonthly());
+            case "PROFESSIONAL" -> annual ? blankToNull(variants.professionalAnnual()) : blankToNull(variants.professionalMonthly());
+            case "PREMIUM" -> annual ? blankToNull(variants.premiumAnnual()) : blankToNull(variants.premiumMonthly());
+            default -> null;
+        };
+    }
+
+    public boolean cycleConfigured(String planCode, SubscriptionCycle cycle) {
+        return StringUtils.hasText(variantId(planCode, cycle));
+    }
+
+    public String productId(String planCode) {
+        if (planCode == null) {
+            return null;
+        }
+        return switch (planCode.toUpperCase()) {
+            case "BASIC" -> blankToNull(products.basic());
+            case "PROFESSIONAL" -> blankToNull(products.professional());
+            case "PREMIUM" -> blankToNull(products.premium());
+            default -> null;
+        };
     }
 
     public String planCodeForVariant(String variantId) {
-        return variants.codeFor(variantId);
+        if (!StringUtils.hasText(variantId)) {
+            return null;
+        }
+        if (matches(variants.basicMonthly(), variantId) || matches(variants.basicAnnual(), variantId)) {
+            return "BASIC";
+        }
+        if (matches(variants.professionalMonthly(), variantId) || matches(variants.professionalAnnual(), variantId)) {
+            return "PROFESSIONAL";
+        }
+        if (matches(variants.premiumMonthly(), variantId) || matches(variants.premiumAnnual(), variantId)) {
+            return "PREMIUM";
+        }
+        return null;
     }
 
-    public String planCodeForProduct(String productId) {
-        return products.codeFor(productId);
+    public SubscriptionCycle cycleForVariant(String variantId) {
+        if (!StringUtils.hasText(variantId)) {
+            return null;
+        }
+        if (matches(variants.basicAnnual(), variantId)
+                || matches(variants.professionalAnnual(), variantId)
+                || matches(variants.premiumAnnual(), variantId)) {
+            return SubscriptionCycle.ANNUAL;
+        }
+        if (matches(variants.basicMonthly(), variantId)
+                || matches(variants.professionalMonthly(), variantId)
+                || matches(variants.premiumMonthly(), variantId)) {
+            return SubscriptionCycle.MONTHLY;
+        }
+        return null;
     }
 
     @Override
     public String toString() {
-        boolean secretSet = webhookSecret != null && !webhookSecret.isBlank();
-        return "LemonSqueezyProperties[webhookSecretConfigured=" + secretSet + "]";
+        return "LemonSqueezyProperties[apiKeyConfigured=" + StringUtils.hasText(apiKey)
+                + ", storeConfigured=" + StringUtils.hasText(storeId)
+                + ", webhookSecretConfigured=" + StringUtils.hasText(webhookSecret)
+                + ", testMode=" + testMode + "]";
     }
 
-    public record PlanIds(String basic, String professional, String premium) {
-        public String codeFor(String id) {
-            if (id == null || id.isBlank()) {
-                return null;
-            }
-            if (contains(basic, id)) {
-                return "BASIC";
-            }
-            if (contains(professional, id)) {
-                return "PROFESSIONAL";
-            }
-            if (contains(premium, id)) {
-                return "PREMIUM";
-            }
-            return null;
-        }
-
-        private static boolean contains(String configured, String id) {
-            if (configured == null || configured.isBlank()) {
-                return false;
-            }
-            for (String part : configured.split("[,\\s]+")) {
-                if (id.equals(part.trim())) {
-                    return true;
-                }
-            }
+    private static boolean matches(String configured, String id) {
+        if (!StringUtils.hasText(configured)) {
             return false;
         }
+        for (String part : configured.split("[,\\s]+")) {
+            if (id.equals(part.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String blankToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    public record Variants(
+            String basicMonthly,
+            String basicAnnual,
+            String professionalMonthly,
+            String professionalAnnual,
+            String premiumMonthly,
+            String premiumAnnual
+    ) {
+    }
+
+    public record Products(String basic, String professional, String premium) {
     }
 }

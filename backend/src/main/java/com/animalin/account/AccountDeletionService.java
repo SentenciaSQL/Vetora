@@ -209,7 +209,7 @@ public class AccountDeletionService {
         if (subscription == null) {
             return false;
         }
-        if (subscription.getPaddleSubscriptionId() != null && !subscription.getPaddleSubscriptionId().isBlank()
+        if (subscription.getLsSubscriptionId() != null && !subscription.getLsSubscriptionId().isBlank()
                 && LIVE_SUBSCRIPTION.contains(subscription.getStatus())) {
             return true;
         }

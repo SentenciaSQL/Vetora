@@ -131,19 +131,6 @@ public class AdminController {
         return planCatalogService.archive(id, active);
     }
 
-    @PostMapping("/plans/{id}/paddle/validate")
-    public BillingDtos.PaddleSyncResult validatePlan(@PathVariable Long id) {
-        authService.requireActiveSession();
-        return planCatalogService.validateFromPaddle(id);
-    }
-
-    @PostMapping("/plans/{id}/paddle/prices")
-    public BillingDtos.AdminPlanResponse rotatePlanPrice(@PathVariable Long id,
-                                                         @RequestBody BillingDtos.RotatePriceRequest request) {
-        authService.requireActiveSession();
-        return planCatalogService.rotatePrice(id, request);
-    }
-
     @GetMapping("/plans")
     public List<BillingDtos.AdminPlanResponse> plans() {
         return planCatalogService.listPlans();

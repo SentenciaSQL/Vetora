@@ -59,11 +59,11 @@ public class AdminDashboardService {
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("d MMM").withZone(ZONE);
     private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("MMM yyyy").withZone(ZONE);
     private static final Set<String> PAID_EVENTS = Set.of(
-            "transaction.completed", "transaction.paid", "transaction.billed");
+            "subscription_payment_success", "subscription_payment_recovered", "order_created");
     private static final Set<String> FAILED_EVENTS = Set.of(
-            "transaction.payment_failed", "transaction.past_due");
+            "subscription_payment_failed");
     private static final Set<String> REFUND_EVENTS = Set.of(
-            "adjustment.created", "adjustment.updated", "transaction.refunded");
+            "order_refunded", "subscription_payment_refunded");
 
     private final TenantRepository tenantRepository;
     private final PlanRepository planRepository;
@@ -550,7 +550,7 @@ public class AdminDashboardService {
     private RevenueTotals revenue(Instant from, Instant to) {
         if (from == null || to == null) {
             return new RevenueTotals(BigDecimal.ZERO, "USD", 0, false,
-                    "Seleccione un periodo para ver ingresos confirmados de Paddle.");
+                    "Seleccione un periodo para ver ingresos confirmados.");
         }
         List<BillingEvent> paid = billingEventRepository.findByEventTypeInAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(
                 PAID_EVENTS, from, to);
@@ -571,20 +571,42 @@ public class AdminDashboardService {
             }
         }
         String note = anyAmount
-                ? "Ingresos confirmados a partir de transacciones Paddle sincronizadas por webhook."
-                : "Hay eventos de Paddle en el periodo, pero no incluyen importe. No se muestra una estimación como cobro real.";
+                ? "Ingresos confirmados a partir de pagos sincronizados por webhook."
+                : "Hay eventos de pago en el periodo, pero no incluyen importe. No se muestra una estimación como cobro real.";
         if (paid.isEmpty()) {
-            note = "No hay transacciones Paddle sincronizadas en este periodo.";
+            note = "No hay pagos sincronizados en este periodo.";
         }
         return new RevenueTotals(total.setScale(2, RoundingMode.HALF_UP), currency, refunds.size(), anyAmount, note);
     }
 
     private BigDecimal money(BillingEvent event) {
+        JsonNode attributes = attributes(event);
+        if (attributes != null && attributes.has("total") && !attributes.get("total").isNull()) {
+            return cents(attributes.get("total"));
+        }
         JsonNode totals = totalsNode(event);
         if (totals == null || totals.path("grand_total").isMissingNode()) {
             return null;
         }
-        return BillingService.moneyFromPaddle(totals.path("grand_total").asText(null));
+        return cents(totals.path("grand_total"));
+    }
+
+    private static BigDecimal cents(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return null;
+        }
+        if (node.isNumber()) {
+            return node.decimalValue().movePointLeft(2).setScale(2, RoundingMode.HALF_UP);
+        }
+        String raw = node.asText(null);
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        BigDecimal value = new BigDecimal(raw.trim());
+        if (raw.contains(".")) {
+            return value.setScale(2, RoundingMode.HALF_UP);
+        }
+        return value.movePointLeft(2).setScale(2, RoundingMode.HALF_UP);
     }
 
     private long moneyCents(BillingEvent event) {
@@ -593,11 +615,26 @@ public class AdminDashboardService {
     }
 
     private String currency(BillingEvent event) {
+        JsonNode attributes = attributes(event);
+        if (attributes != null && attributes.hasNonNull("currency")) {
+            return attributes.get("currency").asText();
+        }
         JsonNode totals = totalsNode(event);
         if (totals != null && totals.hasNonNull("currency_code")) {
             return totals.get("currency_code").asText();
         }
         return null;
+    }
+
+    private JsonNode attributes(BillingEvent event) {
+        if (event == null || !StringUtils.hasText(event.getPayload())) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(event.getPayload()).path("data").path("attributes");
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private JsonNode totalsNode(BillingEvent event) {
@@ -818,7 +855,7 @@ public class AdminDashboardService {
         StringBuilder out = new StringBuilder("evento,tipo,fecha,importe,moneda,disponible\n");
         Set<String> types = eventType == null ? PAID_EVENTS : Set.of(eventType);
         billingEventRepository.findByEventTypeInAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(types, from, to)
-                .forEach(event -> out.append(csv(event.getPaddleEventId(), event.getEventType(), event.getOccurredAt(),
+                .forEach(event -> out.append(csv(event.getEventKey(), event.getEventType(), event.getOccurredAt(),
                         money(event), currency(event), money(event) != null)));
         return out.toString();
     }

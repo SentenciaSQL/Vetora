@@ -83,8 +83,6 @@ public final class SignupDtos {
 
     public record SignupConfigResponse(
             String environment,
-            String clientToken,
-            int gracePeriodDays,
             int trialDays,
             int maxClinicsPerOwner,
             String defaultCountry,

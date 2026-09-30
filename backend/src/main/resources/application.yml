@@ -89,30 +89,27 @@ resend:
 app:
   frontend-url: ${FRONTEND_URL:${PUBLIC_APP_URL:http://localhost:4200}}
 
-paddle:
-  api-key: ${PADDLE_API_KEY:}
-  environment: ${PADDLE_ENVIRONMENT:sandbox}
-  webhook-secret: ${PADDLE_WEBHOOK_SECRET:}
-  client-token: ${PADDLE_CLIENT_TOKEN:}
-  grace-period-days: ${PADDLE_GRACE_PERIOD_DAYS:10}
-  webhook-tolerance-seconds: ${PADDLE_WEBHOOK_TOLERANCE_SECONDS:5}
-  cancel-on-suspend: ${PADDLE_CANCEL_ON_SUSPEND:false}
+billing:
   jobs:
-    grace-period-enabled: ${PADDLE_GRACE_PERIOD_JOB_ENABLED:true}
-    grace-period-cron: ${PADDLE_GRACE_PERIOD_CRON:0 5 0 * * *}
-    pending-change-enabled: ${PADDLE_PENDING_CHANGE_JOB_ENABLED:true}
-    pending-change-cron: ${PADDLE_PENDING_CHANGE_CRON:0 */5 * * * *}
+    grace-period-enabled: ${BILLING_GRACE_PERIOD_JOB_ENABLED:true}
+    grace-period-cron: ${BILLING_GRACE_PERIOD_CRON:0 5 0 * * *}
 
 lemonsqueezy:
-  webhook-secret: ${LEMONSQUEEZY_WEBHOOK_SECRET:}
+  api-key: ${LEMON_SQUEEZY_API_KEY:}
+  store-id: ${LEMON_SQUEEZY_STORE_ID:}
+  webhook-secret: ${LEMON_SQUEEZY_WEBHOOK_SECRET:}
+  test-mode: ${LEMON_SQUEEZY_TEST_MODE:false}
   variants:
-    basic: ${LEMONSQUEEZY_VARIANT_BASIC:}
-    professional: ${LEMONSQUEEZY_VARIANT_PROFESSIONAL:}
-    premium: ${LEMONSQUEEZY_VARIANT_PREMIUM:}
+    basic-monthly: ${LEMON_SQUEEZY_VARIANT_BASIC_MONTHLY:}
+    basic-annual: ${LEMON_SQUEEZY_VARIANT_BASIC_ANNUAL:}
+    professional-monthly: ${LEMON_SQUEEZY_VARIANT_PROFESSIONAL_MONTHLY:}
+    professional-annual: ${LEMON_SQUEEZY_VARIANT_PROFESSIONAL_ANNUAL:}
+    premium-monthly: ${LEMON_SQUEEZY_VARIANT_PREMIUM_MONTHLY:}
+    premium-annual: ${LEMON_SQUEEZY_VARIANT_PREMIUM_ANNUAL:}
   products:
-    basic: ${LEMONSQUEEZY_PRODUCT_BASIC:}
-    professional: ${LEMONSQUEEZY_PRODUCT_PROFESSIONAL:}
-    premium: ${LEMONSQUEEZY_PRODUCT_PREMIUM:}
+    basic: ${LEMON_SQUEEZY_PRODUCT_BASIC:}
+    professional: ${LEMON_SQUEEZY_PRODUCT_PROFESSIONAL:}
+    premium: ${LEMON_SQUEEZY_PRODUCT_PREMIUM:}
 
 springdoc:
   api-docs:
@@ -146,16 +143,14 @@ spring:
   sql:
     init:
       mode: never
-paddle:
-  api-key: test-paddle-api-key
-  environment: sandbox
-  webhook-secret: test-paddle-webhook-secret
-  client-token: test-paddle-client-token
-  grace-period-days: 10
-  webhook-tolerance-seconds: 300
+billing:
   jobs:
     grace-period-enabled: false
-    pending-change-enabled: false
+lemonsqueezy:
+  api-key: test-lemon-api-key
+  store-id: "1"
+  webhook-secret: test-lemon-webhook-secret
+  test-mode: true
 resend:
   api-key:
   from: LunaVeta <no-reply@lunaveta.com>

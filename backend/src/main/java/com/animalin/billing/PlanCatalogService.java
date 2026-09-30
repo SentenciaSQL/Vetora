@@ -1,25 +1,17 @@
 package com.animalin.billing;
 
 import com.animalin.audit.AuditService;
-import com.animalin.billing.paddle.PaddleApiException;
-import com.animalin.billing.paddle.PaddleClient;
-import com.animalin.billing.paddle.PaddleDtos;
 import com.animalin.common.exception.ApiException;
-import com.animalin.config.AnimalinProperties;
 import com.animalin.plan.Plan;
 import com.animalin.plan.PlanRepository;
 import com.animalin.security.TenantContext;
 import com.animalin.tenant.SubscriptionRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Clock;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -27,31 +19,18 @@ import java.util.Objects;
 @Service
 public class PlanCatalogService {
 
-    private static final Logger log = LoggerFactory.getLogger(PlanCatalogService.class);
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
     private final PlanRepository planRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final PaddleClient paddleClient;
-    private final PaddleProperties paddleProperties;
     private final AuditService auditService;
-    private final Clock clock;
-    private final AnimalinProperties animalinProperties;
 
     public PlanCatalogService(PlanRepository planRepository,
                               SubscriptionRepository subscriptionRepository,
-                              PaddleClient paddleClient,
-                              PaddleProperties paddleProperties,
-                              AuditService auditService,
-                              Clock clock,
-                              AnimalinProperties animalinProperties) {
+                              AuditService auditService) {
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
-        this.paddleClient = paddleClient;
-        this.paddleProperties = paddleProperties;
         this.auditService = auditService;
-        this.clock = clock;
-        this.animalinProperties = animalinProperties;
     }
 
     @Transactional(readOnly = true)
@@ -86,22 +65,7 @@ public class PlanCatalogService {
         plan.setMessagingEnabled(request.messagingEnabled() == null || request.messagingEnabled());
         plan.setLaboratoryEnabled(Boolean.TRUE.equals(request.laboratoryEnabled()));
         plan.setActive(request.active() == null || request.active());
-        plan.setPaddleSyncStatus("UNKNOWN");
-        if (StringUtils.hasText(request.paddleProductId())) {
-            plan.setPaddleProductId(paddleId(request.paddleProductId(), "pro_"));
-        }
-        if (StringUtils.hasText(request.paddleMonthlyPriceId())) {
-            plan.setPaddleMonthlyPriceId(paddleId(request.paddleMonthlyPriceId(), "pri_"));
-        }
-        if (StringUtils.hasText(request.paddleAnnualPriceId())) {
-            plan.setPaddleAnnualPriceId(paddleId(request.paddleAnnualPriceId(), "pri_"));
-        }
         validateCatalog(plan);
-        if (!StringUtils.hasText(plan.getPaddleProductId())
-                && !Boolean.FALSE.equals(request.syncToPaddle())
-                && paddleProperties.configured()) {
-            syncNewPlanToPaddle(plan);
-        }
         planRepository.save(plan);
         auditService.record(null, null, actor(), "CREATE", "PLAN", plan.getId(), plan.getCode(), null, null);
         return toAdmin(plan);
@@ -142,41 +106,13 @@ public class PlanCatalogService {
                     String.valueOf(plan.isActive()), String.valueOf(request.active()));
             plan.setActive(request.active());
         }
-        if (request.paddleProductId() != null) {
-            String productId = paddleId(request.paddleProductId(), "pro_");
-            auditService.recordChange("MAP_PADDLE", "PLAN", plan.getId(), "paddleProductId", plan.getPaddleProductId(), productId);
-            plan.setPaddleProductId(productId);
-        }
-        if (request.paddleMonthlyPriceId() != null) {
-            String priceId = paddleId(request.paddleMonthlyPriceId(), "pri_");
-            auditService.recordChange("MAP_PADDLE", "PLAN", plan.getId(), "paddleMonthlyPriceId", plan.getPaddleMonthlyPriceId(), priceId);
-            plan.setPaddleMonthlyPriceId(priceId);
-        }
-        if (request.paddleAnnualPriceId() != null) {
-            String priceId = paddleId(request.paddleAnnualPriceId(), "pri_");
-            auditService.recordChange("MAP_PADDLE", "PLAN", plan.getId(), "paddleAnnualPriceId", plan.getPaddleAnnualPriceId(), priceId);
-            plan.setPaddleAnnualPriceId(priceId);
-        }
         if (request.monthlyPrice() != null) {
             plan.setMonthlyPrice(positiveAmount(request.monthlyPrice(), "mensual"));
-            plan.setPaddleSyncStatus("DRIFT");
         }
         if (request.annualPrice() != null) {
             plan.setAnnualPrice(positiveAmount(request.annualPrice(), "anual"));
-            plan.setPaddleSyncStatus("DRIFT");
         }
         validateCatalog(plan);
-        if (Boolean.TRUE.equals(request.migratePrice())) {
-            throw ApiException.badRequest("Los precios de Paddle se actualizan con el botón Actualizar precio para no alterar suscriptores existentes");
-        }
-        if (paddleProperties.configured() && StringUtils.hasText(plan.getPaddleProductId())) {
-            try {
-                paddleClient.updateProduct(plan.getPaddleProductId(), new PaddleDtos.UpdateProductRequest(
-                        plan.getNameEn(), plan.getDescriptionEn(), null));
-            } catch (PaddleApiException ignored) {
-                // Local catalog remains the source of display names if the remote update is rejected.
-            }
-        }
         String newLimits = limitsSnapshot(plan);
         if (!previousLimits.equals(newLimits)) {
             auditService.recordChange("UPDATE_LIMITS", "PLAN", plan.getId(), "limits", previousLimits, newLimits);
@@ -195,250 +131,6 @@ public class PlanCatalogService {
         return toAdmin(plan);
     }
 
-    @Transactional
-    public BillingDtos.PaddleSyncResult validateFromPaddle(Long id) {
-        TenantContext.requireSuperAdmin();
-        Plan plan = planRepository.findById(id).orElseThrow(() -> ApiException.notFound("Plan no encontrado"));
-        if (!paddleProperties.configured()) {
-            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "PADDLE_NOT_CONFIGURED",
-                    "Paddle no está configurado");
-        }
-        if (!StringUtils.hasText(plan.getPaddleProductId())) {
-            throw ApiException.badRequest("Indique un Paddle Product ID (pro_)");
-        }
-        paddleId(plan.getPaddleProductId(), "pro_");
-        PaddleDtos.Product product;
-        try {
-            product = paddleClient.getProduct(plan.getPaddleProductId());
-        } catch (PaddleApiException ex) {
-            plan.setPaddleSyncStatus("ERROR");
-            throw paddleError("No se pudo consultar el producto en Paddle");
-        }
-        if (product == null) {
-            throw ApiException.notFound("El producto de Paddle no existe. Compruebe el Paddle Product ID (pro_).");
-        }
-        if (StringUtils.hasText(product.status()) && !"active".equalsIgnoreCase(product.status())) {
-            throw ApiException.badRequest("El producto de Paddle no está activo (estado: " + product.status() + ")");
-        }
-        validateCatalog(plan);
-        List<BillingDtos.PaddlePriceDiff> diffs = new ArrayList<>();
-        if (!StringUtils.hasText(plan.getPaddleMonthlyPriceId())) {
-            throw ApiException.badRequest("Indique un Paddle Monthly Price ID (pri_) para validar el precio mensual");
-        }
-        diffs.add(syncPrice(plan, product, plan.getPaddleMonthlyPriceId(), true));
-        if (StringUtils.hasText(plan.getPaddleAnnualPriceId())) {
-            diffs.add(syncPrice(plan, product, plan.getPaddleAnnualPriceId(), false));
-        }
-        boolean inSync = diffs.stream().allMatch(BillingDtos.PaddlePriceDiff::matches);
-        plan.setPaddleLastSyncedAt(clock.instant());
-        plan.setPaddleSyncStatus(inSync ? "IN_SYNC" : "DRIFT");
-        auditService.record(null, null, actor(), "VALIDATE_PADDLE", "PLAN", plan.getId(), plan.getCode(),
-                null, plan.getPaddleSyncStatus());
-        return new BillingDtos.PaddleSyncResult(toAdmin(plan), diffs, inSync,
-                paddleProperties.sandbox() ? "sandbox" : "production");
-    }
-
-    @Transactional
-    public BillingDtos.AdminPlanResponse rotatePrice(Long id, BillingDtos.RotatePriceRequest request) {
-        TenantContext.requireSuperAdmin();
-        if (request == null || !Boolean.TRUE.equals(request.confirm())) {
-            throw ApiException.badRequest("Confirme la creación del nuevo precio de Paddle");
-        }
-        Plan plan = planRepository.findById(id).orElseThrow(() -> ApiException.notFound("Plan no encontrado"));
-        if (!StringUtils.hasText(plan.getPaddleProductId())) {
-            throw ApiException.badRequest("El plan no tiene un producto de Paddle. No se creará uno nuevo desde esta acción");
-        }
-        SubscriptionCycle cycle = SubscriptionCycle.parse(request.cycle());
-        boolean monthly = cycle == SubscriptionCycle.MONTHLY;
-        BigDecimal amount = positiveAmount(request.amount(), monthly ? "mensual" : "anual");
-        String interval = monthly ? "month" : "year";
-        String oldId = monthly ? plan.getPaddleMonthlyPriceId() : plan.getPaddleAnnualPriceId();
-        PaddleDtos.Price created;
-        try {
-            created = paddleClient.createPrice(new PaddleDtos.CreatePriceRequest(
-                    plan.getCode() + " " + interval + " USD",
-                    plan.getPaddleProductId(),
-                    new PaddleDtos.UnitPrice(toCents(amount), "USD"),
-                    new PaddleDtos.BillingCycle(interval, 1),
-                    trialPeriodFor(plan, monthly)
-            ));
-        } catch (PaddleApiException ex) {
-            throw paddleError("No se pudo crear el nuevo precio en Paddle");
-        }
-        if (monthly) {
-            plan.setPaddleMonthlyPriceId(created.id());
-            plan.setMonthlyPrice(amount);
-            plan.setPaddleMonthlyPriceStatus(created.status());
-        } else {
-            plan.setPaddleAnnualPriceId(created.id());
-            plan.setAnnualPrice(amount);
-            plan.setPaddleAnnualPriceStatus(created.status());
-        }
-        auditService.recordChange("CREATE_PRICE", "PLAN", plan.getId(), interval, oldId, created.id());
-        if (StringUtils.hasText(oldId)) {
-            try {
-                paddleClient.updatePrice(oldId, new PaddleDtos.UpdatePriceRequest("archived", null));
-                auditService.recordChange("ARCHIVE_PRICE", "PLAN", plan.getId(), interval, oldId, "archived");
-            } catch (PaddleApiException ex) {
-                auditService.record(null, null, actor(), "ARCHIVE_PRICE_FAILED", "PLAN", plan.getId(),
-                        "Nuevo precio creado; no se pudo archivar " + oldId, oldId, created.id());
-            }
-        }
-        plan.setPaddleLastSyncedAt(clock.instant());
-        plan.setPaddleSyncStatus("IN_SYNC");
-        validateCatalog(plan);
-        return toAdmin(plan);
-    }
-
-    public PaddleDtos.Price requireActiveUsdPrice(Plan plan, String priceId, String expectedInterval) {
-        if (!paddleProperties.configured()) {
-            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "PADDLE_NOT_CONFIGURED",
-                    "Paddle no está configurado");
-        }
-        PaddleDtos.Price price;
-        try {
-            price = paddleClient.getPrice(priceId);
-        } catch (PaddleApiException ex) {
-            throw paddleError("No se pudo validar el precio en Paddle");
-        }
-        String cycleLabel = "year".equals(expectedInterval) ? "anual" : "mensual";
-        if (price == null) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no existe en el ambiente actual");
-        }
-        if (!"active".equalsIgnoreCase(price.status())) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle está archivado o inactivo (estado: "
-                    + price.status() + ")");
-        }
-        if (price.unitPrice() == null || !"USD".equalsIgnoreCase(price.unitPrice().currencyCode())) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe estar en USD");
-        }
-        BigDecimal amount = fromCents(price.unitPrice().amount());
-        if (amount.compareTo(ZERO) <= 0) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no puede ser cero. Revise el Price ID (pri_) sin cambiar otros importes.");
-        }
-        if (price.billingCycle() == null || !StringUtils.hasText(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe ser recurrente");
-        }
-        if (expectedInterval != null && !expectedInterval.equalsIgnoreCase(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El Price ID " + cycleLabel + " tiene un ciclo "
-                    + price.billingCycle().interval() + " en Paddle. Debe ser " + cycleLabel + ".");
-        }
-        if (StringUtils.hasText(plan.getPaddleProductId())
-                && StringUtils.hasText(price.productId())
-                && !plan.getPaddleProductId().equals(price.productId())) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " no pertenece al producto del plan ("
-                    + plan.getPaddleProductId() + ")");
-        }
-        String billingCycle = "year".equals(expectedInterval) ? SubscriptionStatuses.CYCLE_ANNUAL : SubscriptionStatuses.CYCLE_MONTHLY;
-        PaddleDtos.Price aligned = enforceTrialPeriod(plan, price, billingCycle);
-        if (aligned == null || !StringUtils.hasText(aligned.id())) {
-            throw paddleError("Paddle no devolvió un precio válido");
-        }
-        log.info("Checkout Paddle price plan={} cycle={} paddlePrice={} amount={}{} trial={}",
-                plan.getCode(),
-                billingCycle,
-                TrialPolicy.maskPaddleId(aligned.id()),
-                fromCents(aligned.unitPrice() == null ? null : aligned.unitPrice().amount()),
-                aligned.unitPrice() == null ? "" : " " + aligned.unitPrice().currencyCode(),
-                TrialPolicy.hasTrialPeriod(aligned.trialPeriod()));
-        return aligned;
-    }
-
-    private BillingDtos.PaddlePriceDiff syncPrice(Plan plan, PaddleDtos.Product product, String priceId, boolean monthly) {
-        paddleId(priceId, "pri_");
-        PaddleDtos.Price price;
-        try {
-            price = paddleClient.getPrice(priceId);
-        } catch (PaddleApiException ex) {
-            throw paddleError("No se pudo consultar el precio " + priceId);
-        }
-        String cycleLabel = monthly ? "mensual" : "anual";
-        if (price == null) {
-            throw ApiException.notFound("El precio " + cycleLabel + " de Paddle no existe. Compruebe el Price ID (pri_).");
-        }
-        if (!product.id().equals(price.productId())) {
-            throw ApiException.badRequest("El Price ID " + cycleLabel + " no pertenece al producto "
-                    + product.id() + ". Pertenece a " + price.productId() + ".");
-        }
-        if (price.billingCycle() == null || !StringUtils.hasText(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe ser recurrente");
-        }
-        String expected = monthly ? "month" : "year";
-        if (!expected.equalsIgnoreCase(price.billingCycle().interval())) {
-            throw ApiException.badRequest("El Price ID " + cycleLabel + " tiene un ciclo "
-                    + price.billingCycle().interval() + " en Paddle. Debe ser " + cycleLabel + ".");
-        }
-        if (price.unitPrice() == null || !"USD".equalsIgnoreCase(price.unitPrice().currencyCode())) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle debe estar en USD");
-        }
-        if (!"active".equalsIgnoreCase(price.status())) {
-            throw ApiException.badRequest("El precio " + cycleLabel + " de Paddle no está activo (estado: "
-                    + price.status() + ")");
-        }
-        price = enforceTrialPeriod(plan, price, monthly ? SubscriptionStatuses.CYCLE_MONTHLY : SubscriptionStatuses.CYCLE_ANNUAL);
-        BigDecimal paddleAmount = fromCents(price.unitPrice().amount());
-        BigDecimal local = monthly ? plan.getMonthlyPrice() : plan.getAnnualPrice();
-        boolean amountsMatch = local != null && local.compareTo(paddleAmount) == 0;
-        boolean matches = amountsMatch;
-        String message = amountsMatch
-                ? "El precio " + cycleLabel + " coincide con Paddle"
-                : "El importe " + cycleLabel + " configurado (" + local + " USD) no coincide con Paddle ("
-                + paddleAmount + " USD)";
-        if (monthly) {
-            plan.setMonthlyPrice(paddleAmount);
-            plan.setPaddleMonthlyPriceStatus(price.status());
-        } else {
-            plan.setAnnualPrice(paddleAmount);
-            plan.setPaddleAnnualPriceStatus(price.status());
-        }
-        return new BillingDtos.PaddlePriceDiff(
-                monthly ? SubscriptionStatuses.CYCLE_MONTHLY : SubscriptionStatuses.CYCLE_ANNUAL,
-                price.id(),
-                local,
-                paddleAmount,
-                "USD",
-                price.billingCycle().interval(),
-                price.status(),
-                message,
-                matches
-        );
-    }
-
-    private void syncNewPlanToPaddle(Plan plan) {
-        try {
-            PaddleDtos.Product product = paddleClient.createProduct(new PaddleDtos.CreateProductRequest(
-                    plan.getNameEn(),
-                    plan.getDescriptionEn(),
-                    "saas"
-            ));
-            plan.setPaddleProductId(product.id());
-            PaddleDtos.Price monthly = paddleClient.createPrice(new PaddleDtos.CreatePriceRequest(
-                    plan.getCode() + " monthly USD",
-                    product.id(),
-                    new PaddleDtos.UnitPrice(toCents(plan.getMonthlyPrice()), plan.getCurrency()),
-                    new PaddleDtos.BillingCycle("month", 1),
-                    trialPeriodFor(plan, true)
-            ));
-            plan.setPaddleMonthlyPriceId(monthly.id());
-            plan.setPaddleMonthlyPriceStatus(monthly.status());
-            if (plan.getAnnualPrice() != null) {
-                PaddleDtos.Price annual = paddleClient.createPrice(new PaddleDtos.CreatePriceRequest(
-                        plan.getCode() + " annual USD",
-                        product.id(),
-                        new PaddleDtos.UnitPrice(toCents(plan.getAnnualPrice()), plan.getCurrency()),
-                        new PaddleDtos.BillingCycle("year", 1),
-                        trialPeriodFor(plan, false)
-                ));
-                plan.setPaddleAnnualPriceId(annual.id());
-                plan.setPaddleAnnualPriceStatus(annual.status());
-            }
-            plan.setPaddleLastSyncedAt(clock.instant());
-            plan.setPaddleSyncStatus("IN_SYNC");
-        } catch (PaddleApiException ex) {
-            throw paddleError("No se pudo crear el producto en Paddle");
-        }
-    }
-
     private BillingDtos.AdminPlanResponse toAdmin(Plan plan) {
         return new BillingDtos.AdminPlanResponse(
                 plan.getId(),
@@ -450,18 +142,11 @@ public class PlanCatalogService {
                 plan.getCurrency(),
                 plan.getMonthlyPrice(),
                 plan.getAnnualPrice(),
-                plan.getPaddleProductId(),
-                plan.getPaddleMonthlyPriceId(),
-                plan.getPaddleAnnualPriceId(),
                 plan.isActive(),
                 BillingService.limits(plan),
                 subscriptionRepository.countByPlanId(plan.getId()),
                 plan.getCreatedAt(),
-                plan.getUpdatedAt(),
-                plan.getPaddleMonthlyPriceStatus(),
-                plan.getPaddleAnnualPriceStatus(),
-                plan.getPaddleLastSyncedAt(),
-                plan.getPaddleSyncStatus() == null ? "UNKNOWN" : plan.getPaddleSyncStatus()
+                plan.getUpdatedAt()
         );
     }
 
@@ -484,20 +169,6 @@ public class PlanCatalogService {
                 throw ApiException.badRequest("El precio anual debe ser menor que el precio mensual multiplicado por 12");
             }
         }
-        if (StringUtils.hasText(plan.getPaddleMonthlyPriceId())
-                && StringUtils.hasText(plan.getPaddleAnnualPriceId())
-                && plan.getPaddleMonthlyPriceId().equals(plan.getPaddleAnnualPriceId())) {
-            throw ApiException.badRequest("Los Price ID mensual y anual no pueden ser iguales");
-        }
-        if (StringUtils.hasText(plan.getPaddleProductId())) {
-            paddleId(plan.getPaddleProductId(), "pro_");
-        }
-        if (StringUtils.hasText(plan.getPaddleMonthlyPriceId())) {
-            paddleId(plan.getPaddleMonthlyPriceId(), "pri_");
-        }
-        if (StringUtils.hasText(plan.getPaddleAnnualPriceId())) {
-            paddleId(plan.getPaddleAnnualPriceId(), "pri_");
-        }
         currency(plan.getCurrency());
     }
 
@@ -507,20 +178,6 @@ public class PlanCatalogService {
             throw ApiException.badRequest("La moneda debe ser USD");
         }
         return currency;
-    }
-
-    private static String paddleId(String value, String prefix) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String id = value.trim();
-        if (!id.startsWith(prefix)) {
-            if ("pro_".equals(prefix)) {
-                throw ApiException.badRequest("El Paddle Product ID debe comenzar por pro_");
-            }
-            throw ApiException.badRequest("El Paddle Price ID debe comenzar por pri_");
-        }
-        return id;
     }
 
     private static BigDecimal positiveAmount(BigDecimal amount, String label) {
@@ -549,17 +206,6 @@ public class PlanCatalogService {
         return amount == null ? null : amount.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private static String toCents(BigDecimal amount) {
-        return amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP).toPlainString();
-    }
-
-    private static BigDecimal fromCents(String amount) {
-        if (!StringUtils.hasText(amount)) {
-            return ZERO;
-        }
-        return new BigDecimal(amount).movePointLeft(2).setScale(2, RoundingMode.HALF_UP);
-    }
-
     private static String limitsSnapshot(Plan plan) {
         return plan.getMaxUsers() + "/" + plan.getMaxVeterinarians() + "/" + plan.getMaxBranches()
                 + "/" + plan.getMaxStorageMb() + "/" + plan.getMaxMessagesMonth();
@@ -573,108 +219,5 @@ public class PlanCatalogService {
 
     private String actor() {
         return TenantContext.getOrNull() == null ? "platform" : Objects.toString(TenantContext.getOrNull().email(), "platform");
-    }
-
-    public void inspectTrialPeriod(String priceId, Plan plan, String billingCycle) {
-        if (!paddleProperties.configured() || !StringUtils.hasText(priceId)) {
-            return;
-        }
-        try {
-            enforceTrialPeriod(plan, paddleClient.getPrice(priceId), billingCycle);
-        } catch (PaddleApiException ex) {
-            log.warn("Could not load Paddle price {} to align the trial period", TrialPolicy.maskPaddleId(priceId));
-        }
-    }
-
-    private PaddleDtos.Price enforceTrialPeriod(Plan plan, PaddleDtos.Price price, String billingCycle) {
-        if (price == null || !StringUtils.hasText(price.id())) {
-            return price;
-        }
-        boolean shouldHaveTrial = TrialPolicy.basicMonthly(plan, billingCycle);
-        if (shouldHaveTrial) {
-            if (TrialPolicy.hasConfiguredBasicMonthlyTrial(price.trialPeriod())) {
-                return price;
-            }
-            try {
-                PaddleDtos.Price updated = paddleClient.setPriceTrialPeriod(price.id(),
-                        new PaddleDtos.TrialPeriod("day", TrialPolicy.DAYS));
-                log.info("Attached 14-day trial to BASIC monthly Paddle price {} without changing the amount",
-                        TrialPolicy.maskPaddleId(price.id()));
-                return updated == null ? price : updated;
-            } catch (PaddleApiException ex) {
-                log.warn("Could not attach the 14-day trial to BASIC monthly price {}. Configure Trial period: 14 days in Paddle without changing the amount.",
-                        TrialPolicy.maskPaddleId(price.id()));
-                return price;
-            }
-        }
-        if (!TrialPolicy.hasTrialPeriod(price.trialPeriod())) {
-            return price;
-        }
-        try {
-            PaddleDtos.Price updated = paddleClient.setPriceTrialPeriod(price.id(), null);
-            log.info("Removed leftover trial from Paddle price {} plan={} cycle={} so checkout bills immediately. Amount was not changed.",
-                    TrialPolicy.maskPaddleId(price.id()),
-                    plan == null ? "unknown" : plan.getCode(),
-                    billingCycle);
-            if (updated != null && !TrialPolicy.hasTrialPeriod(updated.trialPeriod())) {
-                return updated;
-            }
-        } catch (PaddleApiException ex) {
-            log.warn("Could not clear trial on Paddle price {} plan={} cycle={}. Creating a replacement price with the same amount and no trial.",
-                    TrialPolicy.maskPaddleId(price.id()),
-                    plan == null ? "unknown" : plan.getCode(),
-                    billingCycle);
-        }
-        return replacePriceWithoutTrial(plan, price, billingCycle);
-    }
-
-    private PaddleDtos.Price replacePriceWithoutTrial(Plan plan, PaddleDtos.Price current, String billingCycle) {
-        boolean monthly = !SubscriptionStatuses.CYCLE_ANNUAL.equalsIgnoreCase(billingCycle);
-        try {
-            PaddleDtos.Price created = paddleClient.createPrice(new PaddleDtos.CreatePriceRequest(
-                    (plan == null ? "plan" : plan.getCode()) + (monthly ? " monthly USD" : " annual USD"),
-                    current.productId(),
-                    current.unitPrice(),
-                    current.billingCycle(),
-                    null
-            ));
-            if (plan != null) {
-                if (monthly) {
-                    plan.setPaddleMonthlyPriceId(created.id());
-                    plan.setPaddleMonthlyPriceStatus(created.status());
-                } else {
-                    plan.setPaddleAnnualPriceId(created.id());
-                    plan.setPaddleAnnualPriceStatus(created.status());
-                }
-            }
-            try {
-                paddleClient.updatePrice(current.id(), new PaddleDtos.UpdatePriceRequest("archived", null));
-            } catch (PaddleApiException ex) {
-                log.warn("Replacement price {} created; could not archive {} with leftover trial",
-                        TrialPolicy.maskPaddleId(created.id()), TrialPolicy.maskPaddleId(current.id()));
-            }
-            log.info("Mapped plan {} cycle {} to replacement Paddle price {} with the same amount and no trial",
-                    plan == null ? "unknown" : plan.getCode(),
-                    billingCycle,
-                    TrialPolicy.maskPaddleId(created.id()));
-            return created;
-        } catch (PaddleApiException ex) {
-            log.warn("Could not create a no-trial replacement for Paddle price {} plan={} cycle={}. Checkout would charge $0 until the trial is removed in Paddle.",
-                    TrialPolicy.maskPaddleId(current.id()),
-                    plan == null ? "unknown" : plan.getCode(),
-                    billingCycle);
-            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "PADDLE_TRIAL_MISMATCH",
-                    "El precio de Paddle todavía tiene prueba gratis y no corresponde a Básico mensual. Quite el trial period en Paddle sin cambiar el importe, o cree un Price ID nuevo con el mismo monto.");
-        }
-    }
-
-    private PaddleDtos.TrialPeriod trialPeriodFor(Plan plan, boolean monthly) {
-        return TrialPolicy.basicMonthly(plan, monthly ? SubscriptionStatuses.CYCLE_MONTHLY : SubscriptionStatuses.CYCLE_ANNUAL)
-                ? new PaddleDtos.TrialPeriod("day", TrialPolicy.DAYS)
-                : null;
-    }
-
-    private static ApiException paddleError(String message) {
-        return new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "PADDLE_API_ERROR", message);
     }
 }

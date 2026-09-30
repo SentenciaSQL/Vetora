@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface BillingEventRepository extends JpaRepository<BillingEvent, Long> {
-    Optional<BillingEvent> findByPaddleEventId(String paddleEventId);
-    boolean existsByPaddleEventIdAndProcessingStatus(String paddleEventId, String processingStatus);
+    Optional<BillingEvent> findByEventKey(String eventKey);
+    boolean existsByEventKeyAndProcessingStatus(String eventKey, String processingStatus);
 
     long countByProcessingStatus(String processingStatus);
 

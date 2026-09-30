@@ -36,10 +36,32 @@ export class BillingService {
     return this.api.post<PortalSession>('/billing/customer-portal', {});
   }
 
-  cancel(effectiveFrom = 'next_billing_period'): Observable<TenantSubscription> {
-    return this.api.post<TenantSubscription>('/billing/subscription/cancel', { effectiveFrom }).pipe(
+  cancel(): Observable<TenantSubscription> {
+    return this.api.post<TenantSubscription>('/billing/subscription/cancel', {}).pipe(
       tap(sub => this.subscription.set(sub))
     );
+  }
+
+  resume(): Observable<TenantSubscription> {
+    return this.api.post<TenantSubscription>('/billing/subscription/resume', {}).pipe(
+      tap(sub => this.subscription.set(sub))
+    );
+  }
+
+  pause(): Observable<TenantSubscription> {
+    return this.api.post<TenantSubscription>('/billing/subscription/pause', {}).pipe(
+      tap(sub => this.subscription.set(sub))
+    );
+  }
+
+  unpause(): Observable<TenantSubscription> {
+    return this.api.post<TenantSubscription>('/billing/subscription/unpause', {}).pipe(
+      tap(sub => this.subscription.set(sub))
+    );
+  }
+
+  updatePaymentMethod(): Observable<PortalSession> {
+    return this.api.post<PortalSession>('/billing/subscription/update-payment-method', {});
   }
 
   changePlan(planId: number, billingCycle: BillingCycle): Observable<TenantSubscription> {

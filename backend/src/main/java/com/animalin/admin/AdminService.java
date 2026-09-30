@@ -204,8 +204,8 @@ public class AdminService {
         row.put("ownerEmailVerified", owner != null && owner.getUser().isEmailVerified());
         row.put("subscriptionStatus", subscription == null ? null : subscription.getStatus());
         row.put("billingCycle", subscription == null ? null : subscription.getBillingCycle());
-        row.put("hasPaddleCustomer", subscription != null && StringUtils.hasText(subscription.getPaddleCustomerId()));
-        row.put("hasPaddleSubscription", subscription != null && StringUtils.hasText(subscription.getPaddleSubscriptionId()));
+        row.put("hasCustomer", subscription != null && StringUtils.hasText(subscription.getLsCustomerId()));
+        row.put("hasSubscription", subscription != null && StringUtils.hasText(subscription.getLsSubscriptionId()));
         return row;
     }
 
@@ -304,7 +304,7 @@ public class AdminService {
             row.put("currency", s.getCurrency());
             row.put("gracePeriodEndsAt", s.getGracePeriodEndsAt());
             row.put("suspendedAt", s.getSuspendedAt());
-            row.put("paddleSubscriptionId", s.getPaddleSubscriptionId());
+            row.put("subscriptionId", s.getLsSubscriptionId());
             row.put("tenantName", s.getTenant().getName());
             row.put("planCode", s.getPlan().getCode());
             return row;

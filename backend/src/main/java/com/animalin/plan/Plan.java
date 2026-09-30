@@ -68,27 +68,6 @@ public class Plan {
     @Column(nullable = false, length = 8)
     private String currency = "USD";
 
-    @Column(name = "paddle_product_id", length = 64)
-    private String paddleProductId;
-
-    @Column(name = "paddle_monthly_price_id", length = 64)
-    private String paddleMonthlyPriceId;
-
-    @Column(name = "paddle_annual_price_id", length = 64)
-    private String paddleAnnualPriceId;
-
-    @Column(name = "paddle_monthly_price_status", length = 20)
-    private String paddleMonthlyPriceStatus;
-
-    @Column(name = "paddle_annual_price_status", length = 20)
-    private String paddleAnnualPriceStatus;
-
-    @Column(name = "paddle_last_synced_at")
-    private Instant paddleLastSyncedAt;
-
-    @Column(name = "paddle_sync_status", nullable = false, length = 20)
-    private String paddleSyncStatus = "UNKNOWN";
-
     @Column(nullable = false)
     private boolean active = true;
 
@@ -210,48 +189,6 @@ public class Plan {
     }
     public void setCurrency(String currency) {
         this.currency = currency;
-    }
-    public String getPaddleProductId() {
-        return paddleProductId;
-    }
-    public void setPaddleProductId(String paddleProductId) {
-        this.paddleProductId = paddleProductId;
-    }
-    public String getPaddleMonthlyPriceId() {
-        return paddleMonthlyPriceId;
-    }
-    public void setPaddleMonthlyPriceId(String paddleMonthlyPriceId) {
-        this.paddleMonthlyPriceId = paddleMonthlyPriceId;
-    }
-    public String getPaddleAnnualPriceId() {
-        return paddleAnnualPriceId;
-    }
-    public void setPaddleAnnualPriceId(String paddleAnnualPriceId) {
-        this.paddleAnnualPriceId = paddleAnnualPriceId;
-    }
-    public String getPaddleMonthlyPriceStatus() {
-        return paddleMonthlyPriceStatus;
-    }
-    public void setPaddleMonthlyPriceStatus(String paddleMonthlyPriceStatus) {
-        this.paddleMonthlyPriceStatus = paddleMonthlyPriceStatus;
-    }
-    public String getPaddleAnnualPriceStatus() {
-        return paddleAnnualPriceStatus;
-    }
-    public void setPaddleAnnualPriceStatus(String paddleAnnualPriceStatus) {
-        this.paddleAnnualPriceStatus = paddleAnnualPriceStatus;
-    }
-    public Instant getPaddleLastSyncedAt() {
-        return paddleLastSyncedAt;
-    }
-    public void setPaddleLastSyncedAt(Instant paddleLastSyncedAt) {
-        this.paddleLastSyncedAt = paddleLastSyncedAt;
-    }
-    public String getPaddleSyncStatus() {
-        return paddleSyncStatus;
-    }
-    public void setPaddleSyncStatus(String paddleSyncStatus) {
-        this.paddleSyncStatus = paddleSyncStatus == null ? "UNKNOWN" : paddleSyncStatus;
     }
     public boolean isActive() {
         return active;
