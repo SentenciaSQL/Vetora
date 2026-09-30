@@ -1,6 +1,7 @@
 package com.animalin.tenant;
 
 import com.animalin.plan.Plan;
+import com.animalin.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -51,6 +52,67 @@ public class Subscription {
 
     @Column(name = "paddle_price_id", length = 64)
     private String paddlePriceId;
+
+    @Column(name = "ls_subscription_id", length = 64)
+    private String lsSubscriptionId;
+
+    @Column(name = "ls_customer_id", length = 64)
+    private String lsCustomerId;
+
+    @Column(name = "ls_order_id", length = 64)
+    private String lsOrderId;
+
+    @Column(name = "ls_order_item_id", length = 64)
+    private String lsOrderItemId;
+
+    @Column(name = "ls_product_id", length = 64)
+    private String lsProductId;
+
+    @Column(name = "ls_variant_id", length = 64)
+    private String lsVariantId;
+
+    @Column(name = "ls_variant_name", length = 180)
+    private String lsVariantName;
+
+    @Column(name = "ls_product_name", length = 180)
+    private String lsProductName;
+
+    @Column(name = "ls_product_sku", length = 120)
+    private String lsProductSku;
+
+    @Column(name = "ls_status", length = 40)
+    private String lsStatus;
+
+    @Column(name = "trial_ends_at")
+    private Instant trialEndsAt;
+
+    @Column(name = "renews_at")
+    private Instant renewsAt;
+
+    @Column(name = "ends_at")
+    private Instant endsAt;
+
+    @Column(name = "ls_cancelled", nullable = false)
+    private boolean lsCancelled;
+
+    @Column(name = "ls_paused", nullable = false)
+    private boolean lsPaused;
+
+    @Column(name = "ls_test_mode")
+    private Boolean lsTestMode;
+
+    @Column(name = "ls_refunded_at")
+    private Instant lsRefundedAt;
+
+    @Column(name = "ls_created_at")
+    private Instant lsCreatedAt;
+
+    @Column(name = "ls_updated_at")
+    private Instant lsUpdatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @Column(name = "billing_cycle", length = 20)
     private String billingCycle;
@@ -195,6 +257,126 @@ public class Subscription {
     }
     public void setPaddlePriceId(String paddlePriceId) {
         this.paddlePriceId = paddlePriceId;
+    }
+    public String getLsSubscriptionId() {
+        return lsSubscriptionId;
+    }
+    public void setLsSubscriptionId(String lsSubscriptionId) {
+        this.lsSubscriptionId = lsSubscriptionId;
+    }
+    public String getLsCustomerId() {
+        return lsCustomerId;
+    }
+    public void setLsCustomerId(String lsCustomerId) {
+        this.lsCustomerId = lsCustomerId;
+    }
+    public String getLsOrderId() {
+        return lsOrderId;
+    }
+    public void setLsOrderId(String lsOrderId) {
+        this.lsOrderId = lsOrderId;
+    }
+    public String getLsOrderItemId() {
+        return lsOrderItemId;
+    }
+    public void setLsOrderItemId(String lsOrderItemId) {
+        this.lsOrderItemId = lsOrderItemId;
+    }
+    public String getLsProductId() {
+        return lsProductId;
+    }
+    public void setLsProductId(String lsProductId) {
+        this.lsProductId = lsProductId;
+    }
+    public String getLsVariantId() {
+        return lsVariantId;
+    }
+    public void setLsVariantId(String lsVariantId) {
+        this.lsVariantId = lsVariantId;
+    }
+    public String getLsVariantName() {
+        return lsVariantName;
+    }
+    public void setLsVariantName(String lsVariantName) {
+        this.lsVariantName = lsVariantName;
+    }
+    public String getLsProductName() {
+        return lsProductName;
+    }
+    public void setLsProductName(String lsProductName) {
+        this.lsProductName = lsProductName;
+    }
+    public String getLsProductSku() {
+        return lsProductSku;
+    }
+    public void setLsProductSku(String lsProductSku) {
+        this.lsProductSku = lsProductSku;
+    }
+    public String getLsStatus() {
+        return lsStatus;
+    }
+    public void setLsStatus(String lsStatus) {
+        this.lsStatus = lsStatus;
+    }
+    public Instant getTrialEndsAt() {
+        return trialEndsAt;
+    }
+    public void setTrialEndsAt(Instant trialEndsAt) {
+        this.trialEndsAt = trialEndsAt;
+    }
+    public Instant getRenewsAt() {
+        return renewsAt;
+    }
+    public void setRenewsAt(Instant renewsAt) {
+        this.renewsAt = renewsAt;
+    }
+    public Instant getEndsAt() {
+        return endsAt;
+    }
+    public void setEndsAt(Instant endsAt) {
+        this.endsAt = endsAt;
+    }
+    public boolean isLsCancelled() {
+        return lsCancelled;
+    }
+    public void setLsCancelled(boolean lsCancelled) {
+        this.lsCancelled = lsCancelled;
+    }
+    public boolean isLsPaused() {
+        return lsPaused;
+    }
+    public void setLsPaused(boolean lsPaused) {
+        this.lsPaused = lsPaused;
+    }
+    public Boolean getLsTestMode() {
+        return lsTestMode;
+    }
+    public void setLsTestMode(Boolean lsTestMode) {
+        this.lsTestMode = lsTestMode;
+    }
+    public Instant getLsRefundedAt() {
+        return lsRefundedAt;
+    }
+    public void setLsRefundedAt(Instant lsRefundedAt) {
+        this.lsRefundedAt = lsRefundedAt;
+    }
+    public Instant getLsCreatedAt() {
+        return lsCreatedAt;
+    }
+    public void setLsCreatedAt(Instant lsCreatedAt) {
+        this.lsCreatedAt = lsCreatedAt;
+    }
+    public Instant getLsUpdatedAt() {
+        return lsUpdatedAt;
+    }
+    public void setLsUpdatedAt(Instant lsUpdatedAt) {
+        this.lsUpdatedAt = lsUpdatedAt;
+    }
+    public User getUser() {
+        return user;
+    }
+    public void setUser(User user) {
+        this.user = user;
     }
     public String getBillingCycle() {
         return billingCycle;

@@ -39,7 +39,7 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        if (path.startsWith("/api/v1/billing/webhooks/")) {
+        if (path.startsWith("/api/v1/billing/webhooks/") || path.startsWith("/api/v1/webhooks/lemonsqueezy")) {
             return true;
         }
         if (path.startsWith("/api/v1/auth/login")
@@ -132,7 +132,8 @@ public class TenantSubscriptionAccessFilter extends OncePerRequestFilter {
         if (SubscriptionStatuses.PENDING.equals(status) || SubscriptionStatuses.PENDING_PAYMENT.equals(status)) {
             return true;
         }
-        if (SubscriptionStatuses.SUSPENDED.equals(status) || SubscriptionStatuses.PAUSED.equals(status)) {
+        if (SubscriptionStatuses.SUSPENDED.equals(status) || SubscriptionStatuses.PAUSED.equals(status)
+                || SubscriptionStatuses.EXPIRED.equals(status)) {
             return true;
         }
         if (SubscriptionStatuses.CANCELED.equals(status)) {

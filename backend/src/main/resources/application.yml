@@ -103,6 +103,17 @@ paddle:
     pending-change-enabled: ${PADDLE_PENDING_CHANGE_JOB_ENABLED:true}
     pending-change-cron: ${PADDLE_PENDING_CHANGE_CRON:0 */5 * * * *}
 
+lemonsqueezy:
+  webhook-secret: ${LEMONSQUEEZY_WEBHOOK_SECRET:}
+  variants:
+    basic: ${LEMONSQUEEZY_VARIANT_BASIC:}
+    professional: ${LEMONSQUEEZY_VARIANT_PROFESSIONAL:}
+    premium: ${LEMONSQUEEZY_VARIANT_PREMIUM:}
+  products:
+    basic: ${LEMONSQUEEZY_PRODUCT_BASIC:}
+    professional: ${LEMONSQUEEZY_PRODUCT_PROFESSIONAL:}
+    premium: ${LEMONSQUEEZY_PRODUCT_PREMIUM:}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

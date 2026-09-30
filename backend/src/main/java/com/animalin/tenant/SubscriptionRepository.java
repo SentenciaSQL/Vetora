@@ -27,6 +27,9 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<Subscription> findByTenantIdOrderByStartedAtDesc(Long tenantId);
     Optional<Subscription> findByPaddleSubscriptionId(String paddleSubscriptionId);
     Optional<Subscription> findFirstByPaddleCustomerIdOrderByStartedAtDesc(String paddleCustomerId);
+    Optional<Subscription> findByLsSubscriptionIdAndLsTestMode(String lsSubscriptionId, Boolean lsTestMode);
+    Optional<Subscription> findFirstByLsOrderIdAndLsTestModeOrderByStartedAtDesc(String lsOrderId, Boolean lsTestMode);
+    Optional<Subscription> findFirstByLsCustomerIdAndLsTestModeOrderByStartedAtDesc(String lsCustomerId, Boolean lsTestMode);
 
     @Query("""
             select (count(s) > 0) from Subscription s

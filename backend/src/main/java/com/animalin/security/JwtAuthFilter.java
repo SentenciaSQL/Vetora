@@ -85,6 +85,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 || uri.contains("/auth/accept-invite")
                 || uri.contains("/public/")
                 || uri.contains("/billing/webhooks/paddle")
+                || uri.contains("/webhooks/lemonsqueezy")
                 || uri.contains("/files/");
     }
 
