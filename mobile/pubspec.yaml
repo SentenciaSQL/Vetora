@@ -1,7 +1,7 @@
 name: animalin
 description: Lunaveta — app para propietarios de mascotas
 publish_to: "none"
-version: 1.2.1+5
+version: 1.4.2+7
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -13,6 +13,7 @@ dependencies:
     sdk: flutter
   http: ^1.2.2
   flutter_secure_storage: ^11.2.0
+  local_auth: ^2.3.0
   intl: ^0.20.3
   firebase_core: ^4.15.0
   firebase_messaging: ^16.7.0

@@ -39,6 +39,7 @@ interface Copy {
   appName: string;
   privacy: string;
   terms: string;
+  refundPolicy: string;
   contact: string;
   genericError: string;
   noscript: string;
@@ -118,6 +119,7 @@ const ES: Copy = {
   appName: 'Aplicación: LunaVeta.',
   privacy: 'Política de privacidad',
   terms: 'Términos y condiciones',
+  refundPolicy: 'Política de reembolsos',
   contact: 'Contacto o soporte',
   genericError: 'No se pudo completar la solicitud. Inténtelo de nuevo.',
   noscript: 'Puede leer esta página y enviar el formulario sin JavaScript. Para confirmar el enlace recibido por correo, abra esta dirección en un navegador con JavaScript o escriba a supportlunaveta@gmail.com desde el correo de la cuenta.'
@@ -197,6 +199,7 @@ const EN: Copy = {
   appName: 'Application: LunaVeta.',
   privacy: 'Privacy policy',
   terms: 'Terms and conditions',
+  refundPolicy: 'Refund policy',
   contact: 'Contact or support',
   genericError: 'The request could not be completed. Try again.',
   noscript: 'You can read this page and submit the form without JavaScript. To confirm the link sent by email, open this address in a browser with JavaScript or write to supportlunaveta@gmail.com from the account email.'
@@ -284,8 +287,9 @@ const EN: Copy = {
       <p class="mt-6">{{ copy().updated }}</p>
       <p>{{ copy().appName }}</p>
       <footer class="mt-6 flex flex-wrap gap-x-4 gap-y-2 text-sm">
-        <a class="text-brand-700 hover:underline" href="/privacidad">{{ copy().privacy }}</a>
-        <a class="text-brand-700 hover:underline" href="/terminos">{{ copy().terms }}</a>
+        <a class="text-brand-700 hover:underline" href="/privacy">{{ copy().privacy }}</a>
+        <a class="text-brand-700 hover:underline" href="/terms">{{ copy().terms }}</a>
+        <a class="text-brand-700 hover:underline" href="/refund-policy">{{ copy().refundPolicy }}</a>
         <a class="text-brand-700 hover:underline" href="mailto:supportlunaveta@gmail.com">{{ copy().contact }}</a>
       </footer>
     </div>

@@ -1,29 +1,110 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en" data-title-en="Terms of Service | LunaVeta" data-title-es="Términos de Servicio | LunaVeta" data-description-en="Terms of Service for LunaVeta, a veterinary practice management platform." data-description-es="Términos de Servicio de LunaVeta, una plataforma de gestión para clínicas veterinarias.">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Términos y condiciones | LunaVeta</title>
-  <meta name="description" content="Contacto para consultar los términos y condiciones de LunaVeta.">
-  <link rel="canonical" href="https://lunaveta.com/terminos">
-  <style>
-    body { margin: 0; font-family: "Segoe UI", Helvetica, Arial, sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.6; }
-    main { max-width: 44rem; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
-    a { color: #0f766e; }
-  </style>
+  <title>Terms of Service | LunaVeta</title>
+  <meta name="description" content="Terms of Service for LunaVeta, a veterinary practice management platform.">
+  <link rel="canonical" href="https://lunaveta.com/terms">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://lunaveta.com/terms">
+  <meta property="og:title" content="Terms of Service | LunaVeta">
+  <meta property="og:description" content="Terms of Service for LunaVeta, a veterinary practice management platform.">
+  <link rel="icon" type="image/png" href="/assets/branding/logo.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap">
+  <style>html[lang="en"] [data-lang="es"],html[lang="es"] [data-lang="en"]{display:none!important}</style>
+  <link rel="stylesheet" href="/assets/public-site.css">
+  <script>
+    (function () {
+      var locale = 'es';
+      try {
+        var stored = localStorage.getItem('animalin.locale');
+        if (stored === 'en' || stored === 'es') locale = stored;
+      } catch (e) {}
+      var root = document.documentElement;
+      root.lang = locale;
+      var title = root.getAttribute('data-title-' + locale);
+      if (title) document.title = title;
+    })();
+  </script>
 </head>
 <body>
-  <main>
-    <p style="font-weight:800;color:#115e59;">LunaVeta</p>
-    <h1>Términos y condiciones</h1>
-    <p>El uso de LunaVeta está sujeto a las condiciones aceptadas al crear la cuenta. Para solicitar el texto de los términos, escriba a <a href="mailto:supportlunaveta@gmail.com">supportlunaveta@gmail.com</a>.</p>
-    <p>La eliminación de la cuenta se explica en <a href="/eliminar-cuenta">Eliminar cuenta y datos</a>.</p>
-    <p>Última actualización: 21 de septiembre de 2026.</p>
-    <p><a href="/privacidad">Política de privacidad</a> · <a href="/eliminar-cuenta">Eliminación de cuenta</a></p>
-    <details>
-      <summary>English</summary>
-      <p>Use of LunaVeta is subject to the conditions accepted when the account is created. To request the terms, email <a href="mailto:supportlunaveta@gmail.com">supportlunaveta@gmail.com</a>.</p>
-    </details>
+  <a class="skip" href="#content"><span data-lang="en">Skip to content</span><span data-lang="es">Saltar al contenido</span></a>
+  
+    <header class="site-header">
+      <div class="wrap header-bar">
+        <a class="brand" href="/">
+          <img src="/assets/branding/logo.svg" width="36" height="36" alt="">
+          LunaVeta
+        </a>
+        <div class="header-actions">
+          <nav class="nav" data-label-en="Account" data-label-es="Cuenta" aria-label="Account">
+            <a href="/pricing"><span data-lang="en">Pricing</span><span data-lang="es">Precios</span></a>
+            <a href="/register"><span data-lang="en">Register</span><span data-lang="es">Registrarse</span></a>
+            <a href="/login"><span data-lang="en">Sign in</span><span data-lang="es">Iniciar sesión</span></a>
+          </nav>
+          <label class="sr-only" for="lang-select"><span data-lang="en">Language</span><span data-lang="es">Idioma</span></label>
+          <select id="lang-select">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+      </div>
+    </header>
+  <main id="content" class="wrap">
+    
+    <article class="prose">
+      <h1><span data-lang="en">Terms of Service</span><span data-lang="es">Términos de Servicio</span></h1>
+      <p class="lead" data-lang="en">These terms describe how veterinary clinics use LunaVeta. Creating an account or using the service means the clinic accepts them.</p><p class="lead" data-lang="es">Estos términos describen cómo las clínicas veterinarias usan LunaVeta. Crear una cuenta o usar el servicio significa que la clínica los acepta.</p>
+      <div class="pending">
+        <p><span data-lang="en">Details still to be completed</span><span data-lang="es">Datos que todavía deben completarse</span></p>
+        <ul class="legal-list"><li><span data-lang="en">[TO COMPLETE: legal entity name]</span><span data-lang="es">[COMPLETAR: nombre legal de la empresa]</span></li>
+<li><span data-lang="en">[TO COMPLETE: physical address]</span><span data-lang="es">[COMPLETAR: dirección física]</span></li>
+<li><span data-lang="en">[TO COMPLETE: company or tax identification number]</span><span data-lang="es">[COMPLETAR: número de empresa o identificación fiscal]</span></li>
+<li><span data-lang="en">[TO COMPLETE: jurisdiction and governing law]</span><span data-lang="es">[COMPLETAR: jurisdicción y ley aplicable]</span></li></ul>
+      </div>
+      <h2><span data-lang="en">The service</span><span data-lang="es">El servicio</span></h2>
+<p data-lang="en">LunaVeta is a veterinary practice management platform. It helps clinics organize daily operations, manage pets and owners, keep medical information, and manage appointments. Staff can use the web app and the mobile app.</p><p data-lang="es">LunaVeta es una plataforma de gestión para clínicas veterinarias. Ayuda a organizar las operaciones diarias, administrar mascotas y propietarios, conservar la información médica y gestionar las citas. El personal puede usar la aplicación web y la aplicación móvil.</p><h2><span data-lang="en">Who it is for</span><span data-lang="es">Para quién es</span></h2>
+<p data-lang="en">Subscriptions are for veterinary clinics. Pet owners are clients of a clinic. They do not buy these plans and do not use a staff account included in a plan.</p><p data-lang="es">Las suscripciones son para clínicas veterinarias. Los propietarios de mascotas son clientes de una clínica. No compran estos planes ni usan una cuenta de personal incluida en un plan.</p><h2><span data-lang="en">Accounts</span><span data-lang="es">Cuentas</span></h2>
+<p data-lang="en">The clinic is responsible for the staff accounts it creates and for the information it enters about the clinic, pets, owners, and medical care. Each plan sets how many branches, veterinarians, and staff accounts the clinic can use.</p><p data-lang="es">La clínica es responsable de las cuentas de personal que crea y de la información que registra sobre la clínica, las mascotas, los propietarios y la atención médica. Cada plan define cuántas sucursales, veterinarios y cuentas de personal puede usar la clínica.</p><h2><span data-lang="en">Plans and payment</span><span data-lang="es">Planes y pago</span></h2>
+<p data-lang="en">Current plans and monthly prices in USD are shown on the pricing page. Payments are processed by Paddle, which acts as the merchant of record.</p><p data-lang="es">Los planes vigentes y los precios mensuales en USD se muestran en la página de precios. Los pagos los procesa Paddle, que actúa como comerciante de registro.</p>
+<p data-lang="en">Buying, changing, or canceling a subscription is done in the web app after signing in. The mobile app cannot buy, change, or cancel plans.</p><p data-lang="es">Comprar, cambiar o cancelar una suscripción se hace en la aplicación web después de iniciar sesión. La aplicación móvil no permite comprar, cambiar ni cancelar planes.</p><h2><span data-lang="en">Cancellation</span><span data-lang="es">Cancelación</span></h2>
+<p data-lang="en">A clinic administrator can cancel from Billing in the web app. Cancellation normally takes effect at the end of the current billing period, and access continues until that date. Cancelling does not by itself refund the period already charged. Refunds are described in the refund policy.</p><p data-lang="es">El administrador de la clínica puede cancelar desde Facturación en la aplicación web. La cancelación habitual surte efecto al final del periodo de facturación en curso y el acceso continúa hasta esa fecha. Cancelar no reembolsa por sí solo el periodo ya cobrado. Los reembolsos se describen en la política de reembolsos.</p><h2><span data-lang="en">Acceptable use</span><span data-lang="es">Uso aceptable</span></h2>
+<p data-lang="en">The clinic will use LunaVeta for its veterinary practice. It will not try to access another clinic&#x27;s information or use the service in a way that breaks the law that applies to that clinic.</p><p data-lang="es">La clínica usará LunaVeta para su práctica veterinaria. No intentará acceder a la información de otra clínica ni usar el servicio de una forma que infrinja la ley que le resulte aplicable.</p>
+      <h2><span data-lang="en">Account deletion</span><span data-lang="es">Eliminación de cuenta</span></h2>
+      <p data-lang="en">Users can request deletion of an account and the associated personal data. The steps are explained on the account deletion page.</p><p data-lang="es">Los usuarios pueden solicitar la eliminación de una cuenta y de los datos personales asociados. Los pasos se explican en la página de eliminación de cuenta.</p>
+      <p><a href="/eliminar-cuenta"><span data-lang="en">Delete account and data</span><span data-lang="es">Eliminar cuenta y datos</span></a></p>
+      <h2><span data-lang="en">Contact</span><span data-lang="es">Contacto</span></h2>
+      <p data-lang="en">The support email for LunaVeta is:</p><p data-lang="es">El correo de soporte de LunaVeta es:</p>
+      <p><a href="mailto:supportlunaveta@gmail.com">supportlunaveta@gmail.com</a></p>
+      <p class="disclaimer" data-lang="en">Last updated: 29 September 2026.</p><p class="disclaimer" data-lang="es">Última actualización: 29 de septiembre de 2026.</p>
+    </article>
   </main>
+  
+    <footer class="footer">
+      <div class="wrap footer-grid">
+        <div>
+          <h2>LunaVeta</h2>
+          <p data-lang="en">Veterinary practice management made simple.</p><p data-lang="es">Gestión veterinaria de forma simple.</p>
+          <p><span data-lang="en">Contact</span><span data-lang="es">Contacto</span>: <a href="mailto:supportlunaveta@gmail.com">supportlunaveta@gmail.com</a></p>
+        </div>
+        <div>
+          <h2><span data-lang="en">Product</span><span data-lang="es">Producto</span></h2>
+          <ul>
+            <li><a href="/pricing"><span data-lang="en">Pricing</span><span data-lang="es">Precios</span></a></li>
+            <li><a href="/login"><span data-lang="en">Login</span><span data-lang="es">Iniciar sesión</span></a></li>
+          </ul>
+        </div>
+        <nav data-label-en="Legal" data-label-es="Legal" aria-label="Legal">
+          <h2><span data-lang="en">Legal</span><span data-lang="es">Legal</span></h2>
+          <ul>
+            <li><a href="/terms"><span data-lang="en">Terms of Service</span><span data-lang="es">Términos de Servicio</span></a></li>
+            <li><a href="/privacy"><span data-lang="en">Privacy Policy</span><span data-lang="es">Política de Privacidad</span></a></li>
+            <li><a href="/refund-policy"><span data-lang="en">Refund Policy</span><span data-lang="es">Política de Reembolsos</span></a></li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
+  <script src="/assets/public-site.js"></script>
 </body>
 </html>

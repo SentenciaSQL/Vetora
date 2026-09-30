@@ -200,12 +200,12 @@ public class MedicalRecordService {
         vaccination.setTenantId(pet.getTenantId());
         vaccination.setPet(pet);
         vaccination.setVaccineId(request.vaccineId());
-        vaccination.setVaccineName(request.vaccineName());
-        vaccination.setBrand(request.brand());
-        vaccination.setLot(request.lot());
+        vaccination.setVaccineName(request.vaccineName() == null ? null : request.vaccineName().trim());
+        vaccination.setBrand(blankToNull(request.brand()));
+        vaccination.setLot(blankToNull(request.lot()));
         vaccination.setAppliedAt(request.appliedAt());
         vaccination.setNextDoseAt(request.nextDoseAt());
-        vaccination.setNotes(request.notes());
+        vaccination.setNotes(blankToNull(request.notes()));
         if (request.veterinarianId() != null) {
             vaccination.setVeterinarian(veterinarianRepository.findByIdAndTenantId(request.veterinarianId(), pet.getTenantId())
                     .orElseThrow(() -> ApiException.notFound("Veterinario no encontrado")));
@@ -218,6 +218,47 @@ public class MedicalRecordService {
                     vaccination.getVaccineName(), vaccination.getVaccineName(), "VACCINATION", vaccination.getId());
         }
         return toVaccination(vaccination);
+    }
+
+    @Transactional
+    public AppDtos.VaccinationResponse updateVaccination(Long id, AppDtos.VaccinationRequest request) {
+        accessGuard.requirePermission("MEDICAL_RECORD_WRITE");
+        Vaccination vaccination = vaccinationRepository.findByIdAndTenantId(id, accessGuard.requireStaffTenant())
+                .orElseThrow(() -> ApiException.notFound("Vacuna no encontrada"));
+        if (request.vaccineName() == null || request.vaccineName().isBlank()) {
+            throw ApiException.badRequest("El nombre de la vacuna es obligatorio");
+        }
+        if (request.appliedAt() == null) {
+            throw ApiException.badRequest("La fecha de aplicación es obligatoria");
+        }
+        vaccination.setVaccineName(request.vaccineName().trim());
+        vaccination.setBrand(blankToNull(request.brand()));
+        vaccination.setLot(blankToNull(request.lot()));
+        vaccination.setNotes(blankToNull(request.notes()));
+        vaccination.setAppliedAt(request.appliedAt());
+        vaccination.setNextDoseAt(request.nextDoseAt());
+        if (request.vaccineId() != null) {
+            vaccination.setVaccineId(request.vaccineId());
+        }
+        auditService.record("UPDATE", "VACCINATION", vaccination.getId(), vaccination.getVaccineName());
+        return toVaccination(vaccination);
+    }
+
+    @Transactional
+    public void deleteVaccination(Long id) {
+        accessGuard.requirePermission("MEDICAL_RECORD_WRITE");
+        Vaccination vaccination = vaccinationRepository.findByIdAndTenantId(id, accessGuard.requireStaffTenant())
+                .orElseThrow(() -> ApiException.notFound("Vacuna no encontrada"));
+        vaccination.softDelete();
+        auditService.record("DELETE", "VACCINATION", vaccination.getId(), vaccination.getVaccineName());
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     @Transactional(readOnly = true)

@@ -282,7 +282,10 @@ class _RegisterPetScreenState extends State<RegisterPetScreen> {
           TextField(controller: microchip, decoration: InputDecoration(labelText: i.t('microchip'))),
           if (error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(error!, style: const TextStyle(color: Colors.red))),
           const SizedBox(height: 20),
-          FilledButton(onPressed: loading || loadingBranches ? null : _submit, child: Text(loading || loadingBranches ? '…' : i.t('save'))),
+          FilledButton(
+            onPressed: loading || loadingBranches ? null : _submit,
+            child: ButtonLabel(label: i.t('save'), loading: loading || loadingBranches, color: Theme.of(context).colorScheme.onPrimary),
+          ),
         ],
       ),
     );

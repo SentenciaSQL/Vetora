@@ -423,6 +423,12 @@
     "male": "Male",
     "female": "Female",
     "unknown": "Unspecified",
+    "brand": "Brand",
+    "lot": "Lot",
+    "notes": "Notes",
+    "appliedAt": "Date given",
+    "nextDose": "Next dose",
+    "deleteVaccineConfirm": "Do you want to delete this vaccine?",
     "tabs": {
       "summary": "Summary",
       "timeline": "History",
@@ -632,6 +638,19 @@
     "VETERINARIAN": "Veterinarian",
     "RECEPTIONIST": "Receptionist",
     "PET_OWNER": "Pet Owner"
+  },
+  "statuses": {
+    "REQUESTED": "Requested",
+    "PENDING": "Pending",
+    "CONFIRMED": "Confirmed",
+    "ARRIVED": "Arrived",
+    "WAITING": "Waiting",
+    "IN_PROGRESS": "In progress",
+    "COMPLETED": "Completed",
+    "CANCELLED": "Cancelled",
+    "NO_SHOW": "No-show",
+    "ACTIVE": "Active",
+    "INACTIVE": "Inactive"
   },
   "specialties": {
     "GENERAL_MEDICINE": "General Medicine",
@@ -860,6 +879,7 @@
     "annual": "Annual",
     "portal": "Open customer portal",
     "cancel": "Cancel at period end",
+    "refundPolicy": "Refund policy",
     "cancelConfirm": "Cancel the subscription at the end of the billing period?",
     "cancelScheduled": "Cancellation will take effect at the end of the period",
     "cycle": "Cycle",
@@ -925,6 +945,202 @@
   "accountDeletion": {
     "privacy": "Privacy policy",
     "terms": "Terms and conditions",
+    "refundPolicy": "Refund policy",
+    "pricing": "Pricing",
     "contact": "Contact or support"
+  },
+  "public": {
+  "language": "Language",
+  "nav": {
+    "label": "Account",
+    "pricing": "Pricing",
+    "register": "Register",
+    "signIn": "Sign in"
+  },
+  "footer": {
+    "tagline": "Veterinary practice management made simple.",
+    "contact": "Contact",
+    "product": "Product",
+    "legal": "Legal",
+    "login": "Login",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "refund": "Refund Policy"
+  },
+  "cta": {
+    "start": "Get Started",
+    "pricing": "View Pricing"
+  },
+  "hero": {
+    "title": "Veterinary Practice Management, Simplified",
+    "body": "LunaVeta is a modern veterinary practice management platform designed to help clinics organize their daily operations, manage pets and owners, and keep medical information in one place."
+  },
+  "features": {
+    "title": "Everything your veterinary clinic needs",
+    "pets": {
+      "title": "Pet Management",
+      "body": "Manage pet profiles, medical information, vaccinations and history."
+    },
+    "owners": {
+      "title": "Owner Management",
+      "body": "Keep owner information organized and connected to their pets."
+    },
+    "appointments": {
+      "title": "Appointments",
+      "body": "Organize and manage your clinic's appointments."
+    },
+    "records": {
+      "title": "Medical Records",
+      "body": "Keep veterinary medical information organized and accessible."
+    },
+    "clinic": {
+      "title": "Clinic Management",
+      "body": "Manage your veterinary clinic and its day-to-day operations from one platform."
+    },
+    "access": {
+      "title": "Multi-user Access",
+      "body": "Allow your team to work together with role-based access."
+    }
+  },
+  "pricing": {
+    "title": "Simple, transparent pricing",
+    "subtitle": "Choose the plan that fits your clinic and manage your veterinary practice from anywhere.",
+    "perMonth": "/ month",
+    "usdMonthly": "USD · monthly subscription",
+    "popular": "Most popular",
+    "disclaimer": "Prices are in USD and are billed as monthly subscriptions. Annual prices, where shown, are also in USD and are available in the web app. Pet owners are clients of a clinic and do not buy these plans or use a staff account. Subscribing and changing a plan is done in the web app after you sign in. This page does not start a payment.",
+    "basic": {
+      "audience": "For clinics that need the essential management features.",
+      "note": "Or $190 per year in the web app. A 14-day trial is available on the first Basic monthly subscription.",
+      "f1": "Pet and owner management",
+      "f2": "Medical records",
+      "f3": "Vaccination records",
+      "f4": "Appointment management",
+      "f5": "1 branch, up to 2 veterinarians and 5 staff accounts",
+      "f6": "Reports",
+      "f7": "Messaging, up to 200 messages per month",
+      "f8": "1 GB of file storage",
+      "f9": "Web and mobile access"
+    },
+    "professional": {
+      "audience": "For clinics that need additional tools to manage their operations.",
+      "note": "Or $390 per year in the web app.",
+      "f1": "Everything in Basic",
+      "f2": "Up to 3 branches, 8 veterinarians and 20 staff accounts",
+      "f3": "Laboratory results",
+      "f4": "Messaging, up to 2,000 messages per month",
+      "f5": "10 GB of file storage",
+      "f6": "Web and mobile access"
+    },
+    "premium": {
+      "audience": "For clinics that need a more complete solution for their operation.",
+      "note": "Or $690 per year in the web app.",
+      "f1": "Everything in Professional",
+      "f2": "Up to 15 branches, 40 veterinarians and 100 staff accounts",
+      "f3": "Messaging, up to 20,000 messages per month",
+      "f4": "100 GB of file storage",
+      "f5": "Web and mobile access"
+    }
+  },
+  "about": {
+    "title": "Built for modern veterinary clinics",
+    "body": "LunaVeta brings the essential tools for managing a veterinary practice into one simple platform. From pet and owner management to medical records and appointments, LunaVeta helps veterinary teams keep their information organized and their daily workflow under control."
+  },
+  "closing": {
+    "title": "Ready to simplify your veterinary practice?",
+    "body": "Start managing your clinic with LunaVeta."
+  },
+  "faq": {
+    "title": "FAQ",
+    "what": {
+      "q": "What is LunaVeta?",
+      "a": "LunaVeta is software for veterinary clinics. Staff use it to keep pet records, schedule appointments, record vaccinations, and run the clinic. Pet owners can use the mobile app to follow their own pets."
+    },
+    "mobile": {
+      "q": "Can I use LunaVeta on mobile?",
+      "a": "Yes. There is a mobile app and a web app. Buying, changing, or canceling a subscription is available in the web app, not in the mobile app."
+    },
+    "pets": {
+      "q": "Can I manage multiple pets and owners?",
+      "a": "Yes. A clinic can register many pets and their owners. Pet owners do not count toward the staff account limit of the plan."
+    },
+    "languages": {
+      "q": "Is LunaVeta available in Spanish and English?",
+      "a": "Yes. The web app and the mobile app can be used in Spanish or English."
+    },
+    "billing": {
+      "q": "How does billing work?",
+      "a": "A clinic administrator creates an account and chooses a plan in the web app. Payments are processed by Paddle in USD. The usual cancellation takes effect at the end of the current billing period.",
+      "link": "Refund requests are described in the refund policy."
+    }
+  },
+  "meta": {
+    "homeTitle": "LunaVeta — Veterinary Practice Management, Simplified",
+    "homeDescription": "LunaVeta is a modern veterinary practice management platform designed to help clinics organize their daily operations, manage pets and owners, and keep medical information in one place.",
+    "pricingTitle": "Simple, transparent pricing — LunaVeta",
+    "pricingDescription": "Monthly LunaVeta plans for veterinary clinics, billed in USD."
+  },
+  "legal": {
+    "pendingTitle": "Details still to be completed",
+    "pendingName": "[TO COMPLETE: legal entity name]",
+    "pendingAddress": "[TO COMPLETE: physical address]",
+    "pendingNumber": "[TO COMPLETE: company or tax identification number]",
+    "pendingLaw": "[TO COMPLETE: jurisdiction and governing law]",
+    "deletionTitle": "Account deletion",
+    "deletionBody": "Users can request deletion of an account and the associated personal data. The steps are explained on the account deletion page.",
+    "deletionLink": "Delete account and data",
+    "contactTitle": "Contact",
+    "contactBody": "The support email for LunaVeta is:",
+    "updated": "Last updated: 29 September 2026.",
+    "terms": {
+      "title": "Terms of Service",
+      "description": "Terms of Service for LunaVeta, a veterinary practice management platform.",
+      "intro": "These terms describe how veterinary clinics use LunaVeta. Creating an account or using the service means the clinic accepts them.",
+      "serviceTitle": "The service",
+      "serviceBody": "LunaVeta is a veterinary practice management platform. It helps clinics organize daily operations, manage pets and owners, keep medical information, and manage appointments. Staff can use the web app and the mobile app.",
+      "audienceTitle": "Who it is for",
+      "audienceBody": "Subscriptions are for veterinary clinics. Pet owners are clients of a clinic. They do not buy these plans and do not use a staff account included in a plan.",
+      "accountsTitle": "Accounts",
+      "accountsBody": "The clinic is responsible for the staff accounts it creates and for the information it enters about the clinic, pets, owners, and medical care. Each plan sets how many branches, veterinarians, and staff accounts the clinic can use.",
+      "plansTitle": "Plans and payment",
+      "plansBody": "Current plans and monthly prices in USD are shown on the pricing page. Payments are processed by Paddle, which acts as the merchant of record.",
+      "plansBody2": "Buying, changing, or canceling a subscription is done in the web app after signing in. The mobile app cannot buy, change, or cancel plans.",
+      "cancelTitle": "Cancellation",
+      "cancelBody": "A clinic administrator can cancel from Billing in the web app. Cancellation normally takes effect at the end of the current billing period, and access continues until that date. Cancelling does not by itself refund the period already charged. Refunds are described in the refund policy.",
+      "useTitle": "Acceptable use",
+      "useBody": "The clinic will use LunaVeta for its veterinary practice. It will not try to access another clinic's information or use the service in a way that breaks the law that applies to that clinic."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "Privacy Policy for LunaVeta, a veterinary practice management platform.",
+      "intro": "This policy describes the information LunaVeta uses to provide veterinary practice management to clinics and their users.",
+      "infoTitle": "Information used to provide the service",
+      "infoBody": "LunaVeta uses account information such as name, email, credentials, and language preference; clinic information such as the clinic name, branches, services, business hours, and team; and the pet, owner, medical, vaccination, appointment, message, and file information that the clinic enters.",
+      "infoBody2": "LunaVeta does not store full payment card numbers. Subscription payments are processed by Paddle, the merchant of record.",
+      "useTitle": "Why it is used",
+      "useBody": "That information is used to provide the platform, sign users in, operate the clinic workspace, process subscriptions, deliver in-app notifications and messages about appointments and vaccinations, and protect the security of the service.",
+      "paymentsTitle": "Payments",
+      "paymentsBody": "Paddle processes subscription payments for veterinary clinics and acts as the merchant of record. Paddle's own terms and privacy policy apply to the payment information it handles.",
+      "retentionTitle": "Records that may be kept",
+      "retentionBody": "Some clinical, tax, security, and audit records may be kept for the period required by applicable legal obligations, or while they are needed to protect the integrity and security of the service. When possible, they are kept in anonymized form."
+    },
+    "refund": {
+      "title": "Refund Policy",
+      "description": "Refund Policy for LunaVeta subscriptions purchased by veterinary clinics.",
+      "intro": "This policy applies to LunaVeta subscriptions purchased by a veterinary clinic. Payments are processed by Paddle, the merchant of record. Pet owners do not pay a LunaVeta subscription.",
+      "cancelTitle": "Cancellation",
+      "cancelBody": "A clinic administrator can cancel from Billing in the web app. Cancellation normally takes effect at the end of the current billing period, and access continues until that date. Cancelling does not by itself refund the period already charged. The mobile app cannot buy, change, or cancel plans.",
+      "trialTitle": "Trial",
+      "trialBody": "If the plan includes a trial, there is no charge until the trial ends. Cancelling during the trial avoids the first charge.",
+      "changesTitle": "Plan changes",
+      "changesBody": "Before a plan change is confirmed, the app shows a preview of the adjustment. Paddle calculates any proration.",
+      "requestTitle": "How to request a refund",
+      "requestBody": "To request a refund, email supportlunaveta@gmail.com with the clinic name, the account email, the charge date, the invoice or transaction id if you have it, and the reason.",
+      "requestBody2": "Each request is reviewed. Examples include a duplicate charge, a billing error, or a charge after a cancellation that should not have occurred. An approved refund is returned by Paddle to the same payment method. The time it takes to appear depends on the card issuer.",
+      "requestBody3": "A voluntary cancellation at the end of the period does not automatically refund unused time.",
+      "rightsTitle": "Applicable rights",
+      "rightsBody": "This policy does not limit rights that applicable law does not allow to be waived."
+    }
   }
+}
 }

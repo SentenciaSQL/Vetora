@@ -79,8 +79,10 @@ import { ThemeSelectorComponent } from '../../shared/ui/theme-selector.component
               <a class="text-brand-700 hover:underline" href="https://andresfrias.dev" target="_blank" rel="noopener noreferrer">afriasdev</a>
             </p>
             <div class="flex flex-wrap gap-x-4 gap-y-2">
-              <a class="hover:underline" href="/privacidad">{{ 'accountDeletion.privacy' | translate }}</a>
-              <a class="hover:underline" href="/terminos">{{ 'accountDeletion.terms' | translate }}</a>
+              <a class="hover:underline" href="/privacy">{{ 'accountDeletion.privacy' | translate }}</a>
+              <a class="hover:underline" href="/terms">{{ 'accountDeletion.terms' | translate }}</a>
+              <a class="hover:underline" href="/refund-policy">{{ 'accountDeletion.refundPolicy' | translate }}</a>
+              <a class="hover:underline" href="/pricing">{{ 'accountDeletion.pricing' | translate }}</a>
               <a class="hover:underline" href="mailto:supportlunaveta@gmail.com">{{ 'accountDeletion.contact' | translate }}</a>
             </div>
           </footer>

@@ -78,58 +78,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     }
   }
 
-  String _slotLabel(dynamic value) {
-    final raw = '$value';
-    final time = raw.contains('T') ? raw.split('T').last : raw;
-    return time.length >= 5 ? time.substring(0, 5) : raw;
-  }
-
   Future<void> _reschedule(Map a) async {
-    final i = I18n.instance;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
-    );
-    if (picked == null || !mounted) return;
-    final day = '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
-    List slots = [];
     try {
-      slots = asList(await widget.auth.api.get('/appointments/availability', {
-        'veterinarianId': '${a['veterinarianId']}',
-        if (a['branchId'] != null) 'branchId': '${a['branchId']}',
-        if (a['serviceId'] != null) 'serviceId': '${a['serviceId']}',
-        'date': day,
-      }));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
-      return;
-    }
-    if (!mounted) return;
-    final slot = await showModalBottomSheet<Map>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          children: [
-            ListTile(title: Text(i.t('slot'))),
-            if (slots.isEmpty) ListTile(title: Text(i.t('empty'))),
-            for (final s in slots)
-              ListTile(title: Text(_slotLabel(s['startAt'])), onTap: () => Navigator.pop(ctx, s as Map)),
-          ],
-        ),
-      ),
-    );
-    if (slot == null) return;
-    try {
-      await widget.auth.api.put('/appointments/${a['id']}', {
-        'petId': a['petId'],
-        'veterinarianId': a['veterinarianId'],
-        'serviceId': a['serviceId'],
-        'branchId': a['branchId'],
-        'startAt': slot['startAt'],
-      });
-      await _load();
+      final updated = await rescheduleAppointment(context, widget.auth, a);
+      if (updated != null) await _load();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
     }
@@ -174,7 +126,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
-                      label: Text(status == null ? i.t('all') : i.t('status_$status')),
+                      label: Text(status == null ? i.t('all') : statusLabel(status)),
                       selected: statusFilter == status,
                       onSelected: (_) {
                         statusFilter = status;
@@ -204,12 +156,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                                   a['tenantName'] ?? a['owner'] ?? '',
                                   a['veterinarianName'] ?? a['veterinarian'] ?? '',
                                   specialtyLabel(a['veterinarianSpecialty'], other: a['veterinarianSpecialtyOther']),
-                                  a['status'] ?? '',
+                                  statusLabel(a['status']),
                                 ].where((part) => '$part'.trim().isNotEmpty).join(' · '),
                               ].join('\n')),
                               isThreeLine: true,
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AppointmentDetailScreen(auth: widget.auth, appointment: asMap(a)))).then((changed) {
-                                if (changed == true) _load();
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AppointmentDetailScreen(auth: widget.auth, appointment: asMap(a)))).then((_) {
+                                if (mounted) _load();
                               }),
                               trailing: _canManage(a['status'])
                                   ? PopupMenuButton<String>(
@@ -284,6 +236,51 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
 
   bool get canManage => ['REQUESTED', 'PENDING', 'CONFIRMED'].contains(item['status']);
 
+  Future<void> _editReason() async {
+    if (busy) return;
+    final i = I18n.instance;
+    final controller = TextEditingController(text: asString(item['reason']));
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(i.t('editReason')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 1,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(labelText: i.t('reason')),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(i.t('back'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(i.t('save'))),
+        ],
+      ),
+    );
+    final text = controller.text.trim();
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    if (saved != true || !mounted) return;
+    setState(() => busy = true);
+    try {
+      item = asMap(await widget.auth.api.put('/appointments/${item['id']}', appointmentUpdateBody(item, reason: text)));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _reschedule() async {
+    if (busy) return;
+    try {
+      final updated = await rescheduleAppointment(context, widget.auth, item);
+      if (updated != null && mounted) setState(() => item = updated);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+    }
+  }
+
   Future<void> _status(String status) async {
     if (busy) return;
     if (status == 'CANCELLED') {
@@ -332,20 +329,114 @@ class _AppointmentDetailScreenState extends State<AppointmentDetailScreen> {
                   ].where((line) => line.isNotEmpty).join('\n')),
                 ),
                 ListTile(title: Text(i.t('date')), subtitle: Text(formatDate(item['startAt']))),
-                ListTile(title: Text(i.t('subscriptionStatus')), subtitle: Text(i.t('status_${item['status']}') == 'status_${item['status']}' ? '${item['status']}' : i.t('status_${item['status']}'))),
-                if (asString(item['reason']).isNotEmpty) ListTile(title: Text(i.t('reason')), subtitle: Text('${item['reason']}')),
+                ListTile(title: Text(i.t('subscriptionStatus')), subtitle: Text(statusLabel(item['status']))),
+                if (canManage || asString(item['reason']).isNotEmpty)
+                  ListTile(
+                    title: Text(i.t('reason')),
+                    subtitle: Text(asString(item['reason']).isEmpty ? '—' : asString(item['reason'])),
+                    trailing: canManage
+                        ? IconButton(
+                            tooltip: i.t('editReason'),
+                            onPressed: busy ? null : _editReason,
+                            icon: const Icon(Icons.edit_outlined),
+                          )
+                        : null,
+                  ),
                 const SizedBox(height: 16),
-                if (canManage && !busy) ...[
+                if (canManage) ...[
+                  OutlinedButton(onPressed: busy ? null : _reschedule, child: Text(i.t('reschedule'))),
+                  const SizedBox(height: 8),
+                  OutlinedButton(onPressed: busy ? null : _editReason, child: Text(i.t('editReason'))),
+                  const SizedBox(height: 8),
                   if (widget.auth.isStaff)
-                    FilledButton(onPressed: () => _status('CONFIRMED'), child: Text(i.t('status_CONFIRMED'))),
+                    FilledButton(onPressed: busy ? null : () => _status('CONFIRMED'), child: Text(i.t('status_CONFIRMED'))),
                   if (widget.auth.isStaff) const SizedBox(height: 8),
                   if (widget.auth.isStaff)
-                    OutlinedButton(onPressed: () => _status('COMPLETED'), child: Text(i.t('status_COMPLETED'))),
+                    OutlinedButton(onPressed: busy ? null : () => _status('COMPLETED'), child: Text(i.t('status_COMPLETED'))),
                   if (widget.auth.isStaff) const SizedBox(height: 8),
-                  OutlinedButton(onPressed: () => _status('CANCELLED'), child: Text(i.t('cancel'))),
+                  OutlinedButton(onPressed: busy ? null : () => _status('CANCELLED'), child: Text(i.t('cancel'))),
+                  if (busy) ...[
+                    const SizedBox(height: 16),
+                    const AppLoadingIndicator(size: 24),
+                  ],
                 ],
               ],
             ),
     );
   }
+}
+
+Map<String, dynamic> appointmentUpdateBody(Map a, {dynamic startAt, String? reason}) {
+  final body = <String, dynamic>{
+    'ownerId': a['ownerId'],
+    'petId': a['petId'],
+    'veterinarianId': a['veterinarianId'],
+    'serviceId': a['serviceId'],
+    'branchId': a['branchId'],
+    'startAt': startAt ?? a['startAt'],
+    'reason': reason ?? a['reason'] ?? '',
+    'notes': a['notes'] ?? '',
+  };
+  final duration = a['durationMin'];
+  if (duration is num && duration > 0) {
+    body['durationMin'] = duration.toInt();
+  }
+  return body;
+}
+
+String _slotLabel(dynamic value) {
+  final raw = '$value';
+  final time = raw.contains('T') ? raw.split('T').last : raw;
+  return time.length >= 5 ? time.substring(0, 5) : raw;
+}
+
+Future<Map<String, dynamic>?> rescheduleAppointment(BuildContext context, AuthStore auth, Map a) async {
+  final i = I18n.instance;
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  var initial = today.add(const Duration(days: 1));
+  final current = DateTime.tryParse('${a['startAt']}')?.toLocal();
+  if (current != null) {
+    final day = DateTime(current.year, current.month, current.day);
+    final last = today.add(const Duration(days: 90));
+    if (!day.isBefore(today) && !day.isAfter(last)) initial = day;
+  }
+  final picked = await showDatePicker(
+    context: context,
+    initialDate: initial,
+    firstDate: today,
+    lastDate: today.add(const Duration(days: 90)),
+  );
+  if (picked == null || !context.mounted) return null;
+  final day = '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+  List slots = [];
+  try {
+    slots = asList(await auth.api.get('/appointments/availability', {
+      'veterinarianId': '${a['veterinarianId']}',
+      if (a['branchId'] != null) 'branchId': '${a['branchId']}',
+      if (a['serviceId'] != null) 'serviceId': '${a['serviceId']}',
+      'date': day,
+    }));
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(userMessage(e))));
+    }
+    return null;
+  }
+  if (!context.mounted) return null;
+  final slot = await showModalBottomSheet<Map>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: ListView(
+        children: [
+          ListTile(title: Text(i.t('slot'))),
+          if (slots.isEmpty) ListTile(title: Text(i.t('empty'))),
+          for (final s in slots)
+            ListTile(title: Text(_slotLabel(s['startAt'])), onTap: () => Navigator.pop(ctx, s as Map)),
+        ],
+      ),
+    ),
+  );
+  if (slot == null) return null;
+  return asMap(await auth.api.put('/appointments/${a['id']}', appointmentUpdateBody(a, startAt: slot['startAt'])));
 }

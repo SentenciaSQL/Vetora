@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'api.dart';
+import 'biometric.dart';
 import 'format.dart';
 import 'inbox.dart';
 import 'l10n.dart';
@@ -19,6 +20,14 @@ class AuthStore extends ChangeNotifier {
   bool warningOpen = false;
   String? logoutReason;
   bool refreshRejected = false;
+  bool biometricEnabled = false;
+  bool _refreshInvalid = false;
+  String? _sealedAccess;
+  String? _sealedRefresh;
+  String? _sealedUserRaw;
+
+  bool get biometricUnlockAvailable =>
+      biometricEnabled && _sealedRefresh != null && _sealedRefresh!.isNotEmpty && !isLoggedIn;
 
   Future<bool>? _refreshing;
   bool _closing = false;
@@ -94,14 +103,38 @@ class AuthStore extends ChangeNotifier {
     return user?['accessGranted'] == false;
   }
 
+  String _deviceLocale() {
+    final code = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    return code == 'en' ? 'en' : 'es';
+  }
+
+  String _normalizeLocale(String? code) => code?.toLowerCase() == 'en' ? 'en' : 'es';
+
   Future<void> restore() async {
-    await I18n.instance.load('es');
-    accessToken = await _storage.read(key: 'access');
-    refreshToken = await _storage.read(key: 'refresh');
+    final savedLocale = await _storage.read(key: 'locale');
+    await I18n.instance.load(savedLocale == null ? _deviceLocale() : _normalizeLocale(savedLocale));
+    biometricEnabled = await _storage.read(key: 'biometricEnabled') == '1';
+    final access = await _storage.read(key: 'access');
+    final refresh = await _storage.read(key: 'refresh');
     final raw = await _storage.read(key: 'user');
+    if (biometricEnabled && refresh != null && refresh.isNotEmpty) {
+      _sealedAccess = access;
+      _sealedRefresh = refresh;
+      _sealedUserRaw = raw;
+      if (raw != null) {
+        final sealed = jsonDecode(raw);
+        if (sealed is Map && sealed['locale'] is String) {
+          await I18n.instance.load(_normalizeLocale(sealed['locale'] as String));
+        }
+      }
+      notifyListeners();
+      return;
+    }
+    accessToken = access;
+    refreshToken = refresh;
     if (raw != null) {
       user = jsonDecode(raw) as Map<String, dynamic>;
-      await I18n.instance.load((user?['locale'] as String?) ?? 'es');
+      await I18n.instance.load(_normalizeLocale(user?['locale'] as String?));
     }
     final activity = await _storage.read(key: 'lastActivity');
     if (activity != null) {
@@ -111,6 +144,58 @@ class AuthStore extends ChangeNotifier {
     if (accessToken != null) {
       await _hydrate();
     }
+  }
+
+  Future<String?> enableBiometric() async {
+    final outcome = await BiometricAuth.authenticate();
+    final message = biometricMessageKey(outcome);
+    if (outcome != BiometricOutcome.success) return message;
+    await _storage.write(key: 'biometricEnabled', value: '1');
+    biometricEnabled = true;
+    notifyListeners();
+    return 'biometricEnabledDone';
+  }
+
+  Future<void> disableBiometric() async {
+    biometricEnabled = false;
+    await _storage.delete(key: 'biometricEnabled');
+    notifyListeners();
+  }
+
+  Future<String?> unlockWithBiometrics() async {
+    final outcome = await BiometricAuth.authenticate();
+    final message = biometricMessageKey(outcome);
+    if (outcome == BiometricOutcome.cancelled) return null;
+    if (outcome != BiometricOutcome.success) return message;
+    accessToken = _sealedAccess;
+    refreshToken = _sealedRefresh;
+    if (_sealedUserRaw != null) {
+      user = jsonDecode(_sealedUserRaw!) as Map<String, dynamic>;
+    }
+    final refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      if (_refreshInvalid) {
+        _clearSealedSession();
+        if (accessToken != null || refreshToken != null) {
+          await expire('UNAUTHORIZED');
+        }
+        return 'biometricSessionExpired';
+      }
+      accessToken = null;
+      refreshToken = null;
+      user = null;
+      notifyListeners();
+      return 'biometricLoginFailed';
+    }
+    _clearSealedSession();
+    await _hydrate();
+    return isLoggedIn ? null : 'biometricLoginFailed';
+  }
+
+  void _clearSealedSession() {
+    _sealedAccess = null;
+    _sealedRefresh = null;
+    _sealedUserRaw = null;
   }
 
   Future<void> login(String email, String password) async {
@@ -167,8 +252,10 @@ class AuthStore extends ChangeNotifier {
   }
 
   Future<bool> _doRefresh() async {
+    _refreshInvalid = false;
     if (refreshToken == null) {
       refreshRejected = true;
+      _refreshInvalid = true;
       return false;
     }
     try {
@@ -179,11 +266,14 @@ class AuthStore extends ChangeNotifier {
       );
       if (res.statusCode == 401 && parseApiCode(res.body) == 'SESSION_INACTIVE') {
         refreshRejected = true;
+        _refreshInvalid = true;
         await expire('INACTIVITY');
+        _refreshInvalid = true;
         return false;
       }
       if (res.statusCode == 401) {
         refreshRejected = true;
+        _refreshInvalid = true;
         return false;
       }
       if (res.statusCode >= 400) {
@@ -206,9 +296,11 @@ class AuthStore extends ChangeNotifier {
   }
 
   Future<void> setLocale(String locale) async {
-    await I18n.instance.load(locale);
+    final code = _normalizeLocale(locale);
+    await I18n.instance.load(code);
+    await _storage.write(key: 'locale', value: code);
     if (isLoggedIn) {
-      await updateProfile({'locale': locale});
+      await updateProfile({'locale': code});
     }
   }
 
@@ -226,6 +318,7 @@ class AuthStore extends ChangeNotifier {
     final keepDestination = reason == 'UNAUTHORIZED' || reason == 'INACTIVITY';
     final installationId = await _storage.read(key: 'installationId');
     final permissionAsked = await _storage.read(key: 'notificationsPermissionRequested');
+    final savedLocale = await _storage.read(key: 'locale');
     final pendingConversation = keepDestination ? await _storage.read(key: NotificationRouter.pendingConversationKey) : null;
     final pendingMessage = keepDestination ? await _storage.read(key: NotificationRouter.pendingMessageKey) : null;
     if (refresh != null && reason != 'REMOTE' && reason != 'ACCOUNT_DELETED') {
@@ -244,6 +337,8 @@ class AuthStore extends ChangeNotifier {
     accessToken = null;
     refreshToken = null;
     user = null;
+    biometricEnabled = false;
+    _clearSealedSession();
     subscription = null;
     warningOpen = false;
     refreshRejected = false;
@@ -254,6 +349,9 @@ class AuthStore extends ChangeNotifier {
     }
     if (permissionAsked != null && permissionAsked.isNotEmpty) {
       await _storage.write(key: 'notificationsPermissionRequested', value: permissionAsked);
+    }
+    if (savedLocale == 'es' || savedLocale == 'en') {
+      await _storage.write(key: 'locale', value: savedLocale!);
     }
     if (keepDestination && pendingConversation != null && pendingConversation.isNotEmpty) {
       await _storage.write(key: NotificationRouter.pendingConversationKey, value: pendingConversation);
@@ -331,7 +429,7 @@ class AuthStore extends ChangeNotifier {
       final me = await api.get('/auth/me');
       user = asMap(me);
       await _storage.write(key: 'user', value: jsonEncode(user));
-      await I18n.instance.load((user?['locale'] as String?) ?? 'es');
+      await I18n.instance.load(_normalizeLocale(user?['locale'] as String?));
       notifyListeners();
       await afterLogin();
       if (isIdleExpired) {
@@ -376,9 +474,12 @@ class AuthStore extends ChangeNotifier {
     if (refreshToken != null) await _storage.write(key: 'refresh', value: refreshToken);
     if (user != null) await _storage.write(key: 'user', value: jsonEncode(user));
     if (user?['locale'] is String) {
-      await I18n.instance.load(user!['locale'] as String);
+      final code = _normalizeLocale(user!['locale'] as String);
+      await I18n.instance.load(code);
+      await _storage.write(key: 'locale', value: code);
     }
     if (resetActivity) {
+      _clearSealedSession();
       _lastActivity = DateTime.now();
       await _storage.write(key: 'lastActivity', value: '${_lastActivity.millisecondsSinceEpoch}');
     }

@@ -8,6 +8,8 @@ import { ApiService } from '../../core/services/api.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { StatCardComponent } from '../../shared/ui/stat-card.component';
 import { StatusBadgePipe } from '../../shared/ui/status-badge.pipe';
+import { StatusLabelPipe } from '../../shared/ui/status-label.pipe';
+import { statusLabel } from '../../core/team-labels';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 
 type RangeKey = 'TODAY' | 'LAST_7' | 'LAST_30' | 'LAST_90' | 'THIS_YEAR' | 'CUSTOM';
@@ -15,7 +17,7 @@ type RangeKey = 'TODAY' | 'LAST_7' | 'LAST_30' | 'LAST_90' | 'THIS_YEAR' | 'CUST
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, TranslatePipe, StatCardComponent, StatusBadgePipe, EmptyStateComponent],
+  imports: [CommonModule, FormsModule, RouterLink, TranslatePipe, StatCardComponent, StatusBadgePipe, StatusLabelPipe, EmptyStateComponent],
   template: `
     <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
       <div>
@@ -138,8 +140,8 @@ type RangeKey = 'TODAY' | 'LAST_7' | 'LAST_30' | 'LAST_90' | 'THIS_YEAR' | 'CUST
                 @for (row of data().subscriptionsByPlan || []; track row.planCode + row.billingCycle + row.statusGroup) {
                   <tr class="border-t border-slate-100 dark:border-white/10">
                     <td class="py-2">{{ row.planName }} {{ row.billingCycle === 'ANNUAL' ? ('admin.annual' | translate) : ('admin.monthly' | translate) }}</td>
-                    <td>{{ row.billingCycle }}</td>
-                    <td><span [class]="row.statusGroup | statusBadge">{{ row.statusGroup }}</span></td>
+                    <td>{{ row.billingCycle === 'ANNUAL' ? ('billing.annual' | translate) : ('billing.monthly' | translate) }}</td>
+                    <td><span [class]="row.statusGroup | statusBadge">{{ row.statusGroup | statusLabel }}</span></td>
                     <td>{{ row.count }}</td>
                     <td>{{ row.percent }}%</td>
                     <td>
@@ -289,7 +291,7 @@ type RangeKey = 'TODAY' | 'LAST_7' | 'LAST_30' | 'LAST_90' | 'THIS_YEAR' | 'CUST
                 <td class="px-4 py-3">{{ item.type }}</td>
                 <td class="px-4 py-3">{{ item.tenantName || '—' }}</td>
                 <td class="px-4 py-3">{{ item.description }}</td>
-                <td class="px-4 py-3"><span [class]="item.status | statusBadge">{{ item.status }}</span></td>
+                <td class="px-4 py-3"><span [class]="item.status | statusBadge">{{ item.status | statusLabel }}</span></td>
                 <td class="px-4 py-3 text-right">
                   <a [routerLink]="item.href || '/admin/audit'" class="text-brand-700">{{ 'common.view' | translate }}</a>
                 </td>
@@ -462,7 +464,7 @@ export class AdminDashboardPage implements AfterViewInit, OnDestroy {
       this.charts.push(new Chart(planEl, {
         type: 'bar',
         data: {
-          labels: plans.map((p: any) => `${p.planName} ${p.billingCycle === 'ANNUAL' ? 'A' : 'M'} · ${p.statusGroup}`),
+          labels: plans.map((p: any) => `${p.planName} ${p.billingCycle === 'ANNUAL' ? this.i18n.instant('billing.annual') : this.i18n.instant('billing.monthly')} · ${statusLabel(this.i18n, p.statusGroup)}`),
           datasets: [{
             label: this.i18n.instant('admin.count'),
             data: plans.map((p: any) => p.count),
@@ -482,7 +484,7 @@ export class AdminDashboardPage implements AfterViewInit, OnDestroy {
       this.charts.push(new Chart(statusEl, {
         type: 'doughnut',
         data: {
-          labels: statuses.map((s: any) => s.status),
+          labels: statuses.map((s: any) => statusLabel(this.i18n, s.status)),
           datasets: [{ data: statuses.map((s: any) => s.count), backgroundColor: ['#0f766e', '#5eead4', '#f59e0b', '#e11d48', '#115e59', '#94a3b8'] }]
         },
         options: {

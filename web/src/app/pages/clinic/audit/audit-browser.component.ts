@@ -6,6 +6,7 @@ import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ApiService } from '../../../core/services/api.service';
 import { PageResponse } from '../../../core/models';
+import { roleLabel, statusLabel } from '../../../core/team-labels';
 
 interface AuditRow {
   id: number;
@@ -106,7 +107,7 @@ interface AuditFilters {
                 </td>
                 <td class="px-4 py-3">{{ actionLabel(row.action) }}</td>
                 <td class="px-4 py-3">{{ entityLabel(row.entityType) }}</td>
-                <td class="px-4 py-3 max-w-xs truncate">{{ row.details || '—' }}</td>
+                <td class="px-4 py-3 max-w-xs truncate">{{ readable(row.details) }}</td>
                 <td class="px-4 py-3 text-slate-500">{{ row.ipAddress || '—' }}</td>
                 <td class="px-4 py-3 text-right">
                   <button type="button" class="btn-secondary text-xs" (click)="detail.set(row)">{{ 'audit.view' | translate }}</button>
@@ -151,13 +152,13 @@ interface AuditFilters {
             <div><dt class="text-slate-500">{{ 'audit.email' | translate }}</dt><dd>{{ detail()!.username || '—' }}</dd></div>
             <div><dt class="text-slate-500">{{ 'audit.action' | translate }}</dt><dd>{{ actionLabel(detail()!.action) }}</dd></div>
             <div><dt class="text-slate-500">{{ 'audit.entity' | translate }}</dt><dd>{{ entityLabel(detail()!.entityType) }}</dd></div>
-            <div><dt class="text-slate-500">{{ 'audit.record' | translate }}</dt><dd>{{ detail()!.details || '—' }} @if (detail()!.entityId) { #{{ detail()!.entityId }} }</dd></div>
+            <div><dt class="text-slate-500">{{ 'audit.record' | translate }}</dt><dd>{{ readable(detail()!.details) }} @if (detail()!.entityId) { #{{ detail()!.entityId }} }</dd></div>
             <div><dt class="text-slate-500">{{ 'audit.ip' | translate }}</dt><dd>{{ detail()!.ipAddress || '—' }}</dd></div>
           </dl>
           @if (detail()!.oldValue || detail()!.newValue) {
             <div class="rounded-xl bg-slate-50 p-3 text-sm dark:bg-white/5">
               <p class="font-medium">{{ 'audit.changes' | translate }}</p>
-              <p class="mt-1 text-slate-600 dark:text-slate-300">{{ detail()!.oldValue || '—' }} → {{ detail()!.newValue || '—' }}</p>
+              <p class="mt-1 text-slate-600 dark:text-slate-300">{{ readable(detail()!.oldValue) }} → {{ readable(detail()!.newValue) }}</p>
             </div>
           }
           <div class="flex justify-end">
@@ -285,6 +286,20 @@ export class AuditBrowserComponent implements OnInit, OnDestroy {
 
   actionLabel(code?: string): string {
     return this.coded('audit.actions', code);
+  }
+
+  readable(value?: string | null): string {
+    if (!value) {
+      return '—';
+    }
+    return value.replace(/\b[A-Z][A-Z0-9_]{2,}\b/g, code => {
+      const role = roleLabel(this.i18n, code);
+      if (role !== code) {
+        return role;
+      }
+      const status = statusLabel(this.i18n, code);
+      return status && status !== code ? status : code;
+    });
   }
 
   entityLabel(code?: string): string {

@@ -193,7 +193,7 @@ class _BookScreenState extends State<BookScreen> {
                 ListTile(title: Text(_serviceName(s as Map)), subtitle: Text('${s['durationMin'] ?? ''} min'), onTap: () { service = s; setState(() => step = 3); }),
             ])),
             if (step == 3) Expanded(child: loadingVets
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: AppLoadingIndicator(size: 36))
                 : ListView(children: [
               Text(i.t('vet'), style: Theme.of(context).textTheme.titleMedium),
               if (vets.isEmpty)
@@ -255,7 +255,10 @@ class _BookScreenState extends State<BookScreen> {
               ListTile(title: Text('${slot?['startAt']}'), subtitle: Text(reason.text)),
               if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
               const SizedBox(height: 16),
-              FilledButton(onPressed: loading ? null : submit, child: Text(i.t('confirm'))),
+              FilledButton(
+                onPressed: loading ? null : submit,
+                child: ButtonLabel(label: i.t('confirm'), loading: loading, color: Theme.of(context).colorScheme.onPrimary),
+              ),
             ])),
           ],
         ),

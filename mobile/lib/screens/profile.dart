@@ -32,6 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _messagePreview = true;
   bool _messageSound = true;
   bool _savingPrefs = false;
+  bool _biometricBusy = false;
 
   @override
   void initState() {
@@ -194,6 +195,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _toast(String? key) {
+    if (!mounted || key == null || key.isEmpty) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(I18n.instance.t(key))));
+  }
+
+  Future<void> _enableBiometric() async {
+    setState(() => _biometricBusy = true);
+    final key = await widget.auth.enableBiometric();
+    if (!mounted) return;
+    setState(() => _biometricBusy = false);
+    _toast(key);
+  }
+
+  Future<void> _disableBiometric() async {
+    setState(() => _biometricBusy = true);
+    await widget.auth.disableBiometric();
+    if (!mounted) return;
+    setState(() => _biometricBusy = false);
+    _toast('biometricDisabledDone');
+  }
+
   Future<void> _deleteAccount() async {
     final i = I18n.instance;
     final password = TextEditingController();
@@ -273,7 +295,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          ListTile(title: Text(asString(auth.user?['fullName'])), subtitle: Text('${auth.user?['email'] ?? ''}\n${auth.user?['role'] ?? auth.roles.join(', ')}'), isThreeLine: true),
+          ListTile(
+            title: Text(asString(auth.user?['fullName'])),
+            subtitle: Text('${auth.user?['email'] ?? ''}\n${rolesLabel(auth.roles)}'),
+            isThreeLine: true,
+          ),
           ListTile(
             title: Text(i.t('notifications')),
             trailing: CountOrChevron(count: auth.inbox.unreadNotifications),
@@ -318,14 +344,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           TextField(controller: phone, decoration: InputDecoration(labelText: i.t('phone'))),
           const SizedBox(height: 8),
-          FilledButton(onPressed: saving ? null : _saveProfile, child: Text(i.t('save'))),
+          FilledButton(
+            onPressed: saving ? null : _saveProfile,
+            child: ButtonLabel(label: i.t('save'), loading: saving, color: Theme.of(context).colorScheme.onPrimary),
+          ),
           const Divider(),
           Text(i.t('changePassword'), style: Theme.of(context).textTheme.titleMedium),
           TextField(controller: currentPassword, obscureText: true, decoration: InputDecoration(labelText: i.t('currentPassword'))),
           const SizedBox(height: 8),
           TextField(controller: newPassword, obscureText: true, decoration: InputDecoration(labelText: i.t('newPassword'))),
           const SizedBox(height: 8),
-          OutlinedButton(onPressed: saving ? null : _savePassword, child: Text(i.t('changePassword'))),
+          OutlinedButton(
+            onPressed: saving ? null : _savePassword,
+            child: ButtonLabel(label: i.t('changePassword'), loading: saving, color: Theme.of(context).colorScheme.primary),
+          ),
+          const Divider(),
+          Text(i.t('security'), style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(i.t('biometricTitle'), style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(i.t('biometricHelp'), style: Theme.of(context).textTheme.bodySmall),
+          if (auth.biometricEnabled) ...[
+            const SizedBox(height: 8),
+            Text(i.t('biometricOn')),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _biometricBusy ? null : _disableBiometric,
+              child: ButtonLabel(label: i.t('biometricDisable'), loading: _biometricBusy, color: Theme.of(context).colorScheme.primary),
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: _biometricBusy ? null : _enableBiometric,
+              child: ButtonLabel(label: i.t('biometricEnable'), loading: _biometricBusy, color: Theme.of(context).colorScheme.onPrimary),
+            ),
+          ],
           const Divider(),
           ListTile(
             title: Text(i.t('language')),

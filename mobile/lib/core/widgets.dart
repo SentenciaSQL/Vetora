@@ -15,7 +15,7 @@ class StatusView extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget content;
     if (loading) {
-      content = const Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator());
+      content = const Padding(padding: EdgeInsets.all(32), child: AppLoadingIndicator(size: 36));
     } else if (error != null && error!.isNotEmpty) {
       content = Padding(
         padding: const EdgeInsets.all(24),
@@ -36,11 +36,58 @@ class StatusView extends StatelessWidget {
       content = child ?? const SizedBox.shrink();
     }
     return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.hasBoundedHeight && constraints.maxHeight.isFinite) {
-        return Center(child: SingleChildScrollView(child: content));
+      final bounded = constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+      if (!bounded) {
+        return content;
       }
-      return content;
+      if (loading) {
+        return Center(child: content);
+      }
+      return Center(child: SingleChildScrollView(child: content));
     });
+  }
+}
+
+class AppLoadingIndicator extends StatelessWidget {
+  const AppLoadingIndicator({super.key, this.size = 24, this.strokeWidth = 2.5, this.color});
+
+  final double size;
+  final double strokeWidth;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    // A list or button passes a tight width equal to the screen. A plain
+    // SizedBox cannot shrink below that minimum, so the indicator becomes a
+    // full-width oval. Align loosens those constraints and keeps a square.
+    return Align(
+      alignment: Alignment.center,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: SizedBox.square(
+        dimension: size,
+        child: CircularProgressIndicator(strokeWidth: strokeWidth, color: color),
+      ),
+    );
+  }
+}
+
+class ButtonLabel extends StatelessWidget {
+  const ButtonLabel({super.key, required this.label, this.loading = false, this.color});
+
+  final String label;
+  final bool loading;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Opacity(opacity: loading ? 0 : 1, child: Text(label)),
+        if (loading) AppLoadingIndicator(size: 20, strokeWidth: 2.2, color: color),
+      ],
+    );
   }
 }
 
